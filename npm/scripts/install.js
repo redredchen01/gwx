@@ -7,7 +7,7 @@ const path = require("path");
 const https = require("https");
 const os = require("os");
 
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 const REPO = "redredchen01/gwx";
 const BIN_DIR = path.join(__dirname, "..", "bin");
 

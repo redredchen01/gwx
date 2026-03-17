@@ -7,14 +7,16 @@ import (
 
 // SheetsCmd groups Sheets operations.
 type SheetsCmd struct {
-	Read   SheetsReadCmd   `cmd:"" help:"Read a range from a spreadsheet"`
-	Info   SheetsInfoCmd   `cmd:"" help:"Get spreadsheet metadata and sheet tabs"`
-	Search SheetsSearchCmd `cmd:"" help:"Search for text in a spreadsheet"`
-	Filter SheetsFilterCmd `cmd:"" help:"Filter rows by column value"`
-	Append SheetsAppendCmd `cmd:"" help:"Append rows to a spreadsheet"`
-	Update SheetsUpdateCmd `cmd:"" help:"Update cells in a spreadsheet"`
-	Clear  SheetsClearCmd  `cmd:"" help:"Clear a range"`
-	Create SheetsCreateCmd `cmd:"" help:"Create a new spreadsheet"`
+	Read        SheetsReadCmd        `cmd:"" help:"Read a range from a spreadsheet"`
+	Info        SheetsInfoCmd        `cmd:"" help:"Get spreadsheet metadata and sheet tabs"`
+	Describe    SheetsDescribeCmd    `cmd:"" help:"Analyze column structure and fill rules"`
+	Search      SheetsSearchCmd      `cmd:"" help:"Search for text in a spreadsheet"`
+	Filter      SheetsFilterCmd      `cmd:"" help:"Filter rows by column value"`
+	Append      SheetsAppendCmd      `cmd:"" help:"Append rows to a spreadsheet"`
+	SmartAppend SheetsSmartAppendCmd `cmd:"smart-append" help:"Validate + append with structure awareness"`
+	Update      SheetsUpdateCmd      `cmd:"" help:"Update cells in a spreadsheet"`
+	Clear       SheetsClearCmd       `cmd:"" help:"Clear a range"`
+	Create      SheetsCreateCmd      `cmd:"" help:"Create a new spreadsheet"`
 }
 
 // SheetsReadCmd reads a range.
@@ -266,6 +268,115 @@ func (c *SheetsClearCmd) Run(rctx *RunContext) error {
 	rctx.Printer.Success(map[string]interface{}{
 		"cleared": true,
 		"range":   c.Range,
+	})
+	return nil
+}
+
+// SheetsDescribeCmd analyzes column structure and fill rules.
+type SheetsDescribeCmd struct {
+	SpreadsheetID string `arg:"" help:"Spreadsheet ID"`
+	Range         string `help:"Sheet range (auto-detects first sheet if empty)" short:"r"`
+	Samples       int    `help:"Number of data rows to analyze" default:"20" short:"n"`
+}
+
+func (c *SheetsDescribeCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "sheets.describe"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+
+	sheetsSvc := api.NewSheetsService(rctx.APIClient)
+	schema, err := sheetsSvc.DescribeSheet(rctx.Context, c.SpreadsheetID, c.Range, c.Samples)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(schema)
+	return nil
+}
+
+// SheetsSmartAppendCmd validates data against schema then appends.
+type SheetsSmartAppendCmd struct {
+	SpreadsheetID string `arg:"" help:"Spreadsheet ID"`
+	Range         string `arg:"" help:"Range to append to (e.g. Sheet1!A:F)"`
+	Values        string `help:"JSON array of rows" required:"" short:"v"`
+}
+
+func (c *SheetsSmartAppendCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "sheets.smart-append"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+
+	values, err := api.ParseValuesJSON(c.Values)
+	if err != nil {
+		return rctx.Printer.ErrExit(exitcode.InvalidInput, err.Error())
+	}
+
+	sheetsSvc := api.NewSheetsService(rctx.APIClient)
+
+	// Step 1: Describe the sheet to get schema
+	schema, err := sheetsSvc.DescribeSheet(rctx.Context, c.SpreadsheetID, c.Range, 20)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	// Step 2: Validate each row
+	var allIssues []map[string]interface{}
+	allValid := true
+	for i, row := range values {
+		vr := api.ValidateRow(schema, row)
+		if !vr.Valid {
+			allValid = false
+			for _, issue := range vr.Issues {
+				allIssues = append(allIssues, map[string]interface{}{
+					"row":     i,
+					"column":  issue.Column,
+					"value":   issue.Value,
+					"message": issue.Message,
+				})
+			}
+		}
+	}
+
+	if !allValid {
+		rctx.Printer.Success(map[string]interface{}{
+			"valid":      false,
+			"issues":     allIssues,
+			"schema":     schema,
+			"action":     "none",
+			"suggestion": "Fix the issues above and retry, or use 'sheets append' to skip validation.",
+		})
+		return nil
+	}
+
+	// Step 3: Dry-run shows what would be written
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{
+			"valid":      true,
+			"dry_run":    "sheets.smart-append",
+			"rows":       len(values),
+			"values":     values,
+			"schema":     schema,
+		})
+		return nil
+	}
+
+	// Step 4: Append
+	result, err := sheetsSvc.AppendValues(rctx.Context, c.SpreadsheetID, c.Range, values)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(map[string]interface{}{
+		"valid":    true,
+		"appended": true,
+		"result":   result,
+		"rows":     len(values),
 	})
 	return nil
 }

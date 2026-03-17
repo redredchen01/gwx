@@ -158,6 +158,58 @@ func (h *GWXHandler) ListTools() []Tool {
 				Required: []string{"spreadsheet_id", "range", "values"},
 			},
 		},
+		{
+			Name:        "sheets_describe",
+			Description: "Analyze a spreadsheet's column structure: header names, data types (enum/text/url/number), required vs optional, sample values. Use this BEFORE writing data to understand what each column expects.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"spreadsheet_id": {Type: "string", Description: "Spreadsheet ID"},
+					"range":          {Type: "string", Description: "Sheet range (auto-detects first sheet if empty)"},
+				},
+				Required: []string{"spreadsheet_id"},
+			},
+		},
+		{
+			Name:        "sheets_smart_append",
+			Description: "Validate data against sheet structure then append. First analyzes columns (types, required fields, enum values), validates proposed rows, then writes. Returns validation errors if data doesn't match structure.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"spreadsheet_id": {Type: "string", Description: "Spreadsheet ID"},
+					"range":          {Type: "string", Description: "Range to append to (e.g. Sheet1!A:F)"},
+					"values":         {Type: "string", Description: "JSON array of rows"},
+				},
+				Required: []string{"spreadsheet_id", "range", "values"},
+			},
+		},
+		{
+			Name:        "sheets_search",
+			Description: "Search for text across all cells in a spreadsheet range. Returns matching rows with row/column indices.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"spreadsheet_id": {Type: "string", Description: "Spreadsheet ID"},
+					"query":          {Type: "string", Description: "Text to search for"},
+					"range":          {Type: "string", Description: "Range to search (auto-detects if empty)"},
+				},
+				Required: []string{"spreadsheet_id", "query"},
+			},
+		},
+		{
+			Name:        "sheets_filter",
+			Description: "Filter rows where a specific column matches a value (like SQL WHERE). Returns header + matching rows.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"spreadsheet_id": {Type: "string", Description: "Spreadsheet ID"},
+					"range":          {Type: "string", Description: "Range (e.g. Sheet1!A:F)"},
+					"column":         {Type: "integer", Description: "Column index (0-based)"},
+					"value":          {Type: "string", Description: "Value to match"},
+				},
+				Required: []string{"spreadsheet_id", "range", "column", "value"},
+			},
+		},
 		// Tasks
 		{
 			Name:        "tasks_list",
@@ -275,6 +327,14 @@ func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolRe
 		return h.sheetsRead(ctx, args)
 	case "sheets_append":
 		return h.sheetsAppend(ctx, args)
+	case "sheets_describe":
+		return h.sheetsDescribe(ctx, args)
+	case "sheets_smart_append":
+		return h.sheetsSmartAppend(ctx, args)
+	case "sheets_search":
+		return h.sheetsSearch(ctx, args)
+	case "sheets_filter":
+		return h.sheetsFilter(ctx, args)
 	case "tasks_list":
 		return h.tasksList(ctx, args)
 	case "tasks_create":
@@ -417,6 +477,69 @@ func (h *GWXHandler) sheetsAppend(ctx context.Context, args map[string]interface
 		return nil, err
 	}
 	return jsonResult(map[string]interface{}{"appended": true, "result": result})
+}
+
+func (h *GWXHandler) sheetsDescribe(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	svc := api.NewSheetsService(h.client)
+	schema, err := svc.DescribeSheet(ctx, strArg(args, "spreadsheet_id"), strArg(args, "range"), 20)
+	if err != nil {
+		return nil, err
+	}
+	return jsonResult(schema)
+}
+
+func (h *GWXHandler) sheetsSmartAppend(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	svc := api.NewSheetsService(h.client)
+	values, err := api.ParseValuesJSON(strArg(args, "values"))
+	if err != nil {
+		return nil, err
+	}
+
+	schema, err := svc.DescribeSheet(ctx, strArg(args, "spreadsheet_id"), strArg(args, "range"), 20)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate
+	allValid := true
+	var issues []map[string]interface{}
+	for i, row := range values {
+		vr := api.ValidateRow(schema, row)
+		if !vr.Valid {
+			allValid = false
+			for _, issue := range vr.Issues {
+				issues = append(issues, map[string]interface{}{"row": i, "column": issue.Column, "message": issue.Message})
+			}
+		}
+	}
+
+	if !allValid {
+		return jsonResult(map[string]interface{}{"valid": false, "issues": issues, "schema": schema})
+	}
+
+	result, err := svc.AppendValues(ctx, strArg(args, "spreadsheet_id"), strArg(args, "range"), values)
+	if err != nil {
+		return nil, err
+	}
+	return jsonResult(map[string]interface{}{"valid": true, "appended": true, "result": result})
+}
+
+func (h *GWXHandler) sheetsSearch(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	svc := api.NewSheetsService(h.client)
+	result, err := svc.SearchValues(ctx, strArg(args, "spreadsheet_id"), strArg(args, "range"), strArg(args, "query"))
+	if err != nil {
+		return nil, err
+	}
+	return jsonResult(result)
+}
+
+func (h *GWXHandler) sheetsFilter(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	svc := api.NewSheetsService(h.client)
+	result, err := svc.FilterRows(ctx, strArg(args, "spreadsheet_id"), strArg(args, "range"), intArg(args, "column", 0), strArg(args, "value"))
+	if err != nil {
+		return nil, err
+	}
+	return jsonResult(result)
 }
 
 func (h *GWXHandler) tasksList(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
