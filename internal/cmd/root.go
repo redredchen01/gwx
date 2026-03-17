@@ -28,7 +28,8 @@ type CLI struct {
 	Send   GmailSendCmd    `cmd:"" help:"Send an email (shortcut for gmail send)" hidden:""`
 	Ls     DriveListCmd    `cmd:"" help:"List Drive files (shortcut for drive list)" hidden:""`
 	Search GmailSearchCmd  `cmd:"" help:"Search Gmail (shortcut for gmail search)" hidden:""`
-	Find   UnifiedSearchCmd `cmd:"" help:"Search across Gmail + Drive + Contacts"`
+	Find    UnifiedSearchCmd `cmd:"" help:"Search across Gmail + Drive + Contacts"`
+	Context ContextCmd       `cmd:"" help:"Gather all context for a topic across services"`
 
 	// Service commands
 	Auth     AuthCmd     `cmd:"" help:"Authentication management"`

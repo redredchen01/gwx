@@ -151,12 +151,30 @@ func (ss *SheetsService) CreateSpreadsheet(ctx context.Context, title string) (*
 }
 
 // ParseValuesJSON parses a JSON string into [][]interface{} for Sheets API.
+// Automatically sanitizes formula injection (values starting with =, +, -, @).
 func ParseValuesJSON(raw string) ([][]interface{}, error) {
 	var values [][]interface{}
 	if err := json.Unmarshal([]byte(raw), &values); err != nil {
 		return nil, fmt.Errorf("parse values JSON: %w (expected [[\"a\",1],[\"b\",2]])", err)
 	}
-	return values, nil
+	return SanitizeValues(values), nil
+}
+
+// SanitizeValues escapes potential formula injection in cell values.
+// Prefixes strings starting with =, +, -, @ with a single quote to prevent
+// them from being interpreted as formulas by Google Sheets.
+func SanitizeValues(values [][]interface{}) [][]interface{} {
+	for i, row := range values {
+		for j, cell := range row {
+			if s, ok := cell.(string); ok && len(s) > 0 {
+				switch s[0] {
+				case '=', '+', '-', '@':
+					values[i][j] = "'" + s
+				}
+			}
+		}
+	}
+	return values
 }
 
 // SheetAppendResult holds append results.

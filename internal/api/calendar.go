@@ -95,6 +95,54 @@ func (cs *CalendarService) Agenda(ctx context.Context, days int) ([]EventSummary
 	return cs.ListEvents(ctx, "primary", start, end, 50)
 }
 
+// ConflictInfo describes a scheduling conflict.
+type ConflictInfo struct {
+	EventID string `json:"event_id"`
+	Title   string `json:"title"`
+	Start   string `json:"start"`
+	End     string `json:"end"`
+}
+
+// CheckConflicts checks if a proposed time range conflicts with existing events.
+func (cs *CalendarService) CheckConflicts(ctx context.Context, calendarID, startStr, endStr string) ([]ConflictInfo, error) {
+	startTime, err := time.Parse(time.RFC3339, startStr)
+	if err != nil {
+		// Try date-only (all-day event)
+		if _, err2 := time.Parse("2006-01-02", startStr); err2 == nil {
+			return nil, nil // Skip conflict check for all-day events
+		}
+		return nil, fmt.Errorf("parse start time: %w", err)
+	}
+	endTime, err := time.Parse(time.RFC3339, endStr)
+	if err != nil {
+		return nil, fmt.Errorf("parse end time: %w", err)
+	}
+
+	events, err := cs.ListEvents(ctx, calendarID, startTime.Add(-1*time.Hour), endTime.Add(1*time.Hour), 20)
+	if err != nil {
+		return nil, err
+	}
+
+	var conflicts []ConflictInfo
+	for _, e := range events {
+		eStart, err1 := time.Parse(time.RFC3339, e.Start)
+		eEnd, err2 := time.Parse(time.RFC3339, e.End)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+		// Overlap: event starts before proposed ends AND event ends after proposed starts
+		if eStart.Before(endTime) && eEnd.After(startTime) {
+			conflicts = append(conflicts, ConflictInfo{
+				EventID: e.ID,
+				Title:   e.Title,
+				Start:   e.Start,
+				End:     e.End,
+			})
+		}
+	}
+	return conflicts, nil
+}
+
 // CreateEvent creates a new calendar event.
 func (cs *CalendarService) CreateEvent(ctx context.Context, calendarID string, input *EventInput) (*EventSummary, error) {
 	if err := cs.client.WaitRate(ctx, "calendar"); err != nil {

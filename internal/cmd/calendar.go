@@ -134,15 +134,25 @@ func (c *CalendarCreateCmd) Run(rctx *RunContext) error {
 	}
 
 	calSvc := api.NewCalendarService(rctx.APIClient)
+
+	// Check for conflicts before creating
+	conflicts, _ := calSvc.CheckConflicts(rctx.Context, "primary", input.Start, input.End)
+
 	event, err := calSvc.CreateEvent(rctx.Context, "primary", input)
 	if err != nil {
 		return handleAPIError(rctx, err)
 	}
 
-	rctx.Printer.Success(map[string]interface{}{
+	result := map[string]interface{}{
 		"created": true,
 		"event":   event,
-	})
+	}
+	if len(conflicts) > 0 {
+		result["conflicts"] = conflicts
+		result["conflict_warning"] = fmt.Sprintf("%d conflicting event(s) in this time range", len(conflicts))
+	}
+
+	rctx.Printer.Success(result)
 	return nil
 }
 

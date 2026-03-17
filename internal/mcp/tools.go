@@ -196,6 +196,56 @@ func (h *GWXHandler) ListTools() []Tool {
 				Required: []string{"query"},
 			},
 		},
+		// Digest & Context
+		{
+			Name:        "gmail_digest",
+			Description: "Smart digest of recent emails — groups by sender, categorizes CI/transactional/personal, generates summary.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"limit":  {Type: "integer", Description: "Max messages to analyze (default 30)"},
+					"unread": {Type: "boolean", Description: "Only unread messages"},
+				},
+			},
+		},
+		{
+			Name:        "gmail_archive",
+			Description: "Batch archive messages matching a query. CAUTION: Modifies mailbox.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"query":     {Type: "string", Description: "Gmail search query for messages to archive"},
+					"limit":     {Type: "integer", Description: "Max messages to archive (default 50)"},
+					"read_only": {Type: "boolean", Description: "Only mark as read without archiving"},
+				},
+				Required: []string{"query"},
+			},
+		},
+		{
+			Name:        "context_gather",
+			Description: "Gather all context for a topic — searches Gmail, Drive, and Calendar in parallel and returns unified results.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"topic": {Type: "string", Description: "Topic or keyword to gather context for"},
+					"days":  {Type: "integer", Description: "Days of calendar events to include (default 7)"},
+					"limit": {Type: "integer", Description: "Max results per service (default 5)"},
+				},
+				Required: []string{"topic"},
+			},
+		},
+		{
+			Name:        "unified_search",
+			Description: "Search across Gmail + Drive simultaneously. Returns combined results.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"query": {Type: "string", Description: "Search query"},
+					"limit": {Type: "integer", Description: "Max results per service (default 5)"},
+				},
+				Required: []string{"query"},
+			},
+		},
 	}
 }
 
@@ -231,6 +281,14 @@ func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolRe
 		return h.tasksCreate(ctx, args)
 	case "contacts_search":
 		return h.contactsSearch(ctx, args)
+	case "gmail_digest":
+		return h.gmailDigest(ctx, args)
+	case "gmail_archive":
+		return h.gmailArchive(ctx, args)
+	case "context_gather":
+		return h.contextGather(ctx, args)
+	case "unified_search":
+		return h.unifiedSearch(ctx, args)
 	default:
 		return nil, fmt.Errorf("unknown tool: %s", name)
 	}
@@ -386,6 +444,130 @@ func (h *GWXHandler) contactsSearch(ctx context.Context, args map[string]interfa
 		return nil, err
 	}
 	return jsonResult(map[string]interface{}{"contacts": contacts, "count": len(contacts)})
+}
+
+func (h *GWXHandler) gmailDigest(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	svc := api.NewGmailService(h.client)
+	digest, err := svc.DigestMessages(ctx, int64(intArg(args, "limit", 30)), boolArg(args, "unread"))
+	if err != nil {
+		return nil, err
+	}
+	return jsonResult(digest)
+}
+
+func (h *GWXHandler) gmailArchive(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	svc := api.NewGmailService(h.client)
+	query := strArg(args, "query")
+	limit := int64(intArg(args, "limit", 50))
+
+	var count int
+	var err error
+	if boolArg(args, "read_only") {
+		count, err = svc.MarkRead(ctx, query, limit)
+	} else {
+		count, err = svc.ArchiveMessages(ctx, query, limit)
+	}
+	if err != nil {
+		return nil, err
+	}
+	action := "archived"
+	if boolArg(args, "read_only") {
+		action = "marked_read"
+	}
+	return jsonResult(map[string]interface{}{"action": action, "count": count, "query": query})
+}
+
+func (h *GWXHandler) contextGather(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	topic := strArg(args, "topic")
+	limit := intArg(args, "limit", 5)
+	days := intArg(args, "days", 7)
+
+	type result struct {
+		key string
+		val interface{}
+	}
+	ch := make(chan result, 3)
+
+	// Gmail
+	go func() {
+		svc := api.NewGmailService(h.client)
+		msgs, total, err := svc.SearchMessages(ctx, topic, int64(limit))
+		if err != nil {
+			ch <- result{"emails", map[string]interface{}{"error": err.Error()}}
+			return
+		}
+		ch <- result{"emails", map[string]interface{}{"count": len(msgs), "total_estimate": total, "messages": msgs}}
+	}()
+
+	// Drive
+	go func() {
+		svc := api.NewDriveService(h.client)
+		files, err := svc.SearchFiles(ctx, "fullText contains '"+topic+"'", int64(limit))
+		if err != nil {
+			files, err = svc.SearchFiles(ctx, "name contains '"+topic+"'", int64(limit))
+			if err != nil {
+				ch <- result{"files", map[string]interface{}{"error": err.Error()}}
+				return
+			}
+		}
+		ch <- result{"files", map[string]interface{}{"count": len(files), "files": files}}
+	}()
+
+	// Calendar
+	go func() {
+		svc := api.NewCalendarService(h.client)
+		events, err := svc.Agenda(ctx, days)
+		if err != nil {
+			ch <- result{"events", map[string]interface{}{"error": err.Error()}}
+			return
+		}
+		ch <- result{"events", map[string]interface{}{"count": len(events), "events": events}}
+	}()
+
+	data := map[string]interface{}{"topic": topic}
+	for i := 0; i < 3; i++ {
+		r := <-ch
+		data[r.key] = r.val
+	}
+	return jsonResult(data)
+}
+
+func (h *GWXHandler) unifiedSearch(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	query := strArg(args, "query")
+	limit := intArg(args, "limit", 5)
+
+	type result struct {
+		service string
+		data    interface{}
+	}
+	ch := make(chan result, 2)
+
+	go func() {
+		svc := api.NewGmailService(h.client)
+		msgs, _, err := svc.SearchMessages(ctx, query, int64(limit))
+		if err != nil {
+			ch <- result{"gmail", map[string]interface{}{"error": err.Error()}}
+			return
+		}
+		ch <- result{"gmail", map[string]interface{}{"count": len(msgs), "messages": msgs}}
+	}()
+
+	go func() {
+		svc := api.NewDriveService(h.client)
+		files, err := svc.SearchFiles(ctx, "fullText contains '"+query+"'", int64(limit))
+		if err != nil {
+			ch <- result{"drive", map[string]interface{}{"error": err.Error()}}
+			return
+		}
+		ch <- result{"drive", map[string]interface{}{"count": len(files), "files": files}}
+	}()
+
+	results := make(map[string]interface{})
+	for i := 0; i < 2; i++ {
+		r := <-ch
+		results[r.service] = r.data
+	}
+	return jsonResult(map[string]interface{}{"query": query, "results": results})
 }
 
 // --- Helpers ---
