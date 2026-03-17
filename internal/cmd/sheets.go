@@ -10,12 +10,16 @@ type SheetsCmd struct {
 	Read        SheetsReadCmd        `cmd:"" help:"Read a range from a spreadsheet"`
 	Info        SheetsInfoCmd        `cmd:"" help:"Get spreadsheet metadata and sheet tabs"`
 	Describe    SheetsDescribeCmd    `cmd:"" help:"Analyze column structure and fill rules"`
+	Stats       SheetsStatsCmd       `cmd:"" help:"Column statistics and value counts"`
 	Search      SheetsSearchCmd      `cmd:"" help:"Search for text in a spreadsheet"`
 	Filter      SheetsFilterCmd      `cmd:"" help:"Filter rows by column value"`
+	Diff        SheetsDiffCmd        `cmd:"" help:"Compare two tabs/ranges"`
 	Append      SheetsAppendCmd      `cmd:"" help:"Append rows to a spreadsheet"`
 	SmartAppend SheetsSmartAppendCmd `cmd:"smart-append" help:"Validate + append with structure awareness"`
 	Update      SheetsUpdateCmd      `cmd:"" help:"Update cells in a spreadsheet"`
 	Clear       SheetsClearCmd       `cmd:"" help:"Clear a range"`
+	CopyTab     SheetsCopyTabCmd     `cmd:"copy-tab" help:"Copy tab structure to a new tab"`
+	Export      SheetsExportCmd      `cmd:"" help:"Export range to CSV or JSON"`
 	Create      SheetsCreateCmd      `cmd:"" help:"Create a new spreadsheet"`
 }
 
@@ -378,5 +382,123 @@ func (c *SheetsSmartAppendCmd) Run(rctx *RunContext) error {
 		"result":   result,
 		"rows":     len(values),
 	})
+	return nil
+}
+
+// SheetsStatsCmd shows column statistics.
+type SheetsStatsCmd struct {
+	SpreadsheetID string `arg:"" help:"Spreadsheet ID"`
+	Range         string `help:"Range (auto-detects first sheet if empty)" short:"r"`
+}
+
+func (c *SheetsStatsCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "sheets.stats"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+
+	sheetsSvc := api.NewSheetsService(rctx.APIClient)
+	stats, err := sheetsSvc.StatsRange(rctx.Context, c.SpreadsheetID, c.Range)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(stats)
+	return nil
+}
+
+// SheetsDiffCmd compares two ranges.
+type SheetsDiffCmd struct {
+	SpreadsheetID string `arg:"" help:"Spreadsheet ID"`
+	RangeA        string `help:"First range (e.g. '第1周规划及完成情况')" required:"" name:"from"`
+	RangeB        string `help:"Second range (e.g. '第2周规划及完成情况')" required:"" name:"to"`
+}
+
+func (c *SheetsDiffCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "sheets.diff"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+
+	sheetsSvc := api.NewSheetsService(rctx.APIClient)
+	diff, err := sheetsSvc.DiffRanges(rctx.Context, c.SpreadsheetID, c.RangeA, c.RangeB)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(diff)
+	return nil
+}
+
+// SheetsCopyTabCmd copies a tab structure.
+type SheetsCopyTabCmd struct {
+	SpreadsheetID string `arg:"" help:"Spreadsheet ID"`
+	Source        string `help:"Source tab name" required:""`
+	Name          string `help:"New tab name" required:""`
+}
+
+func (c *SheetsCopyTabCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "sheets.copy-tab"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{
+			"dry_run": "sheets.copy-tab",
+			"source":  c.Source,
+			"name":    c.Name,
+		})
+		return nil
+	}
+
+	sheetsSvc := api.NewSheetsService(rctx.APIClient)
+	if err := sheetsSvc.CopyTab(rctx.Context, c.SpreadsheetID, c.Source, c.Name); err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(map[string]interface{}{
+		"copied": true,
+		"source": c.Source,
+		"name":   c.Name,
+	})
+	return nil
+}
+
+// SheetsExportCmd exports a range to CSV or JSON.
+type SheetsExportCmd struct {
+	SpreadsheetID string `arg:"" help:"Spreadsheet ID"`
+	Range         string `arg:"" help:"Range to export"`
+	ExportFmt     string `help:"Format: csv or json" default:"csv" name:"export-format"`
+	Output        string `help:"Output file (default: stdout)" short:"o"`
+}
+
+func (c *SheetsExportCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "sheets.export"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+
+	sheetsSvc := api.NewSheetsService(rctx.APIClient)
+	count, err := sheetsSvc.ExportToFile(rctx.Context, c.SpreadsheetID, c.Range, c.ExportFmt, c.Output)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	if c.Output != "" && c.Output != "-" {
+		rctx.Printer.Success(map[string]interface{}{
+			"exported": true,
+			"format":   c.ExportFmt,
+			"path":     c.Output,
+			"rows":     count,
+		})
+	}
 	return nil
 }
