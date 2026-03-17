@@ -25,9 +25,10 @@ type CLI struct {
 	NoInput bool   `help:"Disable interactive prompts" name:"no-input"`
 
 	// Shortcuts (desire paths)
-	Send   GmailSendCmd   `cmd:"" help:"Send an email (shortcut for gmail send)" hidden:""`
-	Ls     DriveListCmd   `cmd:"" help:"List Drive files (shortcut for drive list)" hidden:""`
-	Search GmailSearchCmd `cmd:"" help:"Search Gmail (shortcut for gmail search)" hidden:""`
+	Send   GmailSendCmd    `cmd:"" help:"Send an email (shortcut for gmail send)" hidden:""`
+	Ls     DriveListCmd    `cmd:"" help:"List Drive files (shortcut for drive list)" hidden:""`
+	Search GmailSearchCmd  `cmd:"" help:"Search Gmail (shortcut for gmail search)" hidden:""`
+	Find   UnifiedSearchCmd `cmd:"" help:"Search across Gmail + Drive + Contacts"`
 
 	// Service commands
 	Auth     AuthCmd     `cmd:"" help:"Authentication management"`

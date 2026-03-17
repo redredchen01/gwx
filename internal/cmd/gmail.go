@@ -11,13 +11,15 @@ import (
 
 // GmailCmd groups Gmail operations.
 type GmailCmd struct {
-	List   GmailListCmd   `cmd:"" help:"List messages"`
-	Get    GmailGetCmd    `cmd:"" help:"Get a single message"`
-	Search GmailSearchCmd `cmd:"" help:"Search messages"`
-	Labels GmailLabelsCmd `cmd:"" help:"List labels"`
-	Send   GmailSendCmd   `cmd:"" help:"Send an email"`
-	Draft  GmailDraftCmd  `cmd:"" help:"Create a draft"`
-	Reply  GmailReplyCmd  `cmd:"" help:"Reply to a message"`
+	List    GmailListCmd    `cmd:"" help:"List messages"`
+	Get     GmailGetCmd     `cmd:"" help:"Get a single message"`
+	Search  GmailSearchCmd  `cmd:"" help:"Search messages"`
+	Labels  GmailLabelsCmd  `cmd:"" help:"List labels"`
+	Send    GmailSendCmd    `cmd:"" help:"Send an email"`
+	Draft   GmailDraftCmd   `cmd:"" help:"Create a draft"`
+	Reply   GmailReplyCmd   `cmd:"" help:"Reply to a message"`
+	Digest  GmailDigestCmd  `cmd:"" help:"Smart digest of recent messages"`
+	Archive GmailArchiveCmd `cmd:"" help:"Batch archive messages"`
 }
 
 // GmailListCmd lists Gmail messages.
@@ -296,6 +298,83 @@ func (c *GmailReplyCmd) Run(rctx *RunContext) error {
 		"replied":    true,
 		"message_id": result.MessageID,
 		"thread_id":  result.ThreadID,
+	})
+	return nil
+}
+
+// GmailDigestCmd produces a smart digest.
+type GmailDigestCmd struct {
+	Limit  int64 `help:"Max messages to analyze" default:"30" short:"n"`
+	Unread bool  `help:"Only unread messages" short:"u"`
+}
+
+func (c *GmailDigestCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "gmail.digest"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{"dry_run": "gmail.digest"})
+		return nil
+	}
+
+	gmailSvc := api.NewGmailService(rctx.APIClient)
+	digest, err := gmailSvc.DigestMessages(rctx.Context, c.Limit, c.Unread)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(digest)
+	return nil
+}
+
+// GmailArchiveCmd batch archives messages.
+type GmailArchiveCmd struct {
+	Query    string `arg:"" help:"Gmail search query for messages to archive"`
+	Limit    int64  `help:"Max messages to archive" default:"50" short:"n"`
+	ReadOnly bool   `help:"Only mark as read, don't remove from inbox" name:"read-only"`
+}
+
+func (c *GmailArchiveCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "gmail.archive"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{
+			"dry_run": "gmail.archive",
+			"query":   c.Query,
+			"limit":   c.Limit,
+		})
+		return nil
+	}
+
+	gmailSvc := api.NewGmailService(rctx.APIClient)
+
+	var count int
+	var err error
+	if c.ReadOnly {
+		count, err = gmailSvc.MarkRead(rctx.Context, c.Query, c.Limit)
+	} else {
+		count, err = gmailSvc.ArchiveMessages(rctx.Context, c.Query, c.Limit)
+	}
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	action := "archived"
+	if c.ReadOnly {
+		action = "marked_read"
+	}
+	rctx.Printer.Success(map[string]interface{}{
+		"action": action,
+		"count":  count,
+		"query":  c.Query,
 	})
 	return nil
 }
