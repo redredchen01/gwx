@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/alecthomas/kong"
 	"github.com/redredchen01/gwx/internal/api"
@@ -19,8 +20,14 @@ type CLI struct {
 	// Global flags
 	Format  string `help:"Output format: json, plain, table" short:"f" default:"json" enum:"json,plain,table"`
 	Account string `help:"Account email to use" short:"a" default:"default"`
+	Fields  string `help:"Comma-separated fields to include in output (e.g. id,name,subject)" name:"fields"`
 	DryRun  bool   `help:"Validate without executing" name:"dry-run"`
 	NoInput bool   `help:"Disable interactive prompts" name:"no-input"`
+
+	// Shortcuts (desire paths)
+	Send   GmailSendCmd   `cmd:"" help:"Send an email (shortcut for gmail send)" hidden:""`
+	Ls     DriveListCmd   `cmd:"" help:"List Drive files (shortcut for drive list)" hidden:""`
+	Search GmailSearchCmd `cmd:"" help:"Search Gmail (shortcut for gmail search)" hidden:""`
 
 	// Service commands
 	Auth     AuthCmd     `cmd:"" help:"Authentication management"`
@@ -33,9 +40,10 @@ type CLI struct {
 	Tasks    TasksCmd    `cmd:"" help:"Google Tasks operations"`
 	Contacts ContactsCmd `cmd:"" help:"Contacts operations"`
 	Chat     ChatCmd     `cmd:"" help:"Google Chat operations"`
-	Agent    AgentCmd    `cmd:"" help:"Agent automation helpers"`
-	Schema   SchemaCmd   `cmd:"" help:"Print full command schema (for agent introspection)"`
-	Version  VersionCmd  `cmd:"" help:"Print version"`
+	Agent     AgentCmd     `cmd:"" help:"Agent automation helpers"`
+	Schema    SchemaCmd    `cmd:"" help:"Print full command schema (for agent introspection)"`
+	MCPServer MCPServerCmd `cmd:"mcp-server" help:"Start MCP server (stdio) for Claude integration"`
+	Version   VersionCmd   `cmd:"" help:"Print version"`
 }
 
 // RunContext holds shared state for command execution.
@@ -75,6 +83,14 @@ func Execute() int {
 	}
 
 	printer := output.NewPrinter(output.ParseFormat(cli.Format))
+	if cli.Fields != "" {
+		for _, f := range strings.Split(cli.Fields, ",") {
+			f = strings.TrimSpace(f)
+			if f != "" {
+				printer.Fields = append(printer.Fields, f)
+			}
+		}
+	}
 	authMgr := auth.NewManager()
 	allowlist := config.LoadAllowlist()
 

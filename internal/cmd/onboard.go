@@ -48,8 +48,9 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Step 2/3: Select Services")
 	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━")
-	fmt.Fprintln(os.Stderr, "  Available: gmail, calendar, drive, docs, sheets, tasks, people, chat")
-	fmt.Fprintln(os.Stderr, "  Default:   gmail, calendar, drive")
+	allServices := "gmail, calendar, drive, docs, sheets, tasks, people, chat"
+	fmt.Fprintln(os.Stderr, "  Available: "+allServices)
+	fmt.Fprintln(os.Stderr, "  Default:   ALL (recommended)")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprint(os.Stderr, "  Services (comma-separated, or press Enter for default): ")
 
@@ -58,7 +59,7 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 
 	var services []string
 	if svcInput == "" {
-		services = []string{"gmail", "calendar", "drive"}
+		services = []string{"gmail", "calendar", "drive", "docs", "sheets", "tasks", "people", "chat"}
 	} else {
 		for _, s := range strings.Split(svcInput, ",") {
 			s = strings.TrimSpace(s)

@@ -49,9 +49,11 @@ type ErrorInfo struct {
 }
 
 // Printer handles formatted output.
+// Printer handles formatted output.
 type Printer struct {
 	Format Format
 	Writer io.Writer
+	Fields []string // if set, filter JSON output to these top-level keys
 }
 
 // NewPrinter creates a printer with the given format.
@@ -61,6 +63,10 @@ func NewPrinter(f Format) *Printer {
 
 // Success prints a success response.
 func (p *Printer) Success(data interface{}) {
+	if len(p.Fields) > 0 {
+		data = filterFields(data, p.Fields)
+	}
+
 	switch p.Format {
 	case FormatJSON:
 		resp := Response{Status: "ok", Data: data}
@@ -72,6 +78,42 @@ func (p *Printer) Success(data interface{}) {
 	case FormatTable:
 		fmt.Fprintf(p.Writer, "%v\n", data)
 	}
+}
+
+// filterFields keeps only the specified keys from a map or struct (via JSON roundtrip).
+func filterFields(data interface{}, fields []string) interface{} {
+	// Convert to map via JSON roundtrip
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return data
+	}
+
+	var m map[string]interface{}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		// Might be a slice — try filtering each element
+		var arr []interface{}
+		if err := json.Unmarshal(raw, &arr); err != nil {
+			return data
+		}
+		var filtered []interface{}
+		for _, item := range arr {
+			filtered = append(filtered, filterFields(item, fields))
+		}
+		return filtered
+	}
+
+	fieldSet := make(map[string]bool, len(fields))
+	for _, f := range fields {
+		fieldSet[f] = true
+	}
+
+	result := make(map[string]interface{})
+	for k, v := range m {
+		if fieldSet[k] {
+			result[k] = v
+		}
+	}
+	return result
 }
 
 // Err prints an error response and returns the exit code.

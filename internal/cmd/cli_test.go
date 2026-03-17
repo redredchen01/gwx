@@ -28,10 +28,21 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// cleanEnv returns an environment that isolates from the real OS keyring.
+func cleanEnv(t *testing.T, extra ...string) []string {
+	t.Helper()
+	env := []string{
+		"HOME=" + t.TempDir(),
+		"PATH=" + os.Getenv("PATH"),
+		"GWX_AUTO_JSON=1",
+	}
+	return append(env, extra...)
+}
+
 func runGWX(t *testing.T, args ...string) (stdout, stderr string, exitCode int) {
 	t.Helper()
 	cmd := exec.Command(binaryPath, args...)
-	cmd.Env = append(os.Environ(), "GWX_AUTO_JSON=1")
+	cmd.Env = cleanEnv(t)
 
 	var outBuf, errBuf strings.Builder
 	cmd.Stdout = &outBuf
@@ -125,7 +136,7 @@ func TestCLI_GmailGet_Unauthenticated(t *testing.T) {
 
 func TestCLI_Allowlist_Denied(t *testing.T) {
 	cmd := exec.Command(binaryPath, "gmail", "list")
-	cmd.Env = append(os.Environ(), "GWX_ENABLE_COMMANDS=calendar.*")
+	cmd.Env = cleanEnv(t, "GWX_ENABLE_COMMANDS=calendar.*")
 
 	var errBuf strings.Builder
 	cmd.Stderr = &errBuf
@@ -153,7 +164,7 @@ func TestCLI_Allowlist_Denied(t *testing.T) {
 func TestCLI_Allowlist_Allowed(t *testing.T) {
 	// gmail.list is allowed, but still fails on auth (exit 10, not 12)
 	cmd := exec.Command(binaryPath, "gmail", "list")
-	cmd.Env = append(os.Environ(), "GWX_ENABLE_COMMANDS=gmail.*")
+	cmd.Env = cleanEnv(t, "GWX_ENABLE_COMMANDS=gmail.*")
 
 	err := cmd.Run()
 	exitCode := 0
@@ -269,7 +280,7 @@ func TestCLI_CalendarHelp(t *testing.T) {
 
 func TestCLI_CalendarAllowlist(t *testing.T) {
 	cmd := exec.Command(binaryPath, "calendar", "agenda")
-	cmd.Env = append(os.Environ(), "GWX_ENABLE_COMMANDS=gmail.*")
+	cmd.Env = cleanEnv(t, "GWX_ENABLE_COMMANDS=gmail.*")
 	err := cmd.Run()
 	exitCode := 0
 	if exitErr, ok := err.(*exec.ExitError); ok {
@@ -309,7 +320,7 @@ func TestCLI_DriveHelp(t *testing.T) {
 
 func TestCLI_DriveAllowlist(t *testing.T) {
 	cmd := exec.Command(binaryPath, "drive", "list")
-	cmd.Env = append(os.Environ(), "GWX_ENABLE_COMMANDS=gmail.*")
+	cmd.Env = cleanEnv(t, "GWX_ENABLE_COMMANDS=gmail.*")
 	err := cmd.Run()
 	exitCode := 0
 	if exitErr, ok := err.(*exec.ExitError); ok {
@@ -552,7 +563,7 @@ func TestCLI_AllServicesAllowlistDenied(t *testing.T) {
 	}
 	for _, tc := range commands {
 		cmd := exec.Command(binaryPath, tc.args...)
-		cmd.Env = append(os.Environ(), "GWX_ENABLE_COMMANDS=gmail.list")
+		cmd.Env = cleanEnv(t, "GWX_ENABLE_COMMANDS=gmail.list")
 		err := cmd.Run()
 		exitCode := 0
 		if exitErr, ok := err.(*exec.ExitError); ok {

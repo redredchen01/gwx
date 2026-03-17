@@ -186,7 +186,15 @@ func messageToDetail(msg *gmail.Message) MessageDetail {
 
 func extractBody(payload *gmail.MessagePart, mimeType string) string {
 	if payload.MimeType == mimeType && payload.Body != nil && payload.Body.Data != "" {
-		return payload.Body.Data // base64url encoded
+		decoded, err := base64.URLEncoding.DecodeString(payload.Body.Data)
+		if err != nil {
+			// Try with padding fix — Gmail sometimes omits padding
+			decoded, err = base64.RawURLEncoding.DecodeString(payload.Body.Data)
+			if err != nil {
+				return payload.Body.Data // fallback to raw
+			}
+		}
+		return string(decoded)
 	}
 	for _, part := range payload.Parts {
 		if body := extractBody(part, mimeType); body != "" {

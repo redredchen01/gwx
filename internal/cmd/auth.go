@@ -19,7 +19,7 @@ type AuthCmd struct {
 type AuthLoginCmd struct {
 	CredentialsFile string   `help:"Path to OAuth credentials JSON" name:"credentials" short:"c"`
 	Manual          bool     `help:"Use manual (headless) auth flow" name:"manual"`
-	Services        []string `help:"Services to authorize" default:"gmail,calendar,drive"`
+	Services        []string `help:"Services to authorize" default:"gmail,calendar,drive,docs,sheets,tasks,people,chat"`
 }
 
 func (c *AuthLoginCmd) Run(rctx *RunContext) error {
