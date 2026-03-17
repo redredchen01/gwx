@@ -1,5 +1,5 @@
 {
-  "name": "@redredchen01/gwx",
+  "name": "gwx-cli",
   "version": "0.1.0",
   "description": "Google Workspace CLI for humans and agents — Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat",
   "keywords": [
