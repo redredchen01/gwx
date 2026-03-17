@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"google.golang.org/api/sheets/v4"
 )
@@ -148,6 +149,184 @@ func (ss *SheetsService) CreateSpreadsheet(ctx context.Context, title string) (*
 		Title:          created.Properties.Title,
 		SpreadsheetURL: created.SpreadsheetUrl,
 	}, nil
+}
+
+// SheetInfo holds spreadsheet metadata.
+type SheetInfo struct {
+	SpreadsheetID  string      `json:"spreadsheet_id"`
+	Title          string      `json:"title"`
+	SpreadsheetURL string      `json:"spreadsheet_url"`
+	Sheets         []SheetTab  `json:"sheets"`
+	SheetCount     int         `json:"sheet_count"`
+}
+
+// SheetTab holds individual sheet/tab metadata.
+type SheetTab struct {
+	ID       int64  `json:"id"`
+	Title    string `json:"title"`
+	Index    int64  `json:"index"`
+	RowCount int64  `json:"row_count"`
+	ColCount int64  `json:"col_count"`
+}
+
+// GetInfo returns metadata about a spreadsheet including all sheet tabs.
+func (ss *SheetsService) GetInfo(ctx context.Context, spreadsheetID string) (*SheetInfo, error) {
+	if err := ss.client.WaitRate(ctx, "sheets"); err != nil {
+		return nil, err
+	}
+
+	opts, err := ss.client.ClientOptions(ctx, "sheets")
+	if err != nil {
+		return nil, err
+	}
+
+	svc, err := sheets.NewService(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create sheets service: %w", err)
+	}
+
+	spreadsheet, err := svc.Spreadsheets.Get(spreadsheetID).Do()
+	if err != nil {
+		return nil, fmt.Errorf("get spreadsheet info: %w", err)
+	}
+
+	var tabs []SheetTab
+	for _, s := range spreadsheet.Sheets {
+		tab := SheetTab{
+			ID:    s.Properties.SheetId,
+			Title: s.Properties.Title,
+			Index: s.Properties.Index,
+		}
+		if s.Properties.GridProperties != nil {
+			tab.RowCount = s.Properties.GridProperties.RowCount
+			tab.ColCount = s.Properties.GridProperties.ColumnCount
+		}
+		tabs = append(tabs, tab)
+	}
+
+	return &SheetInfo{
+		SpreadsheetID:  spreadsheet.SpreadsheetId,
+		Title:          spreadsheet.Properties.Title,
+		SpreadsheetURL: spreadsheet.SpreadsheetUrl,
+		Sheets:         tabs,
+		SheetCount:     len(tabs),
+	}, nil
+}
+
+// SearchValues searches for a keyword across all cells in a range and returns matching rows.
+func (ss *SheetsService) SearchValues(ctx context.Context, spreadsheetID, searchRange, query string) (*SheetSearchResult, error) {
+	data, err := ss.ReadRange(ctx, spreadsheetID, searchRange)
+	if err != nil {
+		return nil, err
+	}
+
+	queryLower := strings.ToLower(query)
+	var matchedRows []SheetMatchedRow
+
+	for rowIdx, row := range data.Values {
+		for colIdx, cell := range row {
+			cellStr := fmt.Sprintf("%v", cell)
+			if strings.Contains(strings.ToLower(cellStr), queryLower) {
+				matchedRows = append(matchedRows, SheetMatchedRow{
+					RowIndex:   rowIdx,
+					ColIndex:   colIdx,
+					MatchedCell: cellStr,
+					FullRow:    row,
+				})
+				break // one match per row is enough
+			}
+		}
+	}
+
+	return &SheetSearchResult{
+		Query:       query,
+		Range:       data.Range,
+		TotalRows:   data.RowCount,
+		MatchedRows: matchedRows,
+		MatchCount:  len(matchedRows),
+	}, nil
+}
+
+// FilterRows filters rows where a specific column matches a value.
+func (ss *SheetsService) FilterRows(ctx context.Context, spreadsheetID, filterRange string, colIndex int, value string) (*SheetFilterResult, error) {
+	data, err := ss.ReadRange(ctx, spreadsheetID, filterRange)
+	if err != nil {
+		return nil, err
+	}
+
+	valueLower := strings.ToLower(value)
+	var matched [][]interface{}
+	var header []interface{}
+
+	for i, row := range data.Values {
+		if i == 0 {
+			header = row
+			continue
+		}
+		if colIndex < len(row) {
+			cellStr := strings.ToLower(fmt.Sprintf("%v", row[colIndex]))
+			if strings.Contains(cellStr, valueLower) {
+				matched = append(matched, row)
+			}
+		}
+	}
+
+	return &SheetFilterResult{
+		Range:       data.Range,
+		Header:      header,
+		MatchedRows: matched,
+		MatchCount:  len(matched),
+		TotalRows:   data.RowCount - 1, // exclude header
+	}, nil
+}
+
+// ClearRange clears all values in a range without deleting cells.
+func (ss *SheetsService) ClearRange(ctx context.Context, spreadsheetID, clearRange string) error {
+	if err := ss.client.WaitRate(ctx, "sheets"); err != nil {
+		return err
+	}
+
+	opts, err := ss.client.ClientOptions(ctx, "sheets")
+	if err != nil {
+		return err
+	}
+
+	svc, err := sheets.NewService(ctx, opts...)
+	if err != nil {
+		return fmt.Errorf("create sheets service: %w", err)
+	}
+
+	req := &sheets.ClearValuesRequest{}
+	if _, err := svc.Spreadsheets.Values.Clear(spreadsheetID, clearRange, req).Do(); err != nil {
+		return fmt.Errorf("clear range: %w", err)
+	}
+	return nil
+}
+
+// SheetSearchResult holds search results.
+type SheetSearchResult struct {
+	Query       string            `json:"query"`
+	Range       string            `json:"range"`
+	TotalRows   int               `json:"total_rows"`
+	MatchedRows []SheetMatchedRow `json:"matched_rows"`
+	MatchCount  int               `json:"match_count"`
+}
+
+// SheetMatchedRow is a row that matched a search.
+type SheetMatchedRow struct {
+	RowIndex    int             `json:"row_index"`
+	ColIndex    int             `json:"col_index"`
+	MatchedCell string          `json:"matched_cell"`
+	FullRow     []interface{}   `json:"full_row"`
+}
+
+// SheetFilterResult holds filter results.
+type SheetFilterResult struct {
+	Range       string          `json:"range"`
+	Header      []interface{}   `json:"header"`
+	MatchedRows [][]interface{} `json:"matched_rows"`
+	MatchCount  int             `json:"match_count"`
+	TotalRows   int             `json:"total_rows"`
 }
 
 // ParseValuesJSON parses a JSON string into [][]interface{} for Sheets API.

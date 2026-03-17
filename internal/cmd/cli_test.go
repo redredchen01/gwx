@@ -73,8 +73,8 @@ func TestCLI_Version(t *testing.T) {
 		t.Fatalf("expected status ok, got %v", resp["status"])
 	}
 	data := resp["data"].(map[string]interface{})
-	if data["version"] != "0.3.0" {
-		t.Fatalf("expected version 0.3.0, got %v", data["version"])
+	if data["version"] != "0.4.0" {
+		t.Fatalf("expected version 0.4.0, got %v", data["version"])
 	}
 }
 

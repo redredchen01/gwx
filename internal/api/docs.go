@@ -155,6 +155,131 @@ func (ds *DocsService) AppendText(ctx context.Context, docID string, text string
 	return nil
 }
 
+// DocSearchResult holds search results within a document.
+type DocSearchResult struct {
+	DocumentID string            `json:"document_id"`
+	Title      string            `json:"title"`
+	Query      string            `json:"query"`
+	Matches    []DocSearchMatch  `json:"matches"`
+	MatchCount int               `json:"match_count"`
+}
+
+// DocSearchMatch is a matching text segment.
+type DocSearchMatch struct {
+	Text       string `json:"text"`       // surrounding context
+	StartIndex int    `json:"start_index"`
+}
+
+// SearchDocument searches for text within a document and returns matching paragraphs.
+func (ds *DocsService) SearchDocument(ctx context.Context, docID, query string) (*DocSearchResult, error) {
+	doc, err := ds.GetDocument(ctx, docID)
+	if err != nil {
+		return nil, err
+	}
+
+	queryLower := strings.ToLower(query)
+	body := doc.Body
+
+	// Split into paragraphs and search
+	paragraphs := strings.Split(body, "\n")
+	var matches []DocSearchMatch
+	charIndex := 0
+
+	for _, para := range paragraphs {
+		if strings.Contains(strings.ToLower(para), queryLower) && strings.TrimSpace(para) != "" {
+			matches = append(matches, DocSearchMatch{
+				Text:       strings.TrimSpace(para),
+				StartIndex: charIndex,
+			})
+		}
+		charIndex += len(para) + 1
+	}
+
+	return &DocSearchResult{
+		DocumentID: doc.DocumentID,
+		Title:      doc.Title,
+		Query:      query,
+		Matches:    matches,
+		MatchCount: len(matches),
+	}, nil
+}
+
+// ReplaceText replaces all occurrences of a string in a document.
+func (ds *DocsService) ReplaceText(ctx context.Context, docID, findText, replaceText string) (int64, error) {
+	if err := ds.client.WaitRate(ctx, "docs"); err != nil {
+		return 0, err
+	}
+
+	opts, err := ds.client.ClientOptions(ctx, "docs")
+	if err != nil {
+		return 0, err
+	}
+
+	svc, err := docs.NewService(ctx, opts...)
+	if err != nil {
+		return 0, fmt.Errorf("create docs service: %w", err)
+	}
+
+	req := &docs.BatchUpdateDocumentRequest{
+		Requests: []*docs.Request{
+			{
+				ReplaceAllText: &docs.ReplaceAllTextRequest{
+					ContainsText: &docs.SubstringMatchCriteria{
+						Text:            findText,
+						MatchCase:       false,
+					},
+					ReplaceText: replaceText,
+				},
+			},
+		},
+	}
+
+	resp, err := svc.Documents.BatchUpdate(docID, req).Do()
+	if err != nil {
+		return 0, fmt.Errorf("replace text: %w", err)
+	}
+
+	// Extract replacement count from replies
+	var count int64
+	for _, reply := range resp.Replies {
+		if reply.ReplaceAllText != nil {
+			count += reply.ReplaceAllText.OccurrencesChanged
+		}
+	}
+	return count, nil
+}
+
+// CreateDocFromTable creates a Google Doc from tabular data (e.g., from a Sheet).
+func (ds *DocsService) CreateDocFromTable(ctx context.Context, title string, headers []interface{}, rows [][]interface{}) (*DocSummary, error) {
+	// Build formatted text
+	var sb strings.Builder
+	sb.WriteString(title + "\n\n")
+
+	// Headers
+	for i, h := range headers {
+		if i > 0 {
+			sb.WriteString(" | ")
+		}
+		sb.WriteString(fmt.Sprintf("%v", h))
+	}
+	sb.WriteString("\n")
+	sb.WriteString(strings.Repeat("-", 40))
+	sb.WriteString("\n")
+
+	// Rows
+	for _, row := range rows {
+		for i, cell := range row {
+			if i > 0 {
+				sb.WriteString(" | ")
+			}
+			sb.WriteString(fmt.Sprintf("%v", cell))
+		}
+		sb.WriteString("\n")
+	}
+
+	return ds.CreateDocument(ctx, title, sb.String())
+}
+
 // ExportDocument exports a document to a file (PDF, DOCX, etc.).
 func (ds *DocsService) ExportDocument(ctx context.Context, docID string, format string, outputPath string) (string, error) {
 	if err := ds.client.WaitRate(ctx, "drive"); err != nil {
