@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/user/gwx/internal/api"
-	"github.com/user/gwx/internal/exitcode"
+	"github.com/redredchen01/gwx/internal/api"
+	"github.com/redredchen01/gwx/internal/exitcode"
 )
 
 // DocsCmd groups Docs operations.

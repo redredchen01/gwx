@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/user/gwx/internal/auth"
+	"github.com/redredchen01/gwx/internal/auth"
 )
 
 // OnboardCmd runs the interactive setup wizard.

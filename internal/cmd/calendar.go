@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/user/gwx/internal/api"
-	"github.com/user/gwx/internal/exitcode"
+	"github.com/redredchen01/gwx/internal/api"
+	"github.com/redredchen01/gwx/internal/exitcode"
 )
 
 // CalendarCmd groups Calendar operations.

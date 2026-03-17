@@ -7,11 +7,11 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
-	"github.com/user/gwx/internal/api"
-	"github.com/user/gwx/internal/auth"
-	"github.com/user/gwx/internal/config"
-	"github.com/user/gwx/internal/exitcode"
-	"github.com/user/gwx/internal/output"
+	"github.com/redredchen01/gwx/internal/api"
+	"github.com/redredchen01/gwx/internal/auth"
+	"github.com/redredchen01/gwx/internal/config"
+	"github.com/redredchen01/gwx/internal/exitcode"
+	"github.com/redredchen01/gwx/internal/output"
 )
 
 // CLI is the root command struct for gwx.

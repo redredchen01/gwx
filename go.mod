@@ -1,4 +1,4 @@
-module github.com/user/gwx
+module github.com/redredchen01/gwx
 
 go 1.26.1
 

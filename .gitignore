@@ -1,2 +1,5 @@
 build/
 gwx
+dist/
+npm/bin/gwx.exe
+node_modules/

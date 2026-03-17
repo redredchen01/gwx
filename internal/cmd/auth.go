@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/user/gwx/internal/auth"
-	"github.com/user/gwx/internal/exitcode"
+	"github.com/redredchen01/gwx/internal/auth"
+	"github.com/redredchen01/gwx/internal/exitcode"
 	"golang.org/x/oauth2"
 )
 

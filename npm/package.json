@@ -1,0 +1,42 @@
+{
+  "name": "@anthropic-toolkit/gwx",
+  "version": "0.1.0",
+  "description": "Google Workspace CLI for humans and agents — Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat",
+  "keywords": [
+    "google-workspace",
+    "gmail",
+    "google-drive",
+    "google-calendar",
+    "google-docs",
+    "google-sheets",
+    "cli",
+    "llm-agent",
+    "claude"
+  ],
+  "author": "redredchen01",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/redredchen01/gwx"
+  },
+  "bin": {
+    "gwx": "./bin/gwx"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "skill/"
+  ],
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}

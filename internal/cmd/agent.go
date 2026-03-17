@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/user/gwx/internal/exitcode"
+	"github.com/redredchen01/gwx/internal/exitcode"
 )
 
 // AgentCmd provides helpers for LLM agent integration.
