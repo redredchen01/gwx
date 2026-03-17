@@ -19,7 +19,7 @@ func NewGWXHandler(client *api.Client) *GWXHandler {
 }
 
 func (h *GWXHandler) ListTools() []Tool {
-	return []Tool{
+	tools := []Tool{
 		// Gmail
 		{
 			Name:        "gmail_list",
@@ -299,6 +299,9 @@ func (h *GWXHandler) ListTools() []Tool {
 			},
 		},
 	}
+	// Append extended tools
+	tools = append(tools, ExtendedTools()...)
+	return tools
 }
 
 func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolResult, error) {
@@ -350,6 +353,10 @@ func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolRe
 	case "unified_search":
 		return h.unifiedSearch(ctx, args)
 	default:
+		// Try extended tools
+		if result, handled := h.CallExtendedTool(ctx, name, args); handled {
+			return result, nil
+		}
 		return nil, fmt.Errorf("unknown tool: %s", name)
 	}
 }

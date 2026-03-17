@@ -368,6 +368,96 @@ func cellStr(row []interface{}, index int) string {
 	return strings.TrimSpace(fmt.Sprintf("%v", row[index]))
 }
 
+// --- S5: Import ---
+
+// ImportCSV reads CSV from a reader and appends to a sheet.
+func (ss *SheetsService) ImportCSV(ctx context.Context, spreadsheetID, importRange string, r io.Reader, hasHeader bool) (*SheetAppendResult, error) {
+	reader := csv.NewReader(r)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("parse CSV: %w", err)
+	}
+
+	if len(records) == 0 {
+		return nil, fmt.Errorf("CSV is empty")
+	}
+
+	var values [][]interface{}
+	start := 0
+	if hasHeader {
+		start = 1
+	}
+	for i := start; i < len(records); i++ {
+		var row []interface{}
+		for _, cell := range records[i] {
+			row = append(row, cell)
+		}
+		values = append(values, row)
+	}
+
+	return ss.AppendValues(ctx, spreadsheetID, importRange, values)
+}
+
+// ImportJSON reads JSON array of objects and appends to a sheet.
+func (ss *SheetsService) ImportJSON(ctx context.Context, spreadsheetID, importRange string, r io.Reader) (*SheetAppendResult, error) {
+	var records []map[string]interface{}
+	if err := json.NewDecoder(r).Decode(&records); err != nil {
+		return nil, fmt.Errorf("parse JSON: %w", err)
+	}
+
+	if len(records) == 0 {
+		return nil, fmt.Errorf("JSON array is empty")
+	}
+
+	// Collect all keys for headers
+	keySet := make(map[string]bool)
+	var keys []string
+	for _, rec := range records {
+		for k := range rec {
+			if !keySet[k] {
+				keySet[k] = true
+				keys = append(keys, k)
+			}
+		}
+	}
+
+	// Build header row + data rows
+	var values [][]interface{}
+	var headerRow []interface{}
+	for _, k := range keys {
+		headerRow = append(headerRow, k)
+	}
+	values = append(values, headerRow)
+
+	for _, rec := range records {
+		var row []interface{}
+		for _, k := range keys {
+			row = append(row, fmt.Sprintf("%v", rec[k]))
+		}
+		values = append(values, row)
+	}
+
+	return ss.AppendValues(ctx, spreadsheetID, importRange, values)
+}
+
+// ImportFromFile reads CSV or JSON from a file and imports to a sheet.
+func (ss *SheetsService) ImportFromFile(ctx context.Context, spreadsheetID, importRange, format, path string) (*SheetAppendResult, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	switch strings.ToLower(format) {
+	case "csv":
+		return ss.ImportCSV(ctx, spreadsheetID, importRange, f, true)
+	case "json":
+		return ss.ImportJSON(ctx, spreadsheetID, importRange, f)
+	default:
+		return nil, fmt.Errorf("unsupported format %q (use csv or json)", format)
+	}
+}
+
 // ExportToFile is a convenience wrapper that writes to a file.
 func (ss *SheetsService) ExportToFile(ctx context.Context, spreadsheetID, exportRange, format, path string) (int, error) {
 	var w io.Writer

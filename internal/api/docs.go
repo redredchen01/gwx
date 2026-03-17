@@ -280,6 +280,29 @@ func (ds *DocsService) CreateDocFromTable(ctx context.Context, title string, hea
 	return ds.CreateDocument(ctx, title, sb.String())
 }
 
+// CreateFromTemplate reads a doc as template, replaces {{var}} placeholders, creates new doc.
+func (ds *DocsService) CreateFromTemplate(ctx context.Context, templateDocID, newTitle string, vars map[string]string) (*DocSummary, error) {
+	// Step 1: Get template content
+	tmpl, err := ds.GetDocument(ctx, templateDocID)
+	if err != nil {
+		return nil, fmt.Errorf("read template: %w", err)
+	}
+
+	// Step 2: Replace {{var}} in body
+	body := tmpl.Body
+	for key, val := range vars {
+		placeholder := "{{" + key + "}}"
+		body = strings.ReplaceAll(body, placeholder, val)
+	}
+
+	if newTitle == "" {
+		newTitle = tmpl.Title + " (from template)"
+	}
+
+	// Step 3: Create new doc with replaced content
+	return ds.CreateDocument(ctx, newTitle, body)
+}
+
 // ExportDocument exports a document to a file (PDF, DOCX, etc.).
 func (ds *DocsService) ExportDocument(ctx context.Context, docID string, format string, outputPath string) (string, error) {
 	if err := ds.client.WaitRate(ctx, "drive"); err != nil {

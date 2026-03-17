@@ -20,6 +20,7 @@ type SheetsCmd struct {
 	Clear       SheetsClearCmd       `cmd:"" help:"Clear a range"`
 	CopyTab     SheetsCopyTabCmd     `cmd:"copy-tab" help:"Copy tab structure to a new tab"`
 	Export      SheetsExportCmd      `cmd:"" help:"Export range to CSV or JSON"`
+	Import      SheetsImportCmd      `cmd:"" help:"Import CSV or JSON file into a sheet"`
 	Create      SheetsCreateCmd      `cmd:"" help:"Create a new spreadsheet"`
 }
 
@@ -500,5 +501,42 @@ func (c *SheetsExportCmd) Run(rctx *RunContext) error {
 			"rows":     count,
 		})
 	}
+	return nil
+}
+
+// SheetsImportCmd imports a CSV or JSON file into a sheet.
+type SheetsImportCmd struct {
+	SpreadsheetID string `arg:"" help:"Spreadsheet ID"`
+	Range         string `arg:"" help:"Range to import into (e.g. Sheet1!A1)"`
+	File          string `help:"File path to import" required:"" short:"i"`
+	ImportFmt     string `help:"Format: csv or json" default:"csv" name:"import-format"`
+}
+
+func (c *SheetsImportCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "sheets.import"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{
+			"dry_run": "sheets.import",
+			"file":    c.File,
+			"format":  c.ImportFmt,
+		})
+		return nil
+	}
+
+	sheetsSvc := api.NewSheetsService(rctx.APIClient)
+	result, err := sheetsSvc.ImportFromFile(rctx.Context, c.SpreadsheetID, c.Range, c.ImportFmt, c.File)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(map[string]interface{}{
+		"imported": true,
+		"result":   result,
+	})
 	return nil
 }

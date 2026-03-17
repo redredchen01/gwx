@@ -73,8 +73,8 @@ func TestCLI_Version(t *testing.T) {
 		t.Fatalf("expected status ok, got %v", resp["status"])
 	}
 	data := resp["data"].(map[string]interface{})
-	if data["version"] != "0.6.0" {
-		t.Fatalf("expected version 0.6.0, got %v", data["version"])
+	if data["version"] != "0.7.0" {
+		t.Fatalf("expected version 0.7.0, got %v", data["version"])
 	}
 }
 
@@ -253,7 +253,7 @@ func TestCLI_CalendarAgenda_Unauthenticated(t *testing.T) {
 }
 
 func TestCLI_CalendarList_Unauthenticated(t *testing.T) {
-	_, _, code := runGWX(t, "calendar", "list", "--from", "2026-03-17", "--to", "2026-03-18")
+	_, _, code := runGWX(t, "calendar", "list", "--from", "20.7.03-17", "--to", "2026-03-18")
 	if code != 10 {
 		t.Fatalf("expected exit 10, got %d", code)
 	}
@@ -261,7 +261,7 @@ func TestCLI_CalendarList_Unauthenticated(t *testing.T) {
 
 func TestCLI_CalendarCreate_DryRun(t *testing.T) {
 	// DryRun still requires auth first — expect 10
-	_, _, code := runGWX(t, "calendar", "create", "--title", "Test", "--start", "2026-03-17T10:00:00Z", "--end", "2026-03-17T11:00:00Z", "--dry-run")
+	_, _, code := runGWX(t, "calendar", "create", "--title", "Test", "--start", "20.7.03-17T10:00:00Z", "--end", "2026-03-17T11:00:00Z", "--dry-run")
 	if code != 10 {
 		t.Fatalf("expected exit 10, got %d", code)
 	}

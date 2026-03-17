@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"encoding/json"
+
 	"github.com/redredchen01/gwx/internal/api"
 	"github.com/redredchen01/gwx/internal/exitcode"
 )
@@ -12,6 +14,7 @@ type DocsCmd struct {
 	Append    DocsAppendCmd    `cmd:"" help:"Append text to a document"`
 	Search    DocsSearchCmd    `cmd:"" help:"Search text in a document"`
 	Replace   DocsReplaceCmd   `cmd:"" help:"Find and replace text"`
+	Template  DocsTemplateCmd  `cmd:"" help:"Create doc from template with {{var}} replacement"`
 	FromSheet DocsFromSheetCmd `cmd:"from-sheet" help:"Create doc from spreadsheet data"`
 	Export    DocsExportCmd    `cmd:"" help:"Export document to file"`
 }
@@ -251,6 +254,51 @@ func (c *DocsFromSheetCmd) Run(rctx *RunContext) error {
 		"document":   doc,
 		"source":     c.SpreadsheetID,
 		"rows_count": len(rows),
+	})
+	return nil
+}
+
+// DocsTemplateCmd creates a doc from a template with {{var}} replacement.
+type DocsTemplateCmd struct {
+	TemplateID string `arg:"" help:"Template document ID"`
+	Vars       string `help:"JSON object of variables: {\"name\":\"Alice\",\"date\":\"2026-03-17\"}" required:"" short:"v"`
+	Title      string `help:"New document title (default: template title + ' (from template)')"`
+}
+
+func (c *DocsTemplateCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "docs.template"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"docs"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+
+	var vars map[string]string
+	if err := json.Unmarshal([]byte(c.Vars), &vars); err != nil {
+		return rctx.Printer.ErrExit(exitcode.InvalidInput, "invalid --vars JSON: "+err.Error())
+	}
+
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{
+			"dry_run":     "docs.template",
+			"template_id": c.TemplateID,
+			"vars":        vars,
+			"title":       c.Title,
+		})
+		return nil
+	}
+
+	docsSvc := api.NewDocsService(rctx.APIClient)
+	doc, err := docsSvc.CreateFromTemplate(rctx.Context, c.TemplateID, c.Title, vars)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(map[string]interface{}{
+		"created":    true,
+		"document":   doc,
+		"template":   c.TemplateID,
+		"vars_count": len(vars),
 	})
 	return nil
 }
