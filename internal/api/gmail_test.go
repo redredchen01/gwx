@@ -157,3 +157,83 @@ func TestBuildMultipartMessage_MissingAttachment(t *testing.T) {
 		t.Fatal("expected error for missing attachment")
 	}
 }
+
+func TestBuildMultipartMessage_OversizedAttachment(t *testing.T) {
+	// Create a file that reports >25MB via Stat
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "big.bin")
+	// Write just enough to trigger the size check
+	f, _ := os.Create(tmpFile)
+	f.Truncate(26 * 1024 * 1024) // 26MB sparse file
+	f.Close()
+
+	input := &SendInput{
+		To:          []string{"alice@example.com"},
+		Subject:     "Too Big",
+		Body:        "Test",
+		Attachments: []string{tmpFile},
+	}
+
+	_, err := buildRawMessage(input)
+	if err == nil {
+		t.Fatal("expected error for oversized attachment")
+	}
+	if !strings.Contains(err.Error(), "25MB") {
+		t.Fatalf("error should mention 25MB limit, got: %v", err)
+	}
+}
+
+func TestBuildRawMessage_RandomBoundary(t *testing.T) {
+	input := &SendInput{
+		To:       []string{"alice@example.com"},
+		Subject:  "Boundary Test",
+		Body:     "Plain",
+		BodyHTML: "<b>HTML</b>",
+	}
+
+	raw1, _ := buildRawMessage(input)
+	raw2, _ := buildRawMessage(input)
+
+	// Two messages should have different boundaries (random)
+	if raw1 == raw2 {
+		t.Fatal("boundary should be random, but two messages are identical")
+	}
+}
+
+func TestGenerateBoundary_Unique(t *testing.T) {
+	seen := make(map[string]bool)
+	for i := 0; i < 100; i++ {
+		b := generateBoundary()
+		if seen[b] {
+			t.Fatalf("duplicate boundary generated: %s", b)
+		}
+		seen[b] = true
+	}
+}
+
+func TestParseValuesJSON_Valid(t *testing.T) {
+	values, err := ParseValuesJSON(`[["a",1],["b",2]]`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(values) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(values))
+	}
+}
+
+func TestParseValuesJSON_Invalid(t *testing.T) {
+	_, err := ParseValuesJSON(`not json`)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestParseValuesJSON_Empty(t *testing.T) {
+	values, err := ParseValuesJSON(`[]`)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(values) != 0 {
+		t.Fatalf("expected 0 rows, got %d", len(values))
+	}
+}

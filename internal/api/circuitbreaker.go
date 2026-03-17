@@ -75,5 +75,13 @@ func (cb *CircuitBreaker) State() string {
 }
 
 func (cb *CircuitBreaker) String() string {
-	return fmt.Sprintf("CircuitBreaker[%s]: %s (failures=%d)", cb.service, cb.State(), cb.failures)
+	cb.mu.Lock()
+	failures := cb.failures
+	isOpen := cb.open
+	cb.mu.Unlock()
+	state := "closed"
+	if isOpen {
+		state = "open"
+	}
+	return fmt.Sprintf("CircuitBreaker[%s]: %s (failures=%d)", cb.service, state, failures)
 }

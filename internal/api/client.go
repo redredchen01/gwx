@@ -58,12 +58,8 @@ func (c *Client) HTTPClient(service string) *http.Client {
 }
 
 // ClientOptions returns google API client options for the given service.
-// This includes rate-limiting wait before returning.
+// Rate limiting is NOT done here — callers must use WaitRate() before each API call.
 func (c *Client) ClientOptions(ctx context.Context, service string) ([]option.ClientOption, error) {
-	if err := c.rateLimiter.Wait(ctx, service); err != nil {
-		return nil, err
-	}
-
 	httpClient := c.HTTPClient(service)
 	return []option.ClientOption{
 		option.WithHTTPClient(httpClient),

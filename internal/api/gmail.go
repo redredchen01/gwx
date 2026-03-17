@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"context"
+	crand "crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -92,6 +93,11 @@ func (gs *GmailService) ListMessages(ctx context.Context, query string, labelIDs
 			MetadataHeaders("From", "To", "Subject", "Date").
 			Do()
 		if err != nil {
+			// Include a stub with just the ID so the caller knows it was skipped
+			summaries = append(summaries, MessageSummary{
+				ID:      msg.Id,
+				Snippet: fmt.Sprintf("[error: %v]", err),
+			})
 			continue
 		}
 		summaries = append(summaries, messageToSummary(detail))
@@ -353,7 +359,7 @@ func buildRawMessage(input *SendInput) (string, error) {
 
 	if hasHTML {
 		// Multipart alternative for text + HTML
-		boundary := "gwx_alt_boundary"
+		boundary := generateBoundary()
 		writeHeader(&buf, "MIME-Version", "1.0")
 		writeHeader(&buf, "Content-Type", fmt.Sprintf("multipart/alternative; boundary=%q", boundary))
 		buf.WriteString("\r\n")
@@ -409,6 +415,14 @@ func buildMultipartMessage(input *SendInput) (string, error) {
 
 	// Attachment parts
 	for _, path := range input.Attachments {
+		fi, err := os.Stat(path)
+		if err != nil {
+			return "", fmt.Errorf("stat attachment %s: %w", path, err)
+		}
+		if fi.Size() > 25*1024*1024 {
+			return "", fmt.Errorf("attachment %s is %d bytes, exceeds Gmail 25MB limit", path, fi.Size())
+		}
+
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return "", fmt.Errorf("read attachment %s: %w", path, err)
@@ -443,6 +457,12 @@ func buildMultipartMessage(input *SendInput) (string, error) {
 	io.Copy(&final, &buf)      //nolint:errcheck
 
 	return base64.URLEncoding.EncodeToString(final.Bytes()), nil
+}
+
+func generateBoundary() string {
+	b := make([]byte, 16)
+	crand.Read(b) //nolint:errcheck
+	return fmt.Sprintf("gwx_%x", b)
 }
 
 func writeHeader(buf *bytes.Buffer, key, value string) {

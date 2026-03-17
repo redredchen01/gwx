@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/user/gwx/internal/api"
 	"github.com/user/gwx/internal/exitcode"
+	"google.golang.org/api/googleapi"
 )
 
 // GmailCmd groups Gmail operations.
@@ -302,34 +304,29 @@ func (c *GmailReplyCmd) Run(rctx *RunContext) error {
 func handleAPIError(rctx *RunContext, err error) error {
 	msg := err.Error()
 
-	if _, ok := err.(*api.CircuitOpenError); ok {
+	var circuitErr *api.CircuitOpenError
+	if errors.As(err, &circuitErr) {
 		return rctx.Printer.ErrExit(exitcode.CircuitOpen, msg)
 	}
 
-	// Check for common Google API error patterns
-	switch {
-	case contains(msg, "401") || contains(msg, "Unauthorized"):
-		return rctx.Printer.ErrExit(exitcode.AuthExpired, msg)
-	case contains(msg, "403") || contains(msg, "Forbidden"):
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, msg)
-	case contains(msg, "404") || contains(msg, "Not Found"):
-		return rctx.Printer.ErrExit(exitcode.NotFound, msg)
-	case contains(msg, "429") || contains(msg, "Rate Limit"):
-		return rctx.Printer.ErrExit(exitcode.RateLimited, msg)
-	default:
-		return rctx.Printer.ErrExit(exitcode.GeneralError, msg)
-	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+	var gErr *googleapi.Error
+	if errors.As(err, &gErr) {
+		switch gErr.Code {
+		case 401:
+			return rctx.Printer.ErrExit(exitcode.AuthExpired, msg)
+		case 403:
+			return rctx.Printer.ErrExit(exitcode.PermissionDenied, msg)
+		case 404:
+			return rctx.Printer.ErrExit(exitcode.NotFound, msg)
+		case 429:
+			return rctx.Printer.ErrExit(exitcode.RateLimited, msg)
+		case 409:
+			return rctx.Printer.ErrExit(exitcode.Conflict, msg)
 		}
 	}
-	return false
+
+	return rctx.Printer.ErrExit(exitcode.GeneralError, msg)
 }
+
+// ensure fmt is used (for Sprintf in dry-run messages)
+var _ = fmt.Sprintf

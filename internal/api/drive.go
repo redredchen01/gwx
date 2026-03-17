@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"google.golang.org/api/drive/v3"
 )
@@ -52,6 +53,9 @@ func (ds *DriveService) ListFiles(ctx context.Context, folderID string, maxResul
 
 	query := "trashed = false"
 	if folderID != "" {
+		if !isValidDriveID(folderID) {
+			return nil, fmt.Errorf("invalid folder ID: %q", folderID)
+		}
 		query = fmt.Sprintf("'%s' in parents and trashed = false", folderID)
 	}
 
@@ -262,6 +266,13 @@ func (ds *DriveService) CreateFolder(ctx context.Context, name string, parentID 
 
 	summary := fileToSummary(created)
 	return &summary, nil
+}
+
+// driveIDPattern validates Google Drive file/folder IDs (alphanumeric + dash + underscore).
+var driveIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+func isValidDriveID(id string) bool {
+	return driveIDPattern.MatchString(id)
 }
 
 func fileToSummary(f *drive.File) FileSummary {

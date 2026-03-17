@@ -1,7 +1,5 @@
 package cmd
 
-import "fmt"
-
 const version = "0.1.0"
 
 // VersionCmd prints the version.
@@ -12,6 +10,5 @@ func (c *VersionCmd) Run(rctx *RunContext) error {
 		"version": version,
 		"name":    "gwx",
 	})
-	fmt.Fprintf(rctx.Printer.Writer, "")
 	return nil
 }

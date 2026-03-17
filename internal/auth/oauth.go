@@ -2,11 +2,14 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
-	"time"
+	"runtime"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -104,7 +107,11 @@ func (m *Manager) LoginBrowser(ctx context.Context) (*oauth2.Token, error) {
 		return nil, fmt.Errorf("OAuth config not loaded; run 'gwx onboard' first")
 	}
 
-	state := fmt.Sprintf("%d", time.Now().UnixNano())
+	stateBytes := make([]byte, 16)
+	if _, err := rand.Read(stateBytes); err != nil {
+		return nil, fmt.Errorf("generate state: %w", err)
+	}
+	state := hex.EncodeToString(stateBytes)
 	authURL := m.config.AuthCodeURL(state, oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("prompt", "consent"),
 		oauth2.SetAuthURLParam("include_granted_scopes", "true"),
@@ -158,32 +165,75 @@ func (m *Manager) LoginBrowser(ctx context.Context) (*oauth2.Token, error) {
 	}
 }
 
-// LoginManual performs OAuth2 flow by printing URL and reading code from stdin.
+// LoginManual performs OAuth2 flow using a local loopback server on a random port.
+// The user manually copies the URL to a browser (useful for headless/SSH environments).
 func (m *Manager) LoginManual(ctx context.Context) (*oauth2.Token, error) {
 	if m.config == nil {
 		return nil, fmt.Errorf("OAuth config not loaded; run 'gwx onboard' first")
 	}
 
-	// Use OOB redirect for manual flow
-	cfg := *m.config
-	cfg.RedirectURL = "urn:ietf:wg:oauth:2.0:oob"
+	// Bind a random port for the callback
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, fmt.Errorf("listen for callback: %w", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
 
-	authURL := cfg.AuthCodeURL("manual", oauth2.AccessTypeOffline,
+	cfg := *m.config
+	cfg.RedirectURL = fmt.Sprintf("http://127.0.0.1:%d/callback", port)
+
+	stateBytes := make([]byte, 16)
+	if _, err := rand.Read(stateBytes); err != nil {
+		listener.Close()
+		return nil, fmt.Errorf("generate state: %w", err)
+	}
+	state := hex.EncodeToString(stateBytes)
+
+	authURL := cfg.AuthCodeURL(state, oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("prompt", "consent"),
 	)
 
-	fmt.Fprintf(os.Stderr, "\nOpen this URL in your browser:\n\n  %s\n\nPaste the authorization code here: ", authURL)
+	codeCh := make(chan string, 1)
+	errCh := make(chan error, 1)
 
-	var code string
-	if _, err := fmt.Scanln(&code); err != nil {
-		return nil, fmt.Errorf("read code: %w", err)
-	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("state") != state {
+			errCh <- fmt.Errorf("state mismatch")
+			http.Error(w, "State mismatch", http.StatusBadRequest)
+			return
+		}
+		if errMsg := r.URL.Query().Get("error"); errMsg != "" {
+			errCh <- fmt.Errorf("OAuth error: %s", errMsg)
+			fmt.Fprintf(w, "Authorization failed: %s", errMsg)
+			return
+		}
+		codeCh <- r.URL.Query().Get("code")
+		fmt.Fprint(w, "✓ Authorization successful! You can close this tab.")
+	})
 
-	token, err := cfg.Exchange(ctx, code)
-	if err != nil {
-		return nil, fmt.Errorf("exchange code: %w", err)
+	server := &http.Server{Handler: mux}
+	go func() {
+		if err := server.Serve(listener); err != http.ErrServerClosed {
+			errCh <- err
+		}
+	}()
+	defer server.Shutdown(ctx)
+
+	fmt.Fprintf(os.Stderr, "\nOpen this URL in your browser (copy-paste):\n\n  %s\n\nWaiting for authorization on 127.0.0.1:%d...\n", authURL, port)
+
+	select {
+	case code := <-codeCh:
+		token, err := cfg.Exchange(ctx, code)
+		if err != nil {
+			return nil, fmt.Errorf("exchange code: %w", err)
+		}
+		return token, nil
+	case err := <-errCh:
+		return nil, err
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
-	return token, nil
 }
 
 // TokenFromDirect creates a token source from a direct access token string.
@@ -227,12 +277,21 @@ func (m *Manager) HasToken(account string) bool {
 
 // openBrowser tries to open a URL in the default browser.
 func openBrowser(url string) {
-	// macOS
-	_ = execCommand("open", url)
+	var cmd string
+	var args []string
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = "open"
+		args = []string{url}
+	case "linux":
+		cmd = "xdg-open"
+		args = []string{url}
+	case "windows":
+		cmd = "cmd"
+		args = []string{"/c", "start", url}
+	default:
+		return
+	}
+	_ = commandExec(cmd, args...).Run()
 }
 
-// execCommand runs a command silently.
-func execCommand(name string, args ...string) error {
-	cmd := commandExec(name, args...)
-	return cmd.Run()
-}

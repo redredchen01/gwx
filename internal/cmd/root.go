@@ -34,6 +34,7 @@ type CLI struct {
 	Contacts ContactsCmd `cmd:"" help:"Contacts operations"`
 	Chat     ChatCmd     `cmd:"" help:"Google Chat operations"`
 	Agent    AgentCmd    `cmd:"" help:"Agent automation helpers"`
+	Schema   SchemaCmd   `cmd:"" help:"Print full command schema (for agent introspection)"`
 	Version  VersionCmd  `cmd:"" help:"Print version"`
 }
 
