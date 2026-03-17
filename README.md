@@ -6,7 +6,7 @@ A unified CLI for Google Workspace (Gmail, Calendar, Drive, Docs, Sheets, Tasks,
 
 ```bash
 # npm (recommended)
-npm install -g @anthropic-toolkit/gwx
+npm install -g @redredchen01/gwx
 
 # Go
 go install github.com/redredchen01/gwx/cmd/gwx@latest
