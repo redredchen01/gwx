@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -132,7 +133,7 @@ func (p *Printer) Err(code int, msg string) int {
 		enc.SetIndent("", "  ")
 		enc.Encode(resp) //nolint:errcheck
 	default:
-		fmt.Fprintf(os.Stderr, "error: %s\n", msg)
+		slog.Error("output error", "message", msg)
 	}
 	return code
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"sync"
 )
@@ -191,7 +192,7 @@ func (s *Server) sendResult(id interface{}, result interface{}) {
 	}
 	data, err := json.Marshal(resp)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "gwx mcp: failed to marshal result: %v\n", err)
+		slog.Error("failed to marshal result", "error", err)
 		s.sendError(id, -32603, "Internal error", "failed to marshal result")
 		return
 	}
@@ -208,7 +209,7 @@ func (s *Server) sendError(id interface{}, code int, message, data string) {
 	}
 	d, err := json.Marshal(resp)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "gwx mcp: failed to marshal error response: %v\n", err)
+		slog.Error("failed to marshal error response", "error", err)
 		return
 	}
 	s.mu.Lock()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/redredchen01/gwx/internal/auth"
 	"github.com/redredchen01/gwx/internal/config"
 	"github.com/redredchen01/gwx/internal/exitcode"
+	gwxlog "github.com/redredchen01/gwx/internal/log"
 	"github.com/redredchen01/gwx/internal/output"
 )
 
@@ -23,6 +25,7 @@ type CLI struct {
 	Fields  string `help:"Comma-separated fields to include in output (e.g. id,name,subject)" name:"fields"`
 	DryRun  bool   `help:"Validate without executing" name:"dry-run"`
 	NoInput bool   `help:"Disable interactive prompts" name:"no-input"`
+	NoCache bool   `help:"Disable caching" name:"no-cache" default:"false"`
 
 	// Shortcuts (desire paths)
 	Send   GmailSendCmd    `cmd:"" help:"Send an email (shortcut for gmail send)" hidden:""`
@@ -56,6 +59,7 @@ type RunContext struct {
 	APIClient *api.Client
 	Account   string
 	DryRun    bool
+	NoCache   bool
 	Allowlist *config.Allowlist
 }
 
@@ -63,13 +67,15 @@ type RunContext struct {
 func Execute() int {
 	var cli CLI
 
+	slog.SetDefault(gwxlog.SetupCLILogger())
+
 	parser, err := kong.New(&cli,
 		kong.Name("gwx"),
 		kong.Description("Google Workspace CLI for humans and agents"),
 		kong.UsageOnError(),
 	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		slog.Error("command failed", "error", err)
 		return exitcode.UsageError
 	}
 
@@ -102,6 +108,7 @@ func Execute() int {
 		Auth:      authMgr,
 		Account:   cli.Account,
 		DryRun:    cli.DryRun,
+		NoCache:   cli.NoCache,
 		Allowlist: allowlist,
 	}
 
@@ -131,7 +138,9 @@ func EnsureAuth(rctx *RunContext, services []string) error {
 	// Check for direct access token
 	if token := os.Getenv("GWX_ACCESS_TOKEN"); token != "" {
 		ts := auth.TokenFromDirect(token)
-		rctx.APIClient = api.NewClient(ts)
+		apiClient := api.NewClient(ts)
+		apiClient.NoCache = rctx.NoCache
+		rctx.APIClient = apiClient
 		return nil
 	}
 
@@ -148,6 +157,8 @@ func EnsureAuth(rctx *RunContext, services []string) error {
 		}
 	}
 
-	rctx.APIClient = api.NewClient(ts)
+	apiClient := api.NewClient(ts)
+	apiClient.NoCache = rctx.NoCache
+	rctx.APIClient = apiClient
 	return nil
 }
