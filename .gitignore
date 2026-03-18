@@ -3,3 +3,4 @@ gwx
 dist/
 npm/bin/gwx.exe
 node_modules/
+.DS_Store
