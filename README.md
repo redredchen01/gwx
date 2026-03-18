@@ -136,6 +136,114 @@ All 66 CLI commands are available as MCP tools. Claude can directly call `sheets
 
 Installs skill definitions to `~/.claude/commands/` and agent definitions to `~/.claude/agents/` for automatic trigger on Google Workspace keywords.
 
+### Combo Skills — gwx × Claude Code Workflows
+
+Three power combos that chain gwx with Claude Code's SOP pipeline:
+
+#### `/context-boost` — Google Workspace Context → S0
+
+Before starting a new feature, automatically gather all related emails, docs, and calendar events — then inject them into the requirement discussion.
+
+```bash
+# In Claude Code:
+/context-boost 幫我做一個 invoice 自動寄送功能
+```
+
+What happens:
+1. Extracts keywords from your requirement (`invoice`, `寄送`)
+2. Runs `gwx context` across Gmail + Drive + Calendar (past 14 days)
+3. Deep-dives into top emails and docs
+4. Compiles a Context Briefing (stakeholders, timeline signals, existing decisions)
+5. Feeds it into S0 — the requirement-analyst references real data instead of guessing
+
+> All context-gathering is 🟢 read-only. Falls back to standard S0 if gwx is not connected.
+
+#### `/test-matrix` — Google Sheets as Live Test Dashboard
+
+Turn S6 test execution into a Google Sheet that PM/QA can follow in real-time.
+
+```bash
+# After S3 (plan) is done — initialize the matrix:
+/test-matrix dev/specs/my-feature
+
+# During S6 — sync results (auto-triggered if Sheet exists):
+/test-matrix 1BxC...sheetId
+```
+
+What happens:
+1. Creates a Google Sheet: `{feature} — Test Matrix`
+2. Populates rows from S3's `tdd_plan` (TC-ID, task, test case, type, priority)
+3. During S6, updates Status/Result columns after each test run
+4. `gwx sheets stats` gives instant burn-down: `passed=12, failed=3, pending=5`
+5. Exports final CSV to `dev/specs/{feature}/s6_test_results.csv`
+
+| Column | Purpose |
+|--------|---------|
+| TC-ID | Unique test case ID (TC-001) |
+| Task | S3 task reference (T1, T2) |
+| Test Case | Test description |
+| Type | unit / integration / e2e / manual |
+| Status | pending / running / passed / failed / skipped |
+| Result | ✅ / ❌ / ⏭️ |
+| Error Summary | First 100 chars of failure message |
+| Fixed In | Git commit hash of the fix |
+
+#### `/standup` — AI Daily Standup Report
+
+Merges git activity + SOP progress + Google Workspace into one standup.
+
+```bash
+# Display in terminal (default):
+/standup
+
+# Push to Google Chat (requires confirmation):
+/standup chat:spaces/AAAA
+
+# Draft as email:
+/standup email:team@company.com
+```
+
+Sample output:
+```
+# Daily Standup — 2026-03-18
+
+## Done (Yesterday)
+### Development
+- 3 commits on `feature/invoice`: add invoice model, add API endpoint, add tests
+- SOP: invoice-auto-send — S4 → S5 (code review passed)
+
+### Communication
+- Sent 2 emails: "Invoice API spec review", "Sprint planning follow-up"
+- Attended 1 meeting: "Backend sync"
+- Completed 1 task: "Write invoice schema migration"
+
+## Plan (Today)
+### Development
+- invoice-auto-send: Continue S6 (testing)
+### Meetings
+- 10:00: "QA Review" (3 attendees)
+### Tasks
+- [ ] Add rate limiting to invoice endpoint (due: 2026-03-19)
+
+## Blockers
+- (none)
+```
+
+> Works without gwx — git-only standup still generates. Combine with `/loop 24h /standup` for daily automation.
+
+### Workflow Recipes
+
+| Recipe | Trigger | Services | Tier |
+|--------|---------|----------|------|
+| meeting-prep | "meeting prep" | Calendar + Gmail + Drive | 🟢 |
+| weekly-digest | "weekly digest" | Gmail + Calendar + Tasks | 🟢 |
+| standup-report | "standup" | Gmail + Calendar + Tasks | 🟢 |
+| email-from-doc | "email from doc" | Docs + Gmail | 🟡/🔴 |
+| sheet-to-email | "mail merge" | Sheets + Gmail | 🔴 |
+| **context-boost** | "context boost" | Gmail + Drive + Calendar | 🟢 |
+| **test-matrix** | "test matrix" | Sheets | 🟢/🟡 |
+| **standup** | "standup" | Gmail + Calendar + Tasks + Git + Chat | 🟢/🔴 |
+
 ### Safety Tiers
 
 | Tier | Operations | Behavior |
