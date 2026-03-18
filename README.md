@@ -138,7 +138,7 @@ Installs skill definitions to `~/.claude/commands/` and agent definitions to `~/
 
 ### Combo Skills — gwx × Claude Code Workflows
 
-Three power combos that chain gwx with Claude Code's SOP pipeline:
+Eight power combos that chain gwx with Claude Code's SOP pipeline:
 
 #### `/context-boost` — Google Workspace Context → S0
 
@@ -231,6 +231,92 @@ Sample output:
 
 > Works without gwx — git-only standup still generates. Combine with `/loop 24h /standup` for daily automation.
 
+#### `/bug-intake` — Gmail Bug Reports → S0 Bugfix
+
+Scan Gmail for bug report emails, extract structured info, and auto-inject into S0 as a bugfix SOP.
+
+```bash
+/bug-intake                          # scan recent bug emails
+/bug-intake --after 2026/03/15       # filter by date
+/bug-intake OAuth token              # filter by keyword
+```
+
+What happens:
+1. Searches Gmail for emails with bug/error/issue/crash in subject
+2. Presents candidates — you pick which to process
+3. Extracts reproduction steps, expected vs actual, environment
+4. Injects into S0 with `work_type: bugfix` pre-set
+
+> Batch mode: select multiple emails, related bugs auto-group into single SOP.
+
+#### `/spec-health` — Spec Quality Dashboard
+
+Track spec-audit results across all features in one Google Sheet — see quality trends over time.
+
+```bash
+/spec-health                         # view dashboard (or init on first run)
+/spec-health record:dev/specs/auth   # record latest audit results
+```
+
+What happens:
+1. Creates a 3-tab Sheet: Audit Log, Feature Summary, Trend
+2. After each `/spec-audit`, appends P0/P1/P2 counts
+3. Feature Summary shows health status: ✅ Healthy / 🟡 Acceptable / 🔴 Critical
+4. `gwx sheets stats` gives instant quality report
+5. `gwx sheets diff` compares quality across sprints
+
+#### `/parallel-schedule` — Auto-Schedule Review Meetings
+
+When running `/parallel-develop`, auto-find free slots and book review meetings for all worktrees.
+
+```bash
+/parallel-schedule --reviewers alice@co.com,bob@co.com
+```
+
+What happens:
+1. Scans git worktrees for features at S4 completed
+2. `gwx calendar find-slot` finds common free time for all reviewers
+3. Proposes a schedule — you confirm
+4. Creates calendar events with briefing docs attached
+
+#### `/review-notify` — Push Review Results to Chat/Email
+
+After S5 code review, instantly notify the team.
+
+```bash
+/review-notify chat:spaces/AAAA     # push to Google Chat
+/review-notify email:team@co.com    # send via email
+```
+
+Sample notification:
+```
+📋 Code Review Complete: invoice-auto-send
+Result: ✅ PASS
+Findings: 0 P0 · 1 P1 · 2 P2
+Next: S6 testing
+```
+
+> Always requires explicit confirmation before sending (🔴 hard gate).
+
+#### `/sprint-board` — Google Sheet as Kanban Board
+
+Zero-cost project management. gwx is your Jira.
+
+```bash
+/sprint-board                        # init or view
+/sprint-board ticket:invoice         # create ticket from S0
+/sprint-board stats                  # burn-down metrics
+/sprint-board archive                # archive current sprint
+```
+
+What happens:
+1. Creates a Sheet with columns: Ticket, Feature, Type, Priority, Status, Assignee...
+2. S0 creates tickets, S4 updates to `in-progress`, S5 to `review`, S6 to `testing`, S7 to `done`
+3. `gwx sheets stats` → `done: 7, in-progress: 3, review: 1, blocked: 1`
+4. `gwx sheets copy-tab` archives sprints, `diff` compares velocity across sprints
+
+> Share the Sheet with your team — everyone sees real-time progress without repo access.
+
 ### Workflow Recipes
 
 | Recipe | Trigger | Services | Tier |
@@ -243,6 +329,11 @@ Sample output:
 | **context-boost** | "context boost" | Gmail + Drive + Calendar | 🟢 |
 | **test-matrix** | "test matrix" | Sheets | 🟢/🟡 |
 | **standup** | "standup" | Gmail + Calendar + Tasks + Git + Chat | 🟢/🔴 |
+| **bug-intake** | "bug intake" | Gmail | 🟢 |
+| **spec-health** | "spec health" | Sheets | 🟢/🟡 |
+| **parallel-schedule** | "parallel schedule" | Calendar + Docs | 🟢/🟡 |
+| **review-notify** | "review notify" | Chat + Gmail | 🔴 |
+| **sprint-board** | "sprint board" | Sheets | 🟢/🟡 |
 
 ### Safety Tiers
 

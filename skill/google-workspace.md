@@ -216,6 +216,11 @@ These are pre-defined cross-service workflows. Invoke them by intent:
 | context-boost | "帶上下文開 SOP", "context boost" | Gmail + Drive + Calendar | 🟢 |
 | test-matrix | "測試追蹤", "test matrix" | Sheets | 🟢/🟡 |
 | standup | "standup", "站會", "daily standup" | Gmail + Calendar + Tasks + Git + Chat | 🟢/🔴 |
+| bug-intake | "bug intake", "bug email" | Gmail | 🟢 |
+| spec-health | "spec health", "品質儀表板" | Sheets | 🟢/🟡 |
+| parallel-schedule | "parallel schedule", "排 review" | Calendar + Docs | 🟢/🟡 |
+| review-notify | "review notify", "通知 review" | Chat + Gmail | 🔴 |
+| sprint-board | "sprint board", "看板" | Sheets | 🟢/🟡 |
 
 See `skill/recipes/*.md` for detailed step-by-step instructions.
 

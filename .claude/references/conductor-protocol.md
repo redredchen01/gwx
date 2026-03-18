@@ -58,6 +58,11 @@
 | 「context boost」「帶上下文開 SOP」「先查再做」「蒐集背景再開始」 | `/context-boost` | gwx context × S0 加速需求收斂 |
 | 「test matrix」「測試追蹤」「建測試追蹤表」「sync tests to sheet」 | `/test-matrix` | Sheets × S6 測試儀表板 |
 | 「standup」「站會」「daily standup」「站會報告」 | `/standup` | Git + gwx + SDD 站會報告 |
+| 「bug intake」「bug email」「信件裡的 bug」「從 email 開 bug」 | `/bug-intake` | Gmail digest × S0 bugfix |
+| 「spec health」「品質儀表板」「audit 追蹤」「quality dashboard」 | `/spec-health` | Sheets × spec-audit 品質趨勢 |
+| 「parallel schedule」「排 review 會議」「schedule reviews」「並行排程」 | `/parallel-schedule` | Calendar × parallel-develop 排程 |
+| 「review notify」「推送 review 結果」「通知 review」「notify team」 | `/review-notify` | Chat/Email × S5 即時通知 |
+| 「sprint board」「看板」「kanban」「專案追蹤」 | `/sprint-board` | Sheets × SOP pipeline 看板 |
 
 #### 直接操作（不觸發任何 SOP/Skill）
 
