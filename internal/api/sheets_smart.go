@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // ColumnRule describes the inferred fill rule for a column.
@@ -32,6 +33,13 @@ type SheetSchema struct {
 func (ss *SheetsService) DescribeSheet(ctx context.Context, spreadsheetID, sheetRange string, sampleRows int) (*SheetSchema, error) {
 	if sampleRows <= 0 {
 		sampleRows = 20
+	}
+
+	if !ss.client.NoCache {
+		key := cacheKey("sheets", "DescribeSheet", spreadsheetID, sheetRange, sampleRows)
+		if cached, ok := ss.client.cache.Get(key); ok {
+			return cached.(*SheetSchema), nil
+		}
 	}
 
 	// If no range specified, auto-detect first sheet
@@ -78,6 +86,10 @@ func (ss *SheetsService) DescribeSheet(ctx context.Context, spreadsheetID, sheet
 		Instructions:  generateFillInstructions(columns),
 	}
 
+	if !ss.client.NoCache {
+		key := cacheKey("sheets", "DescribeSheet", spreadsheetID, sheetRange, sampleRows)
+		ss.client.cache.Set(key, schema, 10*time.Minute)
+	}
 	return schema, nil
 }
 

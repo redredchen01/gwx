@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/api/people/v1"
 )
@@ -33,6 +34,13 @@ const personFields = "names,emailAddresses,phoneNumbers,organizations,photos"
 
 // ListContacts lists contacts.
 func (cs *ContactsService) ListContacts(ctx context.Context, maxResults int) ([]ContactSummary, error) {
+	if !cs.client.NoCache {
+		key := cacheKey("contacts", "ListContacts", maxResults)
+		if cached, ok := cs.client.cache.Get(key); ok {
+			return cached.([]ContactSummary), nil
+		}
+	}
+
 	if err := cs.client.WaitRate(ctx, "people"); err != nil {
 		return nil, err
 	}
@@ -65,11 +73,22 @@ func (cs *ContactsService) ListContacts(ctx context.Context, maxResults int) ([]
 	for _, p := range resp.Connections {
 		contacts = append(contacts, personToContact(p))
 	}
+	if !cs.client.NoCache {
+		key := cacheKey("contacts", "ListContacts", maxResults)
+		cs.client.cache.Set(key, contacts, 15*time.Minute)
+	}
 	return contacts, nil
 }
 
 // SearchContacts searches contacts by name or email.
 func (cs *ContactsService) SearchContacts(ctx context.Context, query string, maxResults int) ([]ContactSummary, error) {
+	if !cs.client.NoCache {
+		key := cacheKey("contacts", "SearchContacts", query, maxResults)
+		if cached, ok := cs.client.cache.Get(key); ok {
+			return cached.([]ContactSummary), nil
+		}
+	}
+
 	if err := cs.client.WaitRate(ctx, "people"); err != nil {
 		return nil, err
 	}
@@ -102,6 +121,10 @@ func (cs *ContactsService) SearchContacts(ctx context.Context, query string, max
 		if r.Person != nil {
 			contacts = append(contacts, personToContact(r.Person))
 		}
+	}
+	if !cs.client.NoCache {
+		key := cacheKey("contacts", "SearchContacts", query, maxResults)
+		cs.client.cache.Set(key, contacts, 15*time.Minute)
 	}
 	return contacts, nil
 }

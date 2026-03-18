@@ -47,6 +47,13 @@ type EventInput struct {
 
 // ListEvents lists events in a time range.
 func (cs *CalendarService) ListEvents(ctx context.Context, calendarID string, timeMin, timeMax time.Time, maxResults int64) ([]EventSummary, error) {
+	if !cs.client.NoCache {
+		key := cacheKey("calendar", "ListEvents", calendarID, timeMin.Unix(), timeMax.Unix(), maxResults)
+		if cached, ok := cs.client.cache.Get(key); ok {
+			return cached.([]EventSummary), nil
+		}
+	}
+
 	if err := cs.client.WaitRate(ctx, "calendar"); err != nil {
 		return nil, err
 	}
@@ -84,15 +91,34 @@ func (cs *CalendarService) ListEvents(ctx context.Context, calendarID string, ti
 	for _, e := range resp.Items {
 		events = append(events, eventToSummary(e))
 	}
+	if !cs.client.NoCache {
+		key := cacheKey("calendar", "ListEvents", calendarID, timeMin.Unix(), timeMax.Unix(), maxResults)
+		cs.client.cache.Set(key, events, 2*time.Minute)
+	}
 	return events, nil
 }
 
 // Agenda returns today's events (or N days ahead).
 func (cs *CalendarService) Agenda(ctx context.Context, days int) ([]EventSummary, error) {
+	if !cs.client.NoCache {
+		key := cacheKey("calendar", "Agenda", days)
+		if cached, ok := cs.client.cache.Get(key); ok {
+			return cached.([]EventSummary), nil
+		}
+	}
+
 	now := time.Now()
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	end := start.AddDate(0, 0, days)
-	return cs.ListEvents(ctx, "primary", start, end, 50)
+	events, err := cs.ListEvents(ctx, "primary", start, end, 50)
+	if err != nil {
+		return nil, err
+	}
+	if !cs.client.NoCache {
+		key := cacheKey("calendar", "Agenda", days)
+		cs.client.cache.Set(key, events, 2*time.Minute)
+	}
+	return events, nil
 }
 
 // ConflictInfo describes a scheduling conflict.
@@ -181,6 +207,9 @@ func (cs *CalendarService) CreateEvent(ctx context.Context, calendarID string, i
 	}
 
 	summary := eventToSummary(created)
+	if !cs.client.NoCache {
+		cs.client.cache.InvalidatePrefix("calendar:")
+	}
 	return &summary, nil
 }
 
@@ -238,6 +267,9 @@ func (cs *CalendarService) UpdateEvent(ctx context.Context, calendarID, eventID 
 	}
 
 	summary := eventToSummary(updated)
+	if !cs.client.NoCache {
+		cs.client.cache.InvalidatePrefix("calendar:")
+	}
 	return &summary, nil
 }
 
@@ -263,6 +295,9 @@ func (cs *CalendarService) DeleteEvent(ctx context.Context, calendarID, eventID 
 
 	if err := svc.Events.Delete(calendarID, eventID).Do(); err != nil {
 		return fmt.Errorf("delete event: %w", err)
+	}
+	if !cs.client.NoCache {
+		cs.client.cache.InvalidatePrefix("calendar:")
 	}
 	return nil
 }
