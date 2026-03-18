@@ -213,6 +213,9 @@ These are pre-defined cross-service workflows. Invoke them by intent:
 | standup-report | "standup", "daily report" | Gmail + Calendar + Tasks | 🟢 |
 | email-from-doc | "用文件寄信", "email from doc" | Docs + Gmail | 🟡/🔴 |
 | sheet-to-email | "批次寄信", "mail merge" | Sheets + Gmail | 🔴 |
+| context-boost | "帶上下文開 SOP", "context boost" | Gmail + Drive + Calendar | 🟢 |
+| test-matrix | "測試追蹤", "test matrix" | Sheets | 🟢/🟡 |
+| standup | "standup", "站會", "daily standup" | Gmail + Calendar + Tasks + Git + Chat | 🟢/🔴 |
 
 See `skill/recipes/*.md` for detailed step-by-step instructions.
 
