@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/redredchen01/gwx/internal/api"
 )
@@ -305,7 +307,8 @@ func (h *GWXHandler) ListTools() []Tool {
 }
 
 func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolResult, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
 	switch name {
 	case "gmail_list":
@@ -354,8 +357,8 @@ func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolRe
 		return h.unifiedSearch(ctx, args)
 	default:
 		// Try extended tools
-		if result, handled := h.CallExtendedTool(ctx, name, args); handled {
-			return result, nil
+		if result, err, handled := h.CallExtendedTool(ctx, name, args); handled {
+			return result, err
 		}
 		return nil, fmt.Errorf("unknown tool: %s", name)
 	}
@@ -632,9 +635,10 @@ func (h *GWXHandler) contextGather(ctx context.Context, args map[string]interfac
 	// Drive
 	go func() {
 		svc := api.NewDriveService(h.client)
-		files, err := svc.SearchFiles(ctx, "fullText contains '"+topic+"'", int64(limit))
+		safeTopic := strings.ReplaceAll(topic, "'", "\\'")
+		files, err := svc.SearchFiles(ctx, "fullText contains '"+safeTopic+"'", int64(limit))
 		if err != nil {
-			files, err = svc.SearchFiles(ctx, "name contains '"+topic+"'", int64(limit))
+			files, err = svc.SearchFiles(ctx, "name contains '"+safeTopic+"'", int64(limit))
 			if err != nil {
 				ch <- result{"files", map[string]interface{}{"error": err.Error()}}
 				return
@@ -684,7 +688,8 @@ func (h *GWXHandler) unifiedSearch(ctx context.Context, args map[string]interfac
 
 	go func() {
 		svc := api.NewDriveService(h.client)
-		files, err := svc.SearchFiles(ctx, "fullText contains '"+query+"'", int64(limit))
+		safeQuery := strings.ReplaceAll(query, "'", "\\'")
+		files, err := svc.SearchFiles(ctx, "fullText contains '"+safeQuery+"'", int64(limit))
 		if err != nil {
 			ch <- result{"drive", map[string]interface{}{"error": err.Error()}}
 			return
@@ -748,35 +753,12 @@ func splitArg(args map[string]interface{}, key string) []string {
 		return nil
 	}
 	var parts []string
-	for _, p := range splitComma(s) {
+	for _, p := range strings.Split(s, ",") {
+		p = strings.TrimSpace(p)
 		if p != "" {
 			parts = append(parts, p)
 		}
 	}
 	return parts
-}
-
-func splitComma(s string) []string {
-	var result []string
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] == ',' {
-			result = append(result, trimSpace(s[start:i]))
-			start = i + 1
-		}
-	}
-	result = append(result, trimSpace(s[start:]))
-	return result
-}
-
-func trimSpace(s string) string {
-	i, j := 0, len(s)
-	for i < j && s[i] == ' ' {
-		i++
-	}
-	for j > i && s[j-1] == ' ' {
-		j--
-	}
-	return s[i:j]
 }
 

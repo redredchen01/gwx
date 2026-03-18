@@ -3,6 +3,7 @@ package mcp
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/redredchen01/gwx/internal/api"
@@ -225,69 +226,63 @@ func ExtendedTools() []Tool {
 }
 
 // CallExtendedTool handles calls to extended tools.
-func (h *GWXHandler) CallExtendedTool(ctx context.Context, name string, args map[string]interface{}) (*ToolResult, bool) {
+// Returns (result, error, handled). Handled=true means the tool name was recognized.
+func (h *GWXHandler) CallExtendedTool(ctx context.Context, name string, args map[string]interface{}) (*ToolResult, error, bool) {
 	switch name {
 	case "sheets_stats":
 		r, err := h.sheetsStats(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "sheets_diff":
 		r, err := h.sheetsDiff(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "sheets_copy_tab":
 		r, err := h.sheetsCopyTab(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "sheets_export":
 		r, err := h.sheetsExport(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "sheets_info":
 		r, err := h.sheetsInfo(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "sheets_clear":
 		r, err := h.sheetsClear(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "docs_search":
 		r, err := h.docsSearch(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "docs_replace":
 		r, err := h.docsReplace(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "docs_create":
 		r, err := h.docsCreate(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "docs_append":
 		r, err := h.docsAppend(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "calendar_find_slot":
 		r, err := h.calendarFindSlot(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "calendar_delete":
 		r, err := h.calendarDelete(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "drive_upload":
 		r, err := h.driveUpload(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "drive_share":
 		r, err := h.driveShare(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "drive_mkdir":
 		r, err := h.driveMkdir(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "gmail_labels":
 		r, err := h.gmailLabels(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	case "gmail_draft":
 		r, err := h.gmailDraft(ctx, args)
-		return handleResult(r, err)
+		return r, err, true
 	default:
-		return nil, false
+		return nil, nil, false
 	}
-}
-
-func handleResult(r *ToolResult, err error) (*ToolResult, bool) {
-	if err != nil {
-		return &ToolResult{Content: []ContentBlock{{Type: "text", Text: err.Error()}}, IsError: true}, true
-	}
-	return r, true
 }
 
 // --- Implementations ---
@@ -337,6 +332,8 @@ func (h *GWXHandler) sheetsExport(ctx context.Context, args map[string]interface
 		if err != nil {
 			return nil, err
 		}
+	default:
+		return nil, fmt.Errorf("unsupported format %q: use \"csv\" or \"json\"", format)
 	}
 	return &ToolResult{Content: []ContentBlock{{Type: "text", Text: buf.String()}}}, nil
 }
@@ -397,9 +394,13 @@ func (h *GWXHandler) docsAppend(ctx context.Context, args map[string]interface{}
 
 func (h *GWXHandler) calendarFindSlot(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	svc := api.NewCalendarService(h.client)
-	dur, _ := time.ParseDuration(strArg(args, "duration"))
-	if dur == 0 {
-		dur = 30 * time.Minute
+	dur := 30 * time.Minute
+	if ds := strArg(args, "duration"); ds != "" {
+		parsed, err := time.ParseDuration(ds)
+		if err != nil {
+			return nil, fmt.Errorf("invalid duration %q: use Go duration format like 30m, 1h, 1h30m", ds)
+		}
+		dur = parsed
 	}
 	slots, err := svc.FindSlot(ctx, splitArg(args, "attendees"), dur, intArg(args, "days", 3))
 	if err != nil {
