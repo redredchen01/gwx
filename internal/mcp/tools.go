@@ -303,6 +303,10 @@ func (h *GWXHandler) ListTools() []Tool {
 	}
 	// Append extended tools
 	tools = append(tools, ExtendedTools()...)
+	// Append new tools (v0.8.0)
+	tools = append(tools, NewTools()...)
+	// Append batch tools (v0.8.0)
+	tools = append(tools, BatchTools()...)
 	return tools
 }
 
@@ -358,6 +362,14 @@ func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolRe
 	default:
 		// Try extended tools
 		if result, err, handled := h.CallExtendedTool(ctx, name, args); handled {
+			return result, err
+		}
+		// Try new tools (v0.8.0)
+		if result, err, handled := h.CallNewTool(ctx, name, args); handled {
+			return result, err
+		}
+		// Try batch tools (v0.8.0)
+		if result, err, handled := h.CallBatchTool(ctx, name, args); handled {
 			return result, err
 		}
 		return nil, fmt.Errorf("unknown tool: %s", name)
