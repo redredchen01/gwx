@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 // JSON-RPC 2.0 types for MCP protocol
@@ -94,6 +95,7 @@ type Server struct {
 	handler Handler
 	reader  *bufio.Reader
 	writer  io.Writer
+	mu      sync.Mutex
 }
 
 // Handler processes MCP tool calls.
@@ -145,7 +147,7 @@ func (s *Server) handleRequest(req *Request) {
 			},
 			ServerInfo: ServerInfo{
 				Name:    "gwx",
-				Version: "0.1.0",
+				Version: "0.7.0",
 			},
 		})
 
@@ -187,8 +189,15 @@ func (s *Server) sendResult(id interface{}, result interface{}) {
 		ID:      id,
 		Result:  result,
 	}
-	data, _ := json.Marshal(resp)
+	data, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gwx mcp: failed to marshal result: %v\n", err)
+		s.sendError(id, -32603, "Internal error", "failed to marshal result")
+		return
+	}
+	s.mu.Lock()
 	fmt.Fprintf(s.writer, "%s\n", data)
+	s.mu.Unlock()
 }
 
 func (s *Server) sendError(id interface{}, code int, message, data string) {
@@ -197,6 +206,12 @@ func (s *Server) sendError(id interface{}, code int, message, data string) {
 		ID:      id,
 		Error:   &RPCError{Code: code, Message: message, Data: data},
 	}
-	d, _ := json.Marshal(resp)
+	d, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gwx mcp: failed to marshal error response: %v\n", err)
+		return
+	}
+	s.mu.Lock()
 	fmt.Fprintf(s.writer, "%s\n", d)
+	s.mu.Unlock()
 }
