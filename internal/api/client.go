@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"time"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/api/option"
@@ -14,6 +15,8 @@ type Client struct {
 	tokenSource oauth2.TokenSource
 	rateLimiter *ServiceRateLimiter
 	breakers    map[string]*CircuitBreaker
+	cache       *Cache
+	NoCache     bool
 	mu          sync.Mutex
 }
 
@@ -23,6 +26,7 @@ func NewClient(ts oauth2.TokenSource) *Client {
 		tokenSource: ts,
 		rateLimiter: NewServiceRateLimiter(),
 		breakers:    make(map[string]*CircuitBreaker),
+		cache:       NewCache(CacheConfig{MaxEntries: 256, DefaultTTL: 5 * time.Minute}),
 	}
 }
 

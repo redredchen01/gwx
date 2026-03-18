@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
 
 	"google.golang.org/api/drive/v3"
 )
@@ -37,6 +38,13 @@ type FileSummary struct {
 
 // ListFiles lists files in a folder or root.
 func (ds *DriveService) ListFiles(ctx context.Context, folderID string, maxResults int64) ([]FileSummary, error) {
+	if !ds.client.NoCache {
+		key := cacheKey("drive", "ListFiles", folderID, maxResults)
+		if cached, ok := ds.client.cache.Get(key); ok {
+			return cached.([]FileSummary), nil
+		}
+	}
+
 	if err := ds.client.WaitRate(ctx, "drive"); err != nil {
 		return nil, err
 	}
@@ -77,11 +85,23 @@ func (ds *DriveService) ListFiles(ctx context.Context, folderID string, maxResul
 	for _, f := range resp.Files {
 		files = append(files, fileToSummary(f))
 	}
+
+	if !ds.client.NoCache {
+		key := cacheKey("drive", "ListFiles", folderID, maxResults)
+		ds.client.cache.Set(key, files, 5*time.Minute)
+	}
 	return files, nil
 }
 
 // SearchFiles searches files by query.
 func (ds *DriveService) SearchFiles(ctx context.Context, query string, maxResults int64) ([]FileSummary, error) {
+	if !ds.client.NoCache {
+		key := cacheKey("drive", "SearchFiles", query, maxResults)
+		if cached, ok := ds.client.cache.Get(key); ok {
+			return cached.([]FileSummary), nil
+		}
+	}
+
 	if err := ds.client.WaitRate(ctx, "drive"); err != nil {
 		return nil, err
 	}
@@ -116,6 +136,11 @@ func (ds *DriveService) SearchFiles(ctx context.Context, query string, maxResult
 	var files []FileSummary
 	for _, f := range resp.Files {
 		files = append(files, fileToSummary(f))
+	}
+
+	if !ds.client.NoCache {
+		key := cacheKey("drive", "SearchFiles", query, maxResults)
+		ds.client.cache.Set(key, files, 5*time.Minute)
 	}
 	return files, nil
 }
@@ -158,6 +183,9 @@ func (ds *DriveService) UploadFile(ctx context.Context, localPath string, folder
 	}
 
 	summary := fileToSummary(created)
+	if !ds.client.NoCache {
+		ds.client.cache.InvalidatePrefix("drive:")
+	}
 	return &summary, nil
 }
 
@@ -177,8 +205,8 @@ func (ds *DriveService) DownloadFile(ctx context.Context, fileID string, outputP
 		return "", fmt.Errorf("create drive service: %w", err)
 	}
 
-	// Get file metadata for name
-	meta, err := svc.Files.Get(fileID).Fields("name,mimeType").Do()
+	// Get file metadata for name and size
+	meta, err := svc.Files.Get(fileID).Fields("name,mimeType,size").Do()
 	if err != nil {
 		return "", fmt.Errorf("get file metadata: %w", err)
 	}
@@ -265,6 +293,9 @@ func (ds *DriveService) CreateFolder(ctx context.Context, name string, parentID 
 	}
 
 	summary := fileToSummary(created)
+	if !ds.client.NoCache {
+		ds.client.cache.InvalidatePrefix("drive:")
+	}
 	return &summary, nil
 }
 
@@ -273,6 +304,37 @@ var driveIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 func isValidDriveID(id string) bool {
 	return driveIDPattern.MatchString(id)
+}
+
+// CheckDownloadSize fetches file metadata and returns an error if size exceeds maxBytes.
+func (ds *DriveService) CheckDownloadSize(ctx context.Context, fileID string, maxBytes int64) error {
+	if err := ds.client.WaitRate(ctx, "drive"); err != nil {
+		return err
+	}
+
+	opts, err := ds.client.ClientOptions(ctx, "drive")
+	if err != nil {
+		return err
+	}
+
+	svc, err := drive.NewService(ctx, opts...)
+	if err != nil {
+		return fmt.Errorf("create drive service: %w", err)
+	}
+
+	meta, err := svc.Files.Get(fileID).Fields("name,size").Do()
+	if err != nil {
+		return fmt.Errorf("get file metadata: %w", err)
+	}
+
+	if meta.Size > maxBytes {
+		return fmt.Errorf("file %q is %.1f MB, exceeds the %.0f MB download limit",
+			meta.Name,
+			float64(meta.Size)/1024/1024,
+			float64(maxBytes)/1024/1024,
+		)
+	}
+	return nil
 }
 
 func fileToSummary(f *drive.File) FileSummary {

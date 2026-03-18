@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/api/sheets/v4"
 )
@@ -28,6 +29,13 @@ type SheetData struct {
 
 // ReadRange reads a range from a spreadsheet.
 func (ss *SheetsService) ReadRange(ctx context.Context, spreadsheetID, readRange string) (*SheetData, error) {
+	if !ss.client.NoCache {
+		key := cacheKey("sheets", "ReadRange", spreadsheetID, readRange)
+		if cached, ok := ss.client.cache.Get(key); ok {
+			return cached.(*SheetData), nil
+		}
+	}
+
 	if err := ss.client.WaitRate(ctx, "sheets"); err != nil {
 		return nil, err
 	}
@@ -47,11 +55,16 @@ func (ss *SheetsService) ReadRange(ctx context.Context, spreadsheetID, readRange
 		return nil, fmt.Errorf("read range: %w", err)
 	}
 
-	return &SheetData{
+	result := &SheetData{
 		Range:    resp.Range,
 		Values:   resp.Values,
 		RowCount: len(resp.Values),
-	}, nil
+	}
+	if !ss.client.NoCache {
+		key := cacheKey("sheets", "ReadRange", spreadsheetID, readRange)
+		ss.client.cache.Set(key, result, 10*time.Minute)
+	}
+	return result, nil
 }
 
 // AppendValues appends rows to a spreadsheet range.
@@ -80,11 +93,15 @@ func (ss *SheetsService) AppendValues(ctx context.Context, spreadsheetID, append
 		return nil, fmt.Errorf("append values: %w", err)
 	}
 
-	return &SheetAppendResult{
+	result := &SheetAppendResult{
 		UpdatedRange: resp.Updates.UpdatedRange,
 		UpdatedRows:  resp.Updates.UpdatedRows,
 		UpdatedCells: resp.Updates.UpdatedCells,
-	}, nil
+	}
+	if !ss.client.NoCache {
+		ss.client.cache.InvalidatePrefix("sheets:")
+	}
+	return result, nil
 }
 
 // UpdateValues updates cells in a spreadsheet range.
@@ -112,11 +129,15 @@ func (ss *SheetsService) UpdateValues(ctx context.Context, spreadsheetID, update
 		return nil, fmt.Errorf("update values: %w", err)
 	}
 
-	return &SheetUpdateResult{
+	result := &SheetUpdateResult{
 		UpdatedRange: resp.UpdatedRange,
 		UpdatedRows:  resp.UpdatedRows,
 		UpdatedCells: resp.UpdatedCells,
-	}, nil
+	}
+	if !ss.client.NoCache {
+		ss.client.cache.InvalidatePrefix("sheets:")
+	}
+	return result, nil
 }
 
 // CreateSpreadsheet creates a new spreadsheet.
@@ -171,6 +192,13 @@ type SheetTab struct {
 
 // GetInfo returns metadata about a spreadsheet including all sheet tabs.
 func (ss *SheetsService) GetInfo(ctx context.Context, spreadsheetID string) (*SheetInfo, error) {
+	if !ss.client.NoCache {
+		key := cacheKey("sheets", "GetInfo", spreadsheetID)
+		if cached, ok := ss.client.cache.Get(key); ok {
+			return cached.(*SheetInfo), nil
+		}
+	}
+
 	if err := ss.client.WaitRate(ctx, "sheets"); err != nil {
 		return nil, err
 	}
@@ -204,13 +232,18 @@ func (ss *SheetsService) GetInfo(ctx context.Context, spreadsheetID string) (*Sh
 		tabs = append(tabs, tab)
 	}
 
-	return &SheetInfo{
+	info := &SheetInfo{
 		SpreadsheetID:  spreadsheet.SpreadsheetId,
 		Title:          spreadsheet.Properties.Title,
 		SpreadsheetURL: spreadsheet.SpreadsheetUrl,
 		Sheets:         tabs,
 		SheetCount:     len(tabs),
-	}, nil
+	}
+	if !ss.client.NoCache {
+		key := cacheKey("sheets", "GetInfo", spreadsheetID)
+		ss.client.cache.Set(key, info, 10*time.Minute)
+	}
+	return info, nil
 }
 
 // SearchValues searches for a keyword across all cells in a range and returns matching rows.
@@ -299,6 +332,9 @@ func (ss *SheetsService) ClearRange(ctx context.Context, spreadsheetID, clearRan
 	req := &sheets.ClearValuesRequest{}
 	if _, err := svc.Spreadsheets.Values.Clear(spreadsheetID, clearRange, req).Do(); err != nil {
 		return fmt.Errorf("clear range: %w", err)
+	}
+	if !ss.client.NoCache {
+		ss.client.cache.InvalidatePrefix("sheets:")
 	}
 	return nil
 }
