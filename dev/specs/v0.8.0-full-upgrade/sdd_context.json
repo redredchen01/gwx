@@ -1,0 +1,227 @@
+{
+  "version": "3.0.0",
+  "feature": "v0.8.0-full-upgrade",
+  "spec_folder": "dev/specs/v0.8.0-full-upgrade",
+  "spec_mode": "full",
+  "work_type": "new_feature",
+  "status": "completed",
+  "current_stage": "S7",
+  "execution_mode": "autopilot",
+  "created_at": "2026-03-18T17:30:00+08:00",
+  "last_updated": "2026-03-18T18:10:00+08:00",
+  "stages": {
+    "s0": {
+      "status": "completed",
+      "agent": "requirement-analyst",
+      "started_at": "2026-03-18T17:25:00+08:00",
+      "completed_at": "2026-03-18T17:30:00+08:00",
+      "output": {
+        "brief_spec_path": "dev/specs/v0.8.0-full-upgrade/s0_brief_spec.md",
+        "work_type": "new_feature",
+        "requirement": "gwx v0.8.0 全面升級：MCP 工具補齊、測試覆蓋、batch 操作、快取層、結構化日誌",
+        "pain_points": [
+          "16+ CLI 命令未公開為 MCP 工具",
+          "業務邏輯零 unit test",
+          "無 batch 操作",
+          "無快取層",
+          "裸 fmt.Print 無結構化日誌"
+        ],
+        "goal": "v0.8.0 完整升級，MCP 55+ 工具、測試覆蓋、batch、cache、slog",
+        "success_criteria": [
+          "MCP 工具 ≥ 55",
+          "go test ./... 全部通過",
+          "batch upload/append 可用",
+          "常用讀取有快取",
+          "所有日誌走 slog"
+        ],
+        "scope_in": [
+          "FA-1: 18 個新 MCP 工具",
+          "FA-2: API + MCP 層 unit test",
+          "FA-3: drive_batch_upload + sheets_batch_append",
+          "FA-4: 記憶體 LRU 快取",
+          "FA-5: log/slog 結構化日誌",
+          "version bump 0.8.0"
+        ],
+        "scope_out": [
+          "Web UI",
+          "磁碟快取",
+          "新 Google API 服務",
+          "gmail batch archive（已存在）"
+        ],
+        "constraints": [
+          "Go 1.22",
+          "Google API 配額限制",
+          "drive_download 100MB 上限"
+        ],
+        "functional_areas": [
+          {"id": "FA-1", "name": "MCP 工具補齊", "description": "公開 16+ CLI 命令為 MCP 工具", "independence": "high"},
+          {"id": "FA-2", "name": "測試覆蓋補強", "description": "API + MCP 層 unit test", "independence": "medium"},
+          {"id": "FA-3", "name": "Batch 操作", "description": "drive_batch_upload + sheets_batch_append", "independence": "high"},
+          {"id": "FA-4", "name": "記憶體快取層", "description": "LRU + TTL 快取常用讀取", "independence": "high"},
+          {"id": "FA-5", "name": "結構化日誌", "description": "log/slog 替換 fmt.Print", "independence": "high"}
+        ],
+        "decomposition_strategy": "single_sop_fa_labeled",
+        "child_sops": []
+      }
+    },
+    "s1": {
+      "status": "completed",
+      "agents": ["codebase-explorer", "architect"],
+      "started_at": "2026-03-18T17:35:00+08:00",
+      "completed_at": "2026-03-18T18:45:00+08:00",
+      "output": {
+        "completed_phases": [1, 2],
+        "dev_spec_path": "dev/specs/v0.8.0-full-upgrade/s1_dev_spec.md",
+        "tasks": [
+          "T1: slog 封裝 + 替換 (FA-5, S)",
+          "T2: LRU+TTL 快取實作 (FA-4, M)",
+          "T3: 快取注入 API Service (FA-4, M)",
+          "T4: 18 個 MCP 工具定義 + handler (FA-1, L)",
+          "T5: drive_batch_upload 實作 (FA-3, M)",
+          "T6: sheets_batch_append 實作 (FA-3, M)",
+          "T7: batch MCP 工具定義 + handler (FA-3, S)",
+          "T8: API 層 unit test (FA-2, M)",
+          "T9: MCP 層 unit test (FA-2, M)",
+          "T10: Version bump + 整合驗證 (VER, S)"
+        ],
+        "acceptance_criteria": [
+          "MCP tools/list >= 59 tools",
+          "go test ./... all pass",
+          "batch partial failure returns succeeded + failed lists",
+          "cache hit avoids redundant API call",
+          "slog only writes to stderr, never stdout",
+          "gwx version outputs 0.8.0"
+        ],
+        "solution_summary": "5 FA sequential: slog(FA-5) -> cache(FA-4) -> MCP tools(FA-1)+batch(FA-3) -> tests(FA-2) -> version bump. All 18 API methods already exist. Cache is pure stdlib LRU+TTL. Batch uses goroutine fan-out with semaphore. No new external dependencies.",
+        "tech_debt": [
+          "API service methods repeat google.NewService() call - could pool service objects",
+          "CallTool switch will have 40+ cases - consider map dispatch refactor in future"
+        ],
+        "regression_risks": [
+          "Cache stale data if write-invalidation missed",
+          "slog stdout pollution breaks MCP JSON-RPC protocol",
+          "cli_test.go version assertion needs sync update",
+          "protocol.go ServerInfo.Version needs sync update to 0.8.0"
+        ],
+        "assumptions": [
+          "All 18 API methods exist and are stable (verified by grep)",
+          "Go 1.26.1 fully supports log/slog (stdlib since 1.21)",
+          "Rate limiter (golang.org/x/time/rate) is thread-safe for goroutine fan-out",
+          "100MB drive_download limit is acceptable for MCP use case"
+        ],
+        "impact_scope": {
+          "new_files": [
+            "internal/log/logger.go",
+            "internal/api/cache.go",
+            "internal/api/cache_test.go",
+            "internal/mcp/tools_new.go",
+            "internal/mcp/tools_batch.go",
+            "internal/api/drive_batch.go",
+            "internal/api/sheets_batch.go",
+            "internal/api/drive_batch_test.go",
+            "internal/api/sheets_batch_test.go",
+            "internal/mcp/tools_test.go"
+          ],
+          "modified_files": [
+            "internal/api/client.go",
+            "internal/api/drive.go",
+            "internal/api/sheets.go",
+            "internal/api/contacts.go",
+            "internal/mcp/tools.go",
+            "internal/mcp/tools_extended.go",
+            "internal/cmd/mcpserver.go",
+            "internal/cmd/root.go",
+            "internal/output/formatter.go",
+            "internal/cmd/version.go",
+            "internal/cmd/cli_test.go",
+            "internal/mcp/protocol.go"
+          ]
+        },
+        "risks": [
+          {
+            "area": "FA-3 goroutine fan-out",
+            "level": "low",
+            "description": "Rate limiter is thread-safe. Semaphore controls concurrency. Channel collects results."
+          },
+          {
+            "area": "FA-4 cache injection scatter",
+            "level": "medium",
+            "description": "15+ methods need cache Get/Set/Invalidate calls. Mitigated by uniform Cache interface."
+          },
+          {
+            "area": "FA-5 slog stdout pollution",
+            "level": "low",
+            "description": "MCP uses stdout for JSON-RPC. slog handler MUST write to os.Stderr only."
+          },
+          {
+            "area": "FA-1 InputSchema typos",
+            "level": "medium",
+            "description": "18 tools with varied parameters. Mitigated by table-driven tests."
+          }
+        ]
+      }
+    },
+    "s2": {
+      "status": "completed",
+      "agent": "architect",
+      "engine_used": "opus_fallback",
+      "started_at": "2026-03-18T17:42:00+08:00",
+      "completed_at": "2026-03-18T18:10:00+08:00",
+      "output": {
+        "review_report_path": "dev/specs/v0.8.0-full-upgrade/review/s2_review_report.md",
+        "decision": "pass",
+        "p0_count": 0,
+        "p1_count": 5,
+        "p2_count": 4,
+        "all_p1_accepted_and_fixed": true
+      }
+    },
+    "s3": {
+      "status": "completed",
+      "agent": "architect",
+      "started_at": "2026-03-18T18:10:00+08:00",
+      "completed_at": "2026-03-18T18:20:00+08:00",
+      "output": {
+        "plan_path": "dev/specs/v0.8.0-full-upgrade/s3_implementation_plan.md",
+        "total_tasks": 10,
+        "total_waves": 4,
+        "parallel_tasks_wave1": 5
+      }
+    },
+    "s4": {
+      "status": "completed",
+      "started_at": "2026-03-18T18:25:00+08:00",
+      "completed_at": "2026-03-18T19:10:00+08:00",
+      "output": {
+        "build_status": "pass",
+        "test_status": "pass",
+        "completed_tasks": ["T1","T2","T3","T4","T5","T6","T7","T8","T9","T10"],
+        "new_files": 14,
+        "modified_files": 12,
+        "tools_count": 59
+      }
+    },
+    "s5": {"status": "skipped", "reason": "autopilot_self_implemented"},
+    "s6": {
+      "status": "completed",
+      "agent": "test-engineer",
+      "output": {
+        "automated_tests": "all pass (8 packages, 0 FAIL)",
+        "defects": 0,
+        "repair_loop_count": 0,
+        "acceptance_criteria_verified": 6,
+        "acceptance_criteria_passed": 6
+      }
+    },
+    "s7": {
+      "status": "completed",
+      "agent": "git-operator",
+      "output": {
+        "commit_hash": "8d0344e",
+        "branch": "main",
+        "changes": {"added": 5, "modified": 0},
+        "stats": "+761 lines"
+      }
+    }
+  }
+}
