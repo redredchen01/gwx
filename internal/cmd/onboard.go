@@ -2,12 +2,47 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/redredchen01/gwx/internal/auth"
 )
+
+// readPastedJSON reads multi-line JSON from stdin, starting with firstLine.
+// Reads until braces are balanced or valid JSON is formed.
+func readPastedJSON(firstLine string, reader *bufio.Reader) ([]byte, error) {
+	var sb strings.Builder
+	sb.WriteString(firstLine)
+	sb.WriteString("\n")
+
+	// Check if first line is already complete JSON
+	if json.Valid([]byte(firstLine)) {
+		return []byte(firstLine), nil
+	}
+
+	// Read more lines until we have valid JSON
+	for i := 0; i < 200; i++ { // safety cap
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			// EOF — try what we have
+			sb.WriteString(line)
+			break
+		}
+		sb.WriteString(line)
+
+		if json.Valid([]byte(sb.String())) {
+			return []byte(sb.String()), nil
+		}
+	}
+
+	data := []byte(sb.String())
+	if !json.Valid(data) {
+		return nil, fmt.Errorf("invalid JSON (pasted content is not valid JSON)")
+	}
+	return data, nil
+}
 
 // OnboardCmd runs the interactive setup wizard.
 type OnboardCmd struct{}
@@ -30,18 +65,34 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 	fmt.Fprintln(os.Stderr, "  2. Create Credentials → OAuth Client ID → Desktop App")
 	fmt.Fprintln(os.Stderr, "  3. Download the JSON file")
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprint(os.Stderr, "  Path to credentials JSON: ")
+	fmt.Fprintln(os.Stderr, "  Enter file path, or paste JSON directly (starts with '{'):")
+	fmt.Fprint(os.Stderr, "  > ")
 
-	credPath, err := reader.ReadString('\n')
+	firstLine, err := reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("read input: %w", err)
 	}
-	credPath = strings.TrimSpace(credPath)
+	firstLine = strings.TrimSpace(firstLine)
 
-	// Expand ~ if present
-	if strings.HasPrefix(credPath, "~/") {
-		home, _ := os.UserHomeDir()
-		credPath = home + credPath[1:]
+	var credJSON []byte
+	if strings.HasPrefix(firstLine, "{") {
+		// Paste JSON mode — read until braces are balanced
+		credJSON, err = readPastedJSON(firstLine, reader)
+		if err != nil {
+			return fmt.Errorf("read pasted JSON: %w", err)
+		}
+		fmt.Fprintln(os.Stderr, "  ✓ JSON received (paste mode)")
+	} else {
+		// File path mode
+		credPath := firstLine
+		if strings.HasPrefix(credPath, "~/") {
+			home, _ := os.UserHomeDir()
+			credPath = home + credPath[1:]
+		}
+		credJSON, err = os.ReadFile(credPath)
+		if err != nil {
+			return fmt.Errorf("read credentials file: %w", err)
+		}
 	}
 
 	// Step 2: Select services
@@ -72,7 +123,7 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 	scopes := auth.AllScopes(services, false)
 
 	// Load credentials
-	if err := rctx.Auth.LoadConfigFromFile(credPath, scopes); err != nil {
+	if err := rctx.Auth.LoadConfigFromJSON(credJSON, scopes); err != nil {
 		return fmt.Errorf("load credentials: %w", err)
 	}
 	fmt.Fprintln(os.Stderr, "  ✓ Credentials saved to OS Keyring")
