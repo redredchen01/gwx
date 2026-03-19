@@ -9,8 +9,8 @@ func TestListTools_Count(t *testing.T) {
 	tools := h.ListTools()
 
 	// Verify total tool count matches actual registration
-	if len(tools) != 78 {
-		t.Errorf("expected 78 tools, got %d", len(tools))
+	if len(tools) != 80 {
+		t.Errorf("expected 80 tools, got %d", len(tools))
 	}
 }
 
@@ -69,8 +69,8 @@ func TestCallTool_UnknownTool(t *testing.T) {
 
 func TestExtendedTools_Count(t *testing.T) {
 	tools := ExtendedTools()
-	if len(tools) != 17 {
-		t.Errorf("expected 17 extended tools, got %d", len(tools))
+	if len(tools) != 19 {
+		t.Errorf("expected 19 extended tools, got %d", len(tools))
 	}
 }
 

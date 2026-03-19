@@ -50,6 +50,7 @@ type CLI struct {
 	MeetingPrep MeetingPrepCmd `cmd:"meeting-prep" help:"Prepare context for an upcoming meeting"`
 	Workflow    WorkflowCmd    `cmd:"" help:"Workflow commands (test-matrix, sprint-board, etc.)"`
 
+	Pipe      PipeCmd      `cmd:"" help:"Chain gwx commands via JSON pipeline (e.g. 'gmail search X | sheets append ID A:C')"`
 	Agent     AgentCmd     `cmd:"" help:"Agent automation helpers"`
 	Schema    SchemaCmd    `cmd:"" help:"Print full command schema (for agent introspection)"`
 	MCPServer MCPServerCmd `cmd:"mcp-server" help:"Start MCP server (stdio) for Claude integration"`

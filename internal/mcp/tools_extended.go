@@ -222,6 +222,32 @@ func ExtendedTools() []Tool {
 				Required: []string{"to", "subject", "body"},
 			},
 		},
+		{
+			Name:        "gmail_batch_label",
+			Description: "Batch add/remove labels on messages matching a search query. CAUTION: Modifies messages.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"query":  {Type: "string", Description: "Gmail search query (e.g. 'from:github subject:CI')"},
+					"add":    {Type: "string", Description: "Labels to add, comma-separated"},
+					"remove": {Type: "string", Description: "Labels to remove, comma-separated"},
+					"limit":  {Type: "integer", Description: "Max messages to modify (default 50)"},
+				},
+				Required: []string{"query"},
+			},
+		},
+		{
+			Name:        "gmail_forward",
+			Description: "Forward a message to new recipients. CAUTION: Sends a real email.",
+			InputSchema: InputSchema{
+				Type: "object",
+				Properties: map[string]Property{
+					"message_id": {Type: "string", Description: "Message ID to forward"},
+					"to":         {Type: "string", Description: "Forward recipients, comma-separated"},
+				},
+				Required: []string{"message_id", "to"},
+			},
+		},
 	}
 }
 
@@ -279,6 +305,12 @@ func (h *GWXHandler) CallExtendedTool(ctx context.Context, name string, args map
 		return r, err, true
 	case "gmail_draft":
 		r, err := h.gmailDraft(ctx, args)
+		return r, err, true
+	case "gmail_batch_label":
+		r, err := h.gmailBatchLabel(ctx, args)
+		return r, err, true
+	case "gmail_forward":
+		r, err := h.gmailForward(ctx, args)
 		return r, err, true
 	default:
 		return nil, nil, false
@@ -470,4 +502,22 @@ func (h *GWXHandler) gmailDraft(ctx context.Context, args map[string]interface{}
 		return nil, err
 	}
 	return jsonResult(map[string]interface{}{"drafted": true, "message_id": result.MessageID})
+}
+
+func (h *GWXHandler) gmailBatchLabel(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	svc := api.NewGmailService(h.client)
+	count, err := svc.BatchModifyLabels(ctx, strArg(args, "query"), splitArg(args, "add"), splitArg(args, "remove"), int64(intArg(args, "limit", 50)))
+	if err != nil {
+		return nil, err
+	}
+	return jsonResult(map[string]interface{}{"modified": count, "query": strArg(args, "query")})
+}
+
+func (h *GWXHandler) gmailForward(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+	svc := api.NewGmailService(h.client)
+	result, err := svc.ForwardMessage(ctx, strArg(args, "message_id"), splitArg(args, "to"))
+	if err != nil {
+		return nil, err
+	}
+	return jsonResult(map[string]interface{}{"forwarded": true, "result": result})
 }

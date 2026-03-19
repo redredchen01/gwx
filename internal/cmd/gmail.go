@@ -20,6 +20,8 @@ type GmailCmd struct {
 	Reply   GmailReplyCmd   `cmd:"" help:"Reply to a message"`
 	Digest  GmailDigestCmd  `cmd:"" help:"Smart digest of recent messages"`
 	Archive GmailArchiveCmd `cmd:"" help:"Batch archive messages"`
+	Label   GmailLabelCmd   `cmd:"" help:"Batch add/remove labels on messages"`
+	Forward GmailForwardCmd `cmd:"" help:"Forward a message to new recipients"`
 }
 
 // GmailListCmd lists Gmail messages.
@@ -376,6 +378,85 @@ func (c *GmailArchiveCmd) Run(rctx *RunContext) error {
 		"count":  count,
 		"query":  c.Query,
 	})
+	return nil
+}
+
+// GmailLabelCmd batch modifies labels on messages.
+type GmailLabelCmd struct {
+	Query  string   `arg:"" help:"Gmail search query (e.g. 'subject:CI from:github')"`
+	Add    []string `help:"Labels to add (e.g. --add CI,Important)" name:"add"`
+	Remove []string `help:"Labels to remove (e.g. --remove INBOX)" name:"remove"`
+	Limit  int64    `help:"Max messages to modify" default:"50" short:"n"`
+}
+
+func (c *GmailLabelCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "gmail.label"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if len(c.Add) == 0 && len(c.Remove) == 0 {
+		return rctx.Printer.ErrExit(exitcode.InvalidInput, "at least one of --add or --remove is required")
+	}
+	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{
+			"dry_run": true,
+			"command": "gmail.label",
+			"query":   c.Query,
+			"add":     c.Add,
+			"remove":  c.Remove,
+			"limit":   c.Limit,
+		})
+		return nil
+	}
+
+	svc := api.NewGmailService(rctx.APIClient)
+	count, err := svc.BatchModifyLabels(rctx.Context, c.Query, c.Add, c.Remove, c.Limit)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(map[string]interface{}{
+		"action":   "labels_modified",
+		"count":    count,
+		"query":    c.Query,
+		"added":    c.Add,
+		"removed":  c.Remove,
+	})
+	return nil
+}
+
+// GmailForwardCmd forwards a message.
+type GmailForwardCmd struct {
+	MessageID string   `arg:"" help:"Message ID to forward"`
+	To        []string `help:"Forward recipients (e.g. --to a@b.com,c@d.com)" required:"" short:"t"`
+}
+
+func (c *GmailForwardCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "gmail.forward"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
+		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{
+			"dry_run":    true,
+			"command":    "gmail.forward",
+			"message_id": c.MessageID,
+			"to":         c.To,
+		})
+		return nil
+	}
+
+	svc := api.NewGmailService(rctx.APIClient)
+	result, err := svc.ForwardMessage(rctx.Context, c.MessageID, c.To)
+	if err != nil {
+		return handleAPIError(rctx, err)
+	}
+
+	rctx.Printer.Success(result)
 	return nil
 }
 

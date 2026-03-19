@@ -765,3 +765,109 @@ func (gs *GmailService) ListLabels(ctx context.Context) ([]map[string]string, er
 	}
 	return labels, nil
 }
+
+// BatchModifyLabels adds/removes labels on messages matching a query.
+// Returns the number of messages modified.
+func (gs *GmailService) BatchModifyLabels(ctx context.Context, query string, addLabels, removeLabels []string, maxMessages int64) (int, error) {
+	if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
+		return 0, err
+	}
+
+	opts, err := gs.client.ClientOptions(ctx, "gmail")
+	if err != nil {
+		return 0, err
+	}
+
+	svc, err := gmail.NewService(ctx, opts...)
+	if err != nil {
+		return 0, fmt.Errorf("create gmail service: %w", err)
+	}
+
+	// Resolve label names to IDs
+	labelMap, err := gs.labelNameToID(ctx, svc)
+	if err != nil {
+		return 0, err
+	}
+
+	var addIDs, removeIDs []string
+	for _, name := range addLabels {
+		if id, ok := labelMap[strings.ToUpper(name)]; ok {
+			addIDs = append(addIDs, id)
+		} else if id, ok := labelMap[name]; ok {
+			addIDs = append(addIDs, id)
+		} else {
+			return 0, fmt.Errorf("label %q not found", name)
+		}
+	}
+	for _, name := range removeLabels {
+		if id, ok := labelMap[strings.ToUpper(name)]; ok {
+			removeIDs = append(removeIDs, id)
+		} else if id, ok := labelMap[name]; ok {
+			removeIDs = append(removeIDs, id)
+		} else {
+			return 0, fmt.Errorf("label %q not found", name)
+		}
+	}
+
+	// List matching messages
+	call := svc.Users.Messages.List("me").Q(query)
+	if maxMessages > 0 {
+		call = call.MaxResults(maxMessages)
+	}
+	resp, err := call.Do()
+	if err != nil {
+		return 0, fmt.Errorf("list messages: %w", err)
+	}
+
+	modified := 0
+	for _, msg := range resp.Messages {
+		if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
+			return modified, err
+		}
+		modReq := &gmail.ModifyMessageRequest{
+			AddLabelIds:    addIDs,
+			RemoveLabelIds: removeIDs,
+		}
+		if _, err := svc.Users.Messages.Modify("me", msg.Id, modReq).Do(); err != nil {
+			continue
+		}
+		modified++
+	}
+	return modified, nil
+}
+
+// ForwardMessage forwards a message to new recipients.
+func (gs *GmailService) ForwardMessage(ctx context.Context, messageID string, to []string) (*SendResult, error) {
+	// Get original message
+	detail, err := gs.GetMessage(ctx, messageID)
+	if err != nil {
+		return nil, fmt.Errorf("get original message: %w", err)
+	}
+
+	subject := detail.Subject
+	if !strings.HasPrefix(strings.ToLower(subject), "fwd:") {
+		subject = "Fwd: " + subject
+	}
+
+	body := fmt.Sprintf("---------- Forwarded message ----------\nFrom: %s\nDate: %s\nSubject: %s\n\n%s",
+		detail.From, detail.Date, detail.Subject, detail.Body)
+
+	return gs.SendMessage(ctx, &SendInput{
+		To:      to,
+		Subject: subject,
+		Body:    body,
+	})
+}
+
+func (gs *GmailService) labelNameToID(ctx context.Context, svc *gmail.Service) (map[string]string, error) {
+	resp, err := svc.Users.Labels.List("me").Do()
+	if err != nil {
+		return nil, fmt.Errorf("list labels: %w", err)
+	}
+	m := make(map[string]string)
+	for _, l := range resp.Labels {
+		m[l.Name] = l.Id
+		m[strings.ToUpper(l.Name)] = l.Id // also index uppercase for system labels
+	}
+	return m, nil
+}
