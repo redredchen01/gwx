@@ -1,0 +1,189 @@
+{
+  "sdd_context": {
+    "version": "3.0.0",
+    "feature": "內建 Workflow Skills",
+    "current_stage": "S5",
+    "spec_mode": "full",
+    "spec_mode_reason": "13 個新 workflow，涉及新 workflow 引擎 + 13 CLI + 13 MCP，預估 30+ 檔案",
+    "work_type": "new_feature",
+    "spec_folder": "dev/specs/2026-03-19_2_builtin-workflow-skills",
+    "execution_mode": "autopilot",
+    "status": "in_progress",
+    "started_at": "2026-03-19T19:00:00+08:00",
+    "last_updated": "2026-03-19T21:00:00+08:00",
+    "last_updated_by": "orchestrator",
+    "stages": {
+      "s0": {
+        "status": "completed",
+        "agent": "requirement-analyst",
+        "started_at": "2026-03-19T19:00:00+08:00",
+        "output": {
+          "brief_spec_path": "dev/specs/2026-03-19_2_builtin-workflow-skills/s0_brief_spec.md",
+          "work_type": "new_feature",
+          "requirement": "將 13 個 workflow skills 內建為 gwx CLI + MCP 工具",
+          "goal": "任何 Agent 或人類一行指令觸發跨服務工作流",
+          "success_criteria": [
+            "workflow 引擎支援多服務聚合 + 部分失敗",
+            "--execute 控制是否執行動作",
+            "13 個 workflow CLI + MCP 可用",
+            "動作需 --execute + 確認"
+          ],
+          "pain_points": ["依賴 Claude Code", "不可程式化", "資料聯合手動"],
+          "scope_in": ["workflow 引擎", "13 個 workflow CLI+MCP", "安全確認機制"],
+          "scope_out": ["AI 推理", "UI", "自訂 workflow"],
+          "constraints": ["依賴現有服務", "sheet-to-email limit 50", "git log 用 shell exec"],
+          "functional_areas": [
+            {"id": "FA-A", "name": "Workflow 基礎設施", "description": "命令群組、聚合框架、execute 機制", "independence": "low"},
+            {"id": "FA-B", "name": "資料聚合型 Workflow", "description": "standup、meeting-prep、weekly-digest、context-boost、bug-intake", "independence": "medium"},
+            {"id": "FA-C", "name": "Sheets 狀態型 Workflow", "description": "test-matrix、spec-health、sprint-board", "independence": "medium"},
+            {"id": "FA-D", "name": "對外動作型 Workflow", "description": "review-notify、email-from-doc、sheet-to-email、parallel-schedule", "independence": "medium"}
+          ],
+          "decomposition_strategy": "single_sop_fa_labeled",
+          "child_sops": []
+        }
+      },
+      "s1": {
+        "status": "completed",
+        "agents": ["codebase-explorer", "architect"],
+        "started_at": "2026-03-19T19:05:00+08:00",
+        "completed_at": "2026-03-19T19:45:00+08:00",
+        "output": {
+          "completed_phases": [1, 2],
+          "dev_spec_path": "dev/specs/2026-03-19_2_builtin-workflow-skills/s1_dev_spec.md",
+          "impact_scope": {
+            "new_files": [
+              "internal/workflow/aggregator.go",
+              "internal/workflow/aggregator_test.go",
+              "internal/workflow/executor.go",
+              "internal/workflow/executor_test.go",
+              "internal/workflow/standup.go",
+              "internal/workflow/meeting_prep.go",
+              "internal/workflow/weekly_digest.go",
+              "internal/workflow/context_boost.go",
+              "internal/workflow/bug_intake.go",
+              "internal/workflow/test_matrix.go",
+              "internal/workflow/spec_health.go",
+              "internal/workflow/sprint_board.go",
+              "internal/workflow/review_notify.go",
+              "internal/workflow/email_from_doc.go",
+              "internal/workflow/sheet_to_email.go",
+              "internal/workflow/parallel_schedule.go",
+              "internal/cmd/standup.go",
+              "internal/cmd/meeting_prep.go",
+              "internal/cmd/workflow.go",
+              "internal/mcp/tools_workflow.go",
+              "internal/config/workflow_config.go",
+              "internal/config/workflow_config_test.go"
+            ],
+            "modified_files": [
+              "internal/cmd/root.go",
+              "internal/mcp/tools.go",
+              "internal/mcp/tools_test.go"
+            ]
+          },
+          "tasks": [
+            "T-01: Config workflow_config.go",
+            "T-02: Aggregator RunParallel",
+            "T-03: Executor Dispatch",
+            "T-04: WorkflowCmd + root.go",
+            "T-05: standup workflow + CLI",
+            "T-06: meeting-prep workflow + CLI",
+            "T-07: weekly-digest workflow + CLI",
+            "T-08: context-boost workflow + CLI",
+            "T-09: bug-intake workflow + CLI",
+            "T-10: test-matrix workflow + CLI",
+            "T-11: spec-health workflow + CLI",
+            "T-12: sprint-board workflow + CLI",
+            "T-13: review-notify workflow + CLI",
+            "T-14: email-from-doc workflow + CLI",
+            "T-15: sheet-to-email workflow + CLI",
+            "T-16: parallel-schedule workflow + CLI",
+            "T-17: MCP tools_workflow.go",
+            "T-18: MCP tools.go integration",
+            "T-19: go build/vet verification"
+          ],
+          "acceptance_criteria": [
+            "A-1..A-6: FA-A 基礎設施驗收",
+            "B-1..B-8: FA-B 資料聚合驗收",
+            "C-1..C-6: FA-C Sheets 狀態驗收",
+            "D-1..D-6: FA-D 對外動作驗收",
+            "M-1..M-6: MCP 整合驗收"
+          ],
+          "solution_summary": "新建 internal/workflow/ package（aggregator + executor + 13 workflows），CLI 頂層 2 + workflow 群組 11，MCP 19 tools read-only，config KV store 存 Sheet ID"
+        }
+      },
+      "s2": {
+        "status": "completed",
+        "output": {
+          "conclusion": "fix_required → 修正後 pass",
+          "engine_used": "codex",
+          "findings_summary": { "P0": 0, "P1": 4, "P2": 1 },
+          "fixes_applied": ["FA-C MCP 工具補齊 13→19", "CLI 契約漂移修訂", "FA-D error path DoD 補齊", "CheckAllowlist 納入 DoD"]
+        }
+      },
+      "s3": {
+        "status": "completed",
+        "agent": "architect",
+        "completed_at": "2026-03-19T20:00:00+08:00",
+        "output": {
+          "implementation_plan_path": "dev/specs/2026-03-19_2_builtin-workflow-skills/s3_implementation_plan.md",
+          "waves": [
+            {"wave": 1, "name": "FA-A 基礎設施", "tasks": ["T-01", "T-02", "T-03", "T-04"], "parallel": true},
+            {"wave": 2, "name": "FA-B 資料聚合", "tasks": ["T-05", "T-06", "T-07", "T-08", "T-09"], "parallel": true},
+            {"wave": 3, "name": "FA-C Sheets 狀態", "tasks": ["T-10", "T-11", "T-12"], "parallel": true},
+            {"wave": 4, "name": "FA-D 對外動作", "tasks": ["T-13", "T-14", "T-15", "T-16"], "parallel": true},
+            {"wave": 5, "name": "MCP 整合", "tasks": ["T-17", "T-18", "T-19"], "parallel": false}
+          ],
+          "total_tasks": 19,
+          "estimated_waves": 5
+        }
+      },
+      "s4": {
+        "status": "completed",
+        "started_at": "2026-03-19T20:05:00+08:00",
+        "completed_at": "2026-03-19T21:00:00+08:00",
+        "output": {
+          "completed_tasks": ["T-01", "T-02", "T-03", "T-04", "T-05", "T-06", "T-07", "T-08", "T-09", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19"],
+          "progress": "19/19",
+          "build_status": "pass",
+          "changes": [
+            "internal/config/workflow_config.go",
+            "internal/config/workflow_config_test.go",
+            "internal/workflow/aggregator.go",
+            "internal/workflow/aggregator_test.go",
+            "internal/workflow/executor.go",
+            "internal/workflow/executor_test.go",
+            "internal/workflow/standup.go",
+            "internal/workflow/meeting_prep.go",
+            "internal/workflow/weekly_digest.go",
+            "internal/workflow/context_boost.go",
+            "internal/workflow/bug_intake.go",
+            "internal/workflow/test_matrix.go",
+            "internal/workflow/spec_health.go",
+            "internal/workflow/sprint_board.go",
+            "internal/workflow/review_notify.go",
+            "internal/workflow/email_from_doc.go",
+            "internal/workflow/sheet_to_email.go",
+            "internal/workflow/parallel_schedule.go",
+            "internal/cmd/standup.go",
+            "internal/cmd/meeting_prep.go",
+            "internal/cmd/workflow.go",
+            "internal/cmd/root.go",
+            "internal/mcp/tools_workflow.go",
+            "internal/mcp/tools.go",
+            "internal/mcp/tools_test.go"
+          ],
+          "tdd_summary": {
+            "with_tdd": ["T-01", "T-02", "T-03"],
+            "skip_external_api": ["T-05", "T-06", "T-07", "T-08", "T-09", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16"],
+            "skip_scaffold": ["T-04", "T-18", "T-19"],
+            "mcp_handler_test": ["T-17"]
+          }
+        }
+      },
+      "s5": { "status": "pending" },
+      "s6": { "status": "pending" },
+      "s7": { "status": "pending" }
+    }
+  }
+}

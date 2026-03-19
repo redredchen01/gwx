@@ -307,6 +307,8 @@ func (h *GWXHandler) ListTools() []Tool {
 	tools = append(tools, NewTools()...)
 	// Append batch tools (v0.8.0)
 	tools = append(tools, BatchTools()...)
+	// Append workflow tools
+	tools = append(tools, WorkflowTools()...)
 	return tools
 }
 
@@ -370,6 +372,10 @@ func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolRe
 		}
 		// Try batch tools (v0.8.0)
 		if result, err, handled := h.CallBatchTool(ctx, name, args); handled {
+			return result, err
+		}
+		// Try workflow tools
+		if result, err, handled := h.CallWorkflowTool(ctx, name, args); handled {
 			return result, err
 		}
 		return nil, fmt.Errorf("unknown tool: %s", name)

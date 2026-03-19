@@ -45,6 +45,11 @@ type CLI struct {
 	Tasks    TasksCmd    `cmd:"" help:"Google Tasks operations"`
 	Contacts ContactsCmd `cmd:"" help:"Contacts operations"`
 	Chat     ChatCmd     `cmd:"" help:"Google Chat operations"`
+	// Workflow commands
+	Standup     StandupCmd     `cmd:"" help:"Daily standup report (aggregate Git + Gmail + Calendar + Tasks)"`
+	MeetingPrep MeetingPrepCmd `cmd:"meeting-prep" help:"Prepare context for an upcoming meeting"`
+	Workflow    WorkflowCmd    `cmd:"" help:"Workflow commands (test-matrix, sprint-board, etc.)"`
+
 	Agent     AgentCmd     `cmd:"" help:"Agent automation helpers"`
 	Schema    SchemaCmd    `cmd:"" help:"Print full command schema (for agent introspection)"`
 	MCPServer MCPServerCmd `cmd:"mcp-server" help:"Start MCP server (stdio) for Claude integration"`
