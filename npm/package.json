@@ -1,6 +1,6 @@
 {
   "name": "gwx-cli",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Google Workspace CLI for humans and agents — 95 commands, 92 MCP tools, 10 Google services (Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console)",
   "keywords": [
     "google-workspace",
