@@ -1,7 +1,7 @@
 # gwx 使用指南
 
 gwx 是一個 Google Workspace CLI 工具，同時支援兩種使用方式：
-- **人類** — 在終端機直接下指令操作 Gmail、Calendar、Drive 等 8 個 Google 服務
+- **人類** — 在終端機直接下指令操作 Gmail、Calendar、Drive、Analytics、Search Console 等 10 個 Google 服務
 - **AI Agent** — 作為 MCP Server 或 Bash 工具，讓 Claude Code / Codex 等 LLM 代理程式直接操作 Google Workspace
 
 ---
@@ -52,7 +52,7 @@ gwx onboard
 互動式精靈會引導你完成三步：
 
 1. **提供 OAuth 憑證** — 到 [Google Cloud Console](https://console.cloud.google.com/apis/credentials) 建立 OAuth 2.0 Client ID（類型選 Desktop App），下載 JSON 檔案，貼上路徑
-2. **選擇服務** — 預設全選 8 個服務（Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat），直接按 Enter
+2. **選擇服務** — 預設全選 10 個服務（Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console），直接按 Enter
 3. **登入** — 開瀏覽器完成 Google OAuth 授權
 
 完成後，你的 OAuth token 會存在作業系統的 Keyring（macOS Keychain / Linux Secret Service / Windows Credential Manager），**不會寫到檔案裡**。
@@ -202,6 +202,41 @@ gwx chat send spaces/AAAA --text "Hello"                    # 發送訊息
 gwx chat messages spaces/AAAA [--limit N]                   # 讀取訊息
 ```
 
+#### Analytics（4 個指令）
+
+```bash
+gwx analytics report --metrics sessions,activeUsers --dimensions date   # GA4 報表查詢
+    # --start-date 7daysAgo --end-date today --limit 100 --property properties/123
+gwx analytics realtime --metrics activeUsers                            # 即時數據
+gwx analytics properties                                                # 列出 GA4 Property
+gwx analytics audiences --property properties/123                       # 列出受眾
+```
+
+> 首次使用前設定預設 Property：`gwx config set analytics.default-property properties/123456`
+> 之後不用每次帶 `--property`。
+
+#### Search Console（5 個指令）
+
+```bash
+gwx searchconsole query --start-date 2026-03-01                        # 搜尋成效
+    # --dimensions query,page --query-filter "keyword" --limit 100 --site https://...
+gwx searchconsole sites                                                 # 列出已驗證網站
+gwx searchconsole inspect --site https://example.com URL                # 網址索引檢查
+    # ⚠️ 每日限額 2000 次
+gwx searchconsole sitemaps --site https://example.com                   # 列出 Sitemap
+gwx searchconsole index-status --site https://example.com               # 索引覆蓋率
+```
+
+> 首次使用前設定預設 Site：`gwx config set searchconsole.default-site https://example.com`
+
+#### Config（3 個指令）
+
+```bash
+gwx config set analytics.default-property properties/123456            # 設定偏好
+gwx config get analytics.default-property                               # 讀取偏好
+gwx config list                                                         # 列出所有偏好
+```
+
 ### 輸出格式
 
 所有指令預設輸出 JSON。可用 `--format` 切換：
@@ -263,13 +298,17 @@ MCP（Model Context Protocol）讓 Claude 直接呼叫 gwx 的工具，不需要
 
 #### 運作方式
 
-啟動後，Claude 可以直接呼叫 39 個 MCP tool，例如：
+啟動後，Claude 可以直接呼叫 71 個 MCP tool，例如：
 - `gmail_list` — 列出信件
 - `gmail_search` — 搜尋信件
 - `calendar_agenda` — 查看行程
 - `sheets_read` — 讀取試算表
 - `sheets_describe` — 分析欄位結構
-- `sheets_stats` — 欄位統計
+- `analytics_report` — GA4 報表查詢
+- `analytics_realtime` — GA4 即時數據
+- `searchconsole_query` — 搜尋成效查詢
+- `searchconsole_inspect` — 網址索引檢查
+- `config_set` — 設定偏好（如預設 Property/Site）
 - `context_gather` — 跨服務彙整上下文
 
 Agent 直接傳 JSON 參數呼叫，不需要組裝 CLI 指令字串。
@@ -287,6 +326,11 @@ CLI 指令對應到 MCP tool 的命名：`<service>_<command>`
 | `gwx sheets describe` | `sheets_describe` |
 | `gwx drive search` | `drive_search` |
 | `gwx docs get` | `docs_get` |
+| `gwx analytics report` | `analytics_report` |
+| `gwx analytics realtime` | `analytics_realtime` |
+| `gwx searchconsole query` | `searchconsole_query` |
+| `gwx searchconsole inspect` | `searchconsole_inspect` |
+| `gwx config set` | `config_set` |
 | `gwx find` | `unified_search` |
 | `gwx context` | `context_gather` |
 
@@ -459,7 +503,7 @@ Agent 在使用 Skill 時，會自動遵守這個分級：
 
 ### 穩定性
 
-- Rate Limiter：每個服務獨立的 token bucket（Sheets 0.8 QPS、Gmail 4 QPS、Drive 8 QPS）
+- Rate Limiter：每個服務獨立的 token bucket（Sheets 0.8 QPS、Gmail 4 QPS、Drive 8 QPS、Analytics 2 QPS、Search Console 2 QPS）
 - Retry：429 指數退避（尊重 Retry-After header）、5xx 固定間隔重試
 - Circuit Breaker：連續 5 次失敗後熔斷，30 秒後自動恢復
 

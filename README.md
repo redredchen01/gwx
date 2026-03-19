@@ -1,8 +1,8 @@
 # gwx — Google Workspace CLI for Humans and Agents
 
-A unified CLI + MCP server for Google Workspace — Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat. Designed for both human use and LLM agent integration.
+A unified CLI + MCP server for Google Workspace — Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console. Designed for both human use and LLM agent integration.
 
-**66 CLI commands · 39 MCP tools · 8 Google services**
+**78 CLI commands · 71 MCP tools · 10 Google services**
 
 ## Install
 
@@ -39,7 +39,7 @@ gwx find "topic"               # → unified search (Gmail + Drive)
 gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 ```
 
-## Commands (66)
+## Commands (78)
 
 | Service | Commands |
 |---------|----------|
@@ -51,6 +51,9 @@ gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 | **Tasks** (5) | `list` `lists` `create` `complete` `delete` |
 | **Contacts** (3) | `list` `search` `get` |
 | **Chat** (3) | `spaces` `send` `messages` |
+| **Analytics** (4) | `report` `realtime` `properties` `audiences` |
+| **Search Console** (5) | `query` `sites` `inspect` `sitemaps` `index-status` |
+| **Config** (3) | `set` `get` `list` |
 | **Cross-service** (2) | `find` (unified search) · `context` (gather context) |
 | **System** (9) | `auth login/logout/status` `onboard` `agent exit-codes` `schema` `mcp-server` `version` |
 
@@ -95,6 +98,36 @@ gwx gmail archive "subject:Run failed" --limit 50
 gwx docs template TEMPLATE_DOC_ID -v '{"name":"Alice","date":"2026-03-17"}'
 ```
 
+### Google Analytics 4
+```bash
+# GA4 report — sessions by country for last 7 days
+gwx analytics report --metrics sessions,activeUsers --dimensions country --start-date 7daysAgo
+
+# Real-time active users
+gwx analytics realtime --metrics activeUsers
+
+# List all GA4 properties
+gwx analytics properties
+
+# Set default property (one-time)
+gwx config set analytics.default-property properties/123456
+```
+
+### Google Search Console
+```bash
+# Search performance — top queries last 28 days
+gwx searchconsole query --start-date 2026-02-19 --dimensions query --limit 20
+
+# Check URL index status
+gwx searchconsole inspect --site https://example.com https://example.com/page
+
+# List sitemaps
+gwx searchconsole sitemaps --site https://example.com
+
+# Set default site (one-time)
+gwx config set searchconsole.default-site https://example.com
+```
+
 ### Cross-Service Operations
 ```bash
 # Search across Gmail + Drive simultaneously
@@ -104,7 +137,7 @@ gwx find "keyword"
 gwx context "project-name" --days 7
 ```
 
-## MCP Server (39 Tools)
+## MCP Server (71 Tools)
 
 Native Claude integration — no Bash needed:
 
@@ -125,7 +158,7 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-All 66 CLI commands are available as MCP tools. Claude can directly call `sheets_describe`, `gmail_digest`, `context_gather`, etc.
+All CLI commands are available as MCP tools. Claude can directly call `sheets_describe`, `gmail_digest`, `analytics_report`, `searchconsole_query`, `config_set`, etc.
 
 ## Claude Code Skill
 
@@ -351,7 +384,7 @@ export GWX_ENABLE_COMMANDS="gmail.*,calendar.list,sheets.read,sheets.describe"
 
 ## Resilience
 
-- **Rate Limiter** — Per-service token bucket (Sheets 0.8 QPS, Gmail 4 QPS, Drive 8 QPS)
+- **Rate Limiter** — Per-service token bucket (Sheets 0.8 QPS, Gmail 4 QPS, Drive 8 QPS, Analytics 2 QPS, Search Console 2 QPS)
 - **Retry Transport** — 429 exponential backoff with Retry-After header, 5xx fixed retry
 - **Circuit Breaker** — Opens after 5 consecutive failures, auto-recovers after 30s
 
@@ -366,7 +399,7 @@ export GWX_ENABLE_COMMANDS="gmail.*,calendar.list,sheets.read,sheets.describe"
 ## Authentication
 
 ```bash
-# Interactive setup (browser OAuth — requests all 8 service scopes)
+# Interactive setup (browser OAuth — requests all 10 service scopes)
 gwx onboard
 
 # Headless (loopback redirect on random port)
