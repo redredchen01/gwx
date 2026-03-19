@@ -205,3 +205,11 @@ func (h *GWXHandler) searchconsoleIndexStatus(ctx context.Context, args map[stri
 	}
 	return jsonResult(summary)
 }
+
+func (h *GWXHandler) registerSearchConsoleTools(r map[string]ToolHandler) {
+	r["searchconsole_query"] = h.searchconsoleQuery
+	r["searchconsole_sites"] = h.searchconsoleSites
+	r["searchconsole_inspect"] = h.searchconsoleInspect
+	r["searchconsole_sitemaps"] = h.searchconsoleSitemaps
+	r["searchconsole_index_status"] = h.searchconsoleIndexStatus
+}

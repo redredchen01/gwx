@@ -79,3 +79,20 @@ func (c *Client) WaitRate(ctx context.Context, service string) error {
 func (c *Client) IsCircuitOpen(service string) bool {
 	return c.breaker(service).IsOpen()
 }
+
+// ServiceInit combines WaitRate + ClientOptions into a single call.
+// Reduces the 3-line boilerplate in every API method to 1 line.
+//
+// Usage:
+//
+//	opts, err := ss.client.ServiceInit(ctx, "sheets")
+//	if err != nil {
+//	    return nil, err
+//	}
+//	svc, err := sheets.NewService(ctx, opts...)
+func (c *Client) ServiceInit(ctx context.Context, service string) ([]option.ClientOption, error) {
+	if err := c.WaitRate(ctx, service); err != nil {
+		return nil, err
+	}
+	return c.ClientOptions(ctx, service)
+}

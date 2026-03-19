@@ -132,6 +132,32 @@ func Execute() int {
 	return exitcode.OK
 }
 
+// Preflight checks allowlist + auth + dry-run in one call.
+// If dry-run is active, it prints a standard response and returns a sentinel error
+// that the caller should return directly (not an actual error — the response is already printed).
+//
+// Usage in Run():
+//
+//	if done, err := Preflight(rctx, "gmail.list", []string{"gmail"}); done {
+//	    return err
+//	}
+func Preflight(rctx *RunContext, command string, services []string) (done bool, err error) {
+	if err := CheckAllowlist(rctx, command); err != nil {
+		return true, rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if err := EnsureAuth(rctx, services); err != nil {
+		return true, rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	}
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{
+			"dry_run": true,
+			"command": command,
+		})
+		return true, nil
+	}
+	return false, nil
+}
+
 // CheckAllowlist verifies a command is permitted by the allowlist.
 func CheckAllowlist(rctx *RunContext, command string) error {
 	if rctx.Allowlist != nil && !rctx.Allowlist.IsAllowed(command) {

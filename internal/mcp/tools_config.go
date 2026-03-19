@@ -94,3 +94,15 @@ func (h *GWXHandler) configList() (*ToolResult, error) {
 	}
 	return jsonResult(map[string]interface{}{"preferences": prefs, "count": len(prefs)})
 }
+
+func (h *GWXHandler) registerConfigTools(r map[string]ToolHandler) {
+	r["config_set"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		return h.configSet(args)
+	}
+	r["config_get"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		return h.configGet(args)
+	}
+	r["config_list"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		return h.configList()
+	}
+}

@@ -521,3 +521,26 @@ func (h *GWXHandler) gmailForward(ctx context.Context, args map[string]interface
 	}
 	return jsonResult(map[string]interface{}{"forwarded": true, "result": result})
 }
+
+// registerExtendedTools registers all extended tool handlers into the registry.
+func (h *GWXHandler) registerExtendedTools(r map[string]ToolHandler) {
+	r["sheets_stats"] = h.sheetsStats
+	r["sheets_diff"] = h.sheetsDiff
+	r["sheets_copy_tab"] = h.sheetsCopyTab
+	r["sheets_export"] = h.sheetsExport
+	r["sheets_info"] = h.sheetsInfo
+	r["sheets_clear"] = h.sheetsClear
+	r["docs_search"] = h.docsSearch
+	r["docs_replace"] = h.docsReplace
+	r["docs_create"] = h.docsCreate
+	r["docs_append"] = h.docsAppend
+	r["calendar_find_slot"] = h.calendarFindSlot
+	r["calendar_delete"] = h.calendarDelete
+	r["drive_upload"] = h.driveUpload
+	r["drive_share"] = h.driveShare
+	r["drive_mkdir"] = h.driveMkdir
+	r["gmail_labels"] = h.gmailLabels
+	r["gmail_draft"] = h.gmailDraft
+	r["gmail_batch_label"] = h.gmailBatchLabel
+	r["gmail_forward"] = h.gmailForward
+}

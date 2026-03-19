@@ -551,3 +551,81 @@ func (h *GWXHandler) workflowParallelSchedule(ctx context.Context, args map[stri
 	return r, err, true
 }
 
+func (h *GWXHandler) registerWorkflowTools(r map[string]ToolHandler) {
+	r["workflow_standup"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowStandup(ctx, args)
+		return result, err
+	}
+	r["workflow_meeting_prep"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowMeetingPrep(ctx, args)
+		return result, err
+	}
+	r["workflow_weekly_digest"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowWeeklyDigest(ctx, args)
+		return result, err
+	}
+	r["workflow_digest"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowWeeklyDigest(ctx, args)
+		return result, err
+	}
+	r["workflow_context_boost"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowContextBoost(ctx, args)
+		return result, err
+	}
+	r["workflow_bug_intake"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowBugIntake(ctx, args)
+		return result, err
+	}
+	r["workflow_test_matrix_init"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowTestMatrixInit(ctx, args)
+		return result, err
+	}
+	r["workflow_test_matrix_sync"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowTestMatrixSync(ctx, args)
+		return result, err
+	}
+	r["workflow_test_matrix_stats"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowTestMatrixStats(ctx, args)
+		return result, err
+	}
+	r["workflow_spec_health_init"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowSpecHealthInit(ctx, args)
+		return result, err
+	}
+	r["workflow_spec_health_record"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowSpecHealthRecord(ctx, args)
+		return result, err
+	}
+	r["workflow_spec_health_stats"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowSpecHealthStats(ctx, args)
+		return result, err
+	}
+	r["workflow_sprint_board_init"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowSprintBoardInit(ctx, args)
+		return result, err
+	}
+	r["workflow_sprint_board_ticket"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowSprintBoardTicket(ctx, args)
+		return result, err
+	}
+	r["workflow_sprint_board_stats"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowSprintBoardStats(ctx, args)
+		return result, err
+	}
+	r["workflow_review_notify"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowReviewNotify(ctx, args)
+		return result, err
+	}
+	r["workflow_email_from_doc"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowEmailFromDoc(ctx, args)
+		return result, err
+	}
+	r["workflow_sheet_to_email"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowSheetToEmail(ctx, args)
+		return result, err
+	}
+	r["workflow_parallel_schedule"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+		result, err, _ := h.workflowParallelSchedule(ctx, args)
+		return result, err
+	}
+}

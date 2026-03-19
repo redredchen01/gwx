@@ -568,3 +568,24 @@ func (h *GWXHandler) chatMessages(ctx context.Context, args map[string]interface
 	}
 	return jsonResult(map[string]interface{}{"messages": messages, "count": len(messages)})
 }
+
+func (h *GWXHandler) registerNewTools(r map[string]ToolHandler) {
+	r["gmail_reply"] = h.gmailReply
+	r["calendar_list"] = h.calendarList
+	r["calendar_update"] = h.calendarUpdate
+	r["contacts_list"] = h.contactsList
+	r["contacts_get"] = h.contactsGet
+	r["drive_download"] = h.driveDownload
+	r["sheets_update"] = h.sheetsUpdate
+	r["sheets_import"] = h.sheetsImport
+	r["sheets_create"] = h.sheetsCreate
+	r["tasks_lists"] = h.tasksLists
+	r["tasks_complete"] = h.tasksComplete
+	r["tasks_delete"] = h.tasksDelete
+	r["docs_template"] = h.docsTemplate
+	r["docs_from_sheet"] = h.docsFromSheet
+	r["docs_export"] = h.docsExport
+	r["chat_spaces"] = h.chatSpaces
+	r["chat_send"] = h.chatSend
+	r["chat_messages"] = h.chatMessages
+}

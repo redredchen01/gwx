@@ -172,3 +172,10 @@ func (h *GWXHandler) analyticsAudiences(ctx context.Context, args map[string]int
 	}
 	return jsonResult(map[string]interface{}{"property": property, "audiences": audiences, "count": len(audiences)})
 }
+
+func (h *GWXHandler) registerAnalyticsTools(r map[string]ToolHandler) {
+	r["analytics_report"] = h.analyticsReport
+	r["analytics_realtime"] = h.analyticsRealtime
+	r["analytics_properties"] = h.analyticsProperties
+	r["analytics_audiences"] = h.analyticsAudiences
+}

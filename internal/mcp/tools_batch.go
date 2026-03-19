@@ -103,3 +103,8 @@ func (h *GWXHandler) sheetsBatchAppend(ctx context.Context, args map[string]inte
 	}
 	return jsonResult(result)
 }
+
+func (h *GWXHandler) registerBatchTools(r map[string]ToolHandler) {
+	r["drive_batch_upload"] = h.driveBatchUpload
+	r["sheets_batch_append"] = h.sheetsBatchAppend
+}

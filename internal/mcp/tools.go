@@ -12,7 +12,8 @@ import (
 
 // GWXHandler implements the MCP Handler interface for Google Workspace tools.
 type GWXHandler struct {
-	client *api.Client
+	client   *api.Client
+	registry map[string]ToolHandler // lazy-init tool dispatch map
 }
 
 // NewGWXHandler creates a handler with an authenticated API client.
@@ -318,86 +319,70 @@ func (h *GWXHandler) ListTools() []Tool {
 	return tools
 }
 
+// ToolHandler is a function that handles a tool call.
+type ToolHandler func(ctx context.Context, args map[string]interface{}) (*ToolResult, error)
+
+// buildRegistry builds a map of tool name → handler for O(1) dispatch.
+// Called once lazily on first CallTool.
+func (h *GWXHandler) buildRegistry() map[string]ToolHandler {
+	r := map[string]ToolHandler{
+		// Core tools (tools.go)
+		"gmail_list":      h.gmailList,
+		"gmail_get":       h.gmailGet,
+		"gmail_search":    h.gmailSearch,
+		"gmail_send":      h.gmailSend,
+		"calendar_agenda": h.calendarAgenda,
+		"calendar_create": h.calendarCreate,
+		"drive_list":      h.driveList,
+		"drive_search":    h.driveSearch,
+		"docs_get":        h.docsGet,
+		"sheets_read":     h.sheetsRead,
+		"sheets_append":   h.sheetsAppend,
+		"sheets_describe": h.sheetsDescribe,
+		"sheets_smart_append": h.sheetsSmartAppend,
+		"sheets_search":   h.sheetsSearch,
+		"sheets_filter":   h.sheetsFilter,
+		"tasks_list":      h.tasksList,
+		"tasks_create":    h.tasksCreate,
+		"contacts_search": h.contactsSearch,
+		"gmail_digest":    h.gmailDigest,
+		"gmail_archive":   h.gmailArchive,
+		"context_gather":  h.contextGather,
+		"unified_search":  h.unifiedSearch,
+	}
+
+	// Register extended tools
+	h.registerExtendedTools(r)
+	// Register new tools
+	h.registerNewTools(r)
+	// Register batch tools
+	h.registerBatchTools(r)
+	// Register analytics tools
+	h.registerAnalyticsTools(r)
+	// Register search console tools
+	h.registerSearchConsoleTools(r)
+	// Register config tools
+	h.registerConfigTools(r)
+	// Register workflow tools
+	h.registerWorkflowTools(r)
+
+	return r
+}
+
 func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	switch name {
-	case "gmail_list":
-		return h.gmailList(ctx, args)
-	case "gmail_get":
-		return h.gmailGet(ctx, args)
-	case "gmail_search":
-		return h.gmailSearch(ctx, args)
-	case "gmail_send":
-		return h.gmailSend(ctx, args)
-	case "calendar_agenda":
-		return h.calendarAgenda(ctx, args)
-	case "calendar_create":
-		return h.calendarCreate(ctx, args)
-	case "drive_list":
-		return h.driveList(ctx, args)
-	case "drive_search":
-		return h.driveSearch(ctx, args)
-	case "docs_get":
-		return h.docsGet(ctx, args)
-	case "sheets_read":
-		return h.sheetsRead(ctx, args)
-	case "sheets_append":
-		return h.sheetsAppend(ctx, args)
-	case "sheets_describe":
-		return h.sheetsDescribe(ctx, args)
-	case "sheets_smart_append":
-		return h.sheetsSmartAppend(ctx, args)
-	case "sheets_search":
-		return h.sheetsSearch(ctx, args)
-	case "sheets_filter":
-		return h.sheetsFilter(ctx, args)
-	case "tasks_list":
-		return h.tasksList(ctx, args)
-	case "tasks_create":
-		return h.tasksCreate(ctx, args)
-	case "contacts_search":
-		return h.contactsSearch(ctx, args)
-	case "gmail_digest":
-		return h.gmailDigest(ctx, args)
-	case "gmail_archive":
-		return h.gmailArchive(ctx, args)
-	case "context_gather":
-		return h.contextGather(ctx, args)
-	case "unified_search":
-		return h.unifiedSearch(ctx, args)
-	default:
-		// Try extended tools
-		if result, err, handled := h.CallExtendedTool(ctx, name, args); handled {
-			return result, err
-		}
-		// Try new tools (v0.8.0)
-		if result, err, handled := h.CallNewTool(ctx, name, args); handled {
-			return result, err
-		}
-		// Try batch tools (v0.8.0)
-		if result, err, handled := h.CallBatchTool(ctx, name, args); handled {
-			return result, err
-		}
-		// Try analytics tools (v0.8.0)
-		if result, err, handled := h.CallAnalyticsTool(ctx, name, args); handled {
-			return result, err
-		}
-		// Try Search Console tools (v0.8.0)
-		if result, err, handled := h.CallSearchConsoleTool(ctx, name, args); handled {
-			return result, err
-		}
-		// Try config tools (v0.8.0)
-		if result, err, handled := h.CallConfigTool(ctx, name, args); handled {
-			return result, err
-		}
-		// Try workflow tools
-		if result, err, handled := h.CallWorkflowTool(ctx, name, args); handled {
-			return result, err
-		}
+	// Lazy-init registry
+	if h.registry == nil {
+		h.registry = h.buildRegistry()
+	}
+
+	handler, ok := h.registry[name]
+	if !ok {
 		return nil, fmt.Errorf("unknown tool: %s", name)
 	}
+	return handler(ctx, args)
 }
 
 // --- Tool implementations ---
