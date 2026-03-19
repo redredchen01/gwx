@@ -43,8 +43,11 @@ type CLI struct {
 	Docs     DocsCmd     `cmd:"" help:"Google Docs operations"`
 	Sheets   SheetsCmd   `cmd:"" help:"Google Sheets operations"`
 	Tasks    TasksCmd    `cmd:"" help:"Google Tasks operations"`
-	Contacts ContactsCmd `cmd:"" help:"Contacts operations"`
-	Chat     ChatCmd     `cmd:"" help:"Google Chat operations"`
+	Contacts      ContactsCmd      `cmd:"" help:"Contacts operations"`
+	Chat          ChatCmd          `cmd:"" help:"Google Chat operations"`
+	Analytics     AnalyticsCmd     `cmd:"" help:"Google Analytics 4 operations"`
+	SearchConsole SearchConsoleCmd `cmd:"searchconsole" help:"Google Search Console operations"`
+	Config        ConfigCmd        `cmd:"" help:"Configuration management"`
 	// Workflow commands
 	Standup     StandupCmd     `cmd:"" help:"Daily standup report (aggregate Git + Gmail + Calendar + Tasks)"`
 	MeetingPrep MeetingPrepCmd `cmd:"meeting-prep" help:"Prepare context for an upcoming meeting"`

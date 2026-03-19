@@ -104,7 +104,7 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Step 2/3: Select Services")
 	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━━━━━━━━━")
-	allServices := "gmail, calendar, drive, docs, sheets, tasks, people, chat"
+	allServices := "gmail, calendar, drive, docs, sheets, tasks, people, chat, analytics, searchconsole"
 	fmt.Fprintln(os.Stderr, "  Available: "+allServices)
 	fmt.Fprintln(os.Stderr, "  Default:   ALL (recommended)")
 	fmt.Fprintln(os.Stderr, "")
@@ -115,7 +115,7 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 
 	var services []string
 	if svcInput == "" {
-		services = []string{"gmail", "calendar", "drive", "docs", "sheets", "tasks", "people", "chat"}
+		services = []string{"gmail", "calendar", "drive", "docs", "sheets", "tasks", "people", "chat", "analytics", "searchconsole"}
 	} else {
 		for _, s := range strings.Split(svcInput, ",") {
 			s = strings.TrimSpace(s)
@@ -203,7 +203,7 @@ func (c *OnboardCmd) runNonInteractive(rctx *RunContext) error {
 	}
 
 	// Step 2: Services
-	services := []string{"gmail", "calendar", "drive", "docs", "sheets", "tasks", "people", "chat"}
+	services := []string{"gmail", "calendar", "drive", "docs", "sheets", "tasks", "people", "chat", "analytics", "searchconsole"}
 	if svcEnv := os.Getenv("GWX_SERVICES"); svcEnv != "" {
 		services = nil
 		for _, s := range strings.Split(svcEnv, ",") {

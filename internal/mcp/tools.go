@@ -307,6 +307,12 @@ func (h *GWXHandler) ListTools() []Tool {
 	tools = append(tools, NewTools()...)
 	// Append batch tools (v0.8.0)
 	tools = append(tools, BatchTools()...)
+	// Append analytics tools (v0.8.0)
+	tools = append(tools, AnalyticsTools()...)
+	// Append Search Console tools (v0.8.0)
+	tools = append(tools, SearchConsoleTools()...)
+	// Append config tools (v0.8.0)
+	tools = append(tools, ConfigTools()...)
 	// Append workflow tools
 	tools = append(tools, WorkflowTools()...)
 	return tools
@@ -372,6 +378,18 @@ func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolRe
 		}
 		// Try batch tools (v0.8.0)
 		if result, err, handled := h.CallBatchTool(ctx, name, args); handled {
+			return result, err
+		}
+		// Try analytics tools (v0.8.0)
+		if result, err, handled := h.CallAnalyticsTool(ctx, name, args); handled {
+			return result, err
+		}
+		// Try Search Console tools (v0.8.0)
+		if result, err, handled := h.CallSearchConsoleTool(ctx, name, args); handled {
+			return result, err
+		}
+		// Try config tools (v0.8.0)
+		if result, err, handled := h.CallConfigTool(ctx, name, args); handled {
 			return result, err
 		}
 		// Try workflow tools

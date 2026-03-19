@@ -1,0 +1,24 @@
+{
+  "audit_id": "SA-2026-03-18T22-00-00",
+  "timestamp": "2026-03-18T22:00:00+08:00",
+  "trigger": "standalone",
+  "engine_status": "completed",
+  "spec_folder": "dev/specs/v0.8.0-full-upgrade",
+  "dimensions": {
+    "d1_frontend": { "total": 0, "passed": 0, "partial": 0, "failed": 0, "note": "N/A — pure CLI/MCP, no frontend" },
+    "d2_backend": { "total": 32, "passed": 28, "partial": 0, "failed": 4 },
+    "d3_database": { "total": 0, "passed": 0, "partial": 0, "failed": 0, "note": "N/A — no database" },
+    "d4_user_flow": { "total": 3, "passed": 3, "partial": 0, "failed": 0 },
+    "d5_business_logic": { "total": 10, "passed": 6, "partial": 3, "failed": 1 },
+    "d6_test_coverage": { "total": 18, "passed": 8, "partial": 7, "failed": 3 }
+  },
+  "cross_validation": {
+    "api_contract": { "total": 18, "consistent": 18, "inconsistent": 0 },
+    "batch_spec_parity": { "total": 4, "consistent": 0, "inconsistent": 4, "note": "Spec defines 4 batch tools, actual has 2 different ones" },
+    "cache_ttl_parity": { "total": 5, "consistent": 2, "inconsistent": 3, "note": "contacts/calendar cache not implemented per spec" },
+    "flow_edge_case": { "total": 6, "covered": 4, "orphan": 2 },
+    "test_coverage": { "total": 6, "covered": 3, "missing": 3 }
+  },
+  "findings_summary": { "p0": 0, "p1": 6, "p2": 5, "info": 4, "total": 15 },
+  "report_path": "dev/specs/v0.8.0-full-upgrade/audit/spec_audit_report.md"
+}
