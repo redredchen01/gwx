@@ -55,7 +55,12 @@ gwx onboard
    - **本地**：貼上檔案路徑（如 `~/Downloads/credentials.json`）
    - **VPS/遠端**：直接貼上 JSON 內容（以 `{` 開頭，自動偵測）
 2. **選擇服務** — 預設全選 10 個服務（Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console），直接按 Enter
-3. **登入** — 選擇 (b)rowser 或 (m)anual。VPS 環境建議用 manual 模式
+3. **登入** — 三種模式：
+   - **(b)rowser**（預設）：自動開瀏覽器完成授權
+   - **(m)anual**：啟動 localhost redirect，手動複製 URL
+   - **(r)emote**：VPS 專用 — 在本機瀏覽器開 URL、授權後複製 redirect URL 貼回終端
+
+> **VPS 用戶推薦流程**：選 `r`（remote）。授權後瀏覽器會顯示「無法連線」，這是正常的。複製瀏覽器網址列的完整 URL，貼回 VPS 終端即可。
 
 完成後，你的 OAuth token 會存在作業系統的 Keyring（macOS Keychain / Linux Secret Service / Windows Credential Manager），**不會寫到檔案裡**。
 

@@ -236,6 +236,90 @@ func (m *Manager) LoginManual(ctx context.Context) (*oauth2.Token, error) {
 	}
 }
 
+// LoginRemote performs OAuth2 flow for VPS/remote environments.
+// No HTTP server — user opens URL in their local browser, authorizes,
+// then copies the auth code from the failed localhost redirect URL.
+func (m *Manager) LoginRemote(ctx context.Context) (*oauth2.Token, error) {
+	if m.config == nil {
+		return nil, fmt.Errorf("OAuth config not loaded; run 'gwx onboard' first")
+	}
+
+	// Use a fixed redirect URL — Google will redirect here, it will fail on user's browser,
+	// but the code is in the URL bar.
+	cfg := *m.config
+	cfg.RedirectURL = "http://127.0.0.1:1/callback"
+
+	stateBytes := make([]byte, 16)
+	if _, err := rand.Read(stateBytes); err != nil {
+		return nil, fmt.Errorf("generate state: %w", err)
+	}
+	state := hex.EncodeToString(stateBytes)
+
+	authURL := cfg.AuthCodeURL(state, oauth2.AccessTypeOffline,
+		oauth2.SetAuthURLParam("prompt", "consent"),
+	)
+
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "  ╔══════════════════════════════════════════════════╗")
+	fmt.Fprintln(os.Stderr, "  ║  Remote Authentication (VPS / SSH)               ║")
+	fmt.Fprintln(os.Stderr, "  ╚══════════════════════════════════════════════════╝")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "  Step 1: Open this URL in your LOCAL browser:")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "  %s\n", authURL)
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "  Step 2: Authorize gwx, then your browser will show")
+	fmt.Fprintln(os.Stderr, "          'This site can't be reached' — that's OK!")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "  Step 3: Copy the FULL URL from your browser's address bar")
+	fmt.Fprintln(os.Stderr, "          (it looks like: http://127.0.0.1:1/callback?code=4/0A...)")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprint(os.Stderr, "  Paste the full URL here: ")
+
+	var input string
+	if _, err := fmt.Fscanln(os.Stdin, &input); err != nil {
+		return nil, fmt.Errorf("read input: %w", err)
+	}
+
+	// Extract code from URL or raw code
+	code := extractAuthCode(input)
+	if code == "" {
+		return nil, fmt.Errorf("could not extract auth code from input")
+	}
+
+	token, err := cfg.Exchange(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("exchange code: %w", err)
+	}
+	return token, nil
+}
+
+// extractAuthCode extracts the OAuth code from a redirect URL or raw code string.
+func extractAuthCode(input string) string {
+	// If it's a URL, parse the code parameter
+	if idx := indexOf(input, "code="); idx >= 0 {
+		code := input[idx+5:]
+		// Trim at & or space
+		for i, c := range code {
+			if c == '&' || c == ' ' || c == '\n' || c == '\r' {
+				return code[:i]
+			}
+		}
+		return code
+	}
+	// Maybe it's the raw code
+	return input
+}
+
+func indexOf(s, sub string) int {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
+}
+
 // TokenFromDirect creates a token source from a direct access token string.
 func TokenFromDirect(accessToken string) oauth2.TokenSource {
 	return oauth2.StaticTokenSource(&oauth2.Token{

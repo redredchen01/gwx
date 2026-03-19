@@ -455,16 +455,21 @@ export GWX_ENABLE_COMMANDS="gmail.*,calendar.list,sheets.read,sheets.describe"
 # Interactive setup (browser OAuth — requests all 10 service scopes)
 gwx onboard
 # Supports file path OR paste JSON directly (auto-detects '{' prefix)
-# VPS/headless: paste the credentials JSON, then choose (m)anual login
 
-# Non-interactive (CI/VPS — via environment variables)
+# VPS/SSH setup (no browser on server):
+gwx onboard
+# Step 1: Paste credentials JSON (from Google Cloud Console)
+# Step 2: Select services (Enter for all)
+# Step 3: Choose (r)emote auth:
+#   → Opens URL in your LOCAL browser
+#   → After auth, browser shows "site can't be reached" — that's OK
+#   → Copy the full URL from browser address bar, paste it back
+
+# Non-interactive (CI — via environment variables)
 export GWX_OAUTH_JSON='{"installed":{"client_id":"...","client_secret":"..."}}'
-gwx onboard                    # auto-detects env var, skips prompts
+gwx onboard                    # auto-detects env var, uses remote auth
 
-# Headless (loopback redirect on random port)
-gwx auth login --manual
-
-# CI/CD (direct access token)
+# CI/CD (direct access token, skip OAuth entirely)
 export GWX_ACCESS_TOKEN="ya29.xxx"
 
 # Check status

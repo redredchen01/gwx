@@ -137,32 +137,41 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "Step 3/3: Sign In")
 	fmt.Fprintln(os.Stderr, "━━━━━━━━━━━━━━━━━")
-	fmt.Fprint(os.Stderr, "  Auth method - (b)rowser or (m)anual? [b]: ")
+	fmt.Fprintln(os.Stderr, "  (b)rowser  — opens browser on this machine (default)")
+	fmt.Fprintln(os.Stderr, "  (m)anual   — localhost redirect, copy URL manually")
+	fmt.Fprintln(os.Stderr, "  (r)emote   — for VPS/SSH: paste auth code from your local browser")
+	fmt.Fprint(os.Stderr, "  Auth method [b]: ")
 
 	method, _ := reader.ReadString('\n')
 	method = strings.TrimSpace(strings.ToLower(method))
 
-	var token interface{}
-	if method == "m" || method == "manual" {
+	var loginErr error
+	switch method {
+	case "r", "remote":
+		t, err := rctx.Auth.LoginRemote(rctx.Context)
+		if err != nil {
+			loginErr = fmt.Errorf("remote login: %w", err)
+		} else if err := rctx.Auth.SaveToken(rctx.Account, t); err != nil {
+			loginErr = fmt.Errorf("save token: %w", err)
+		}
+	case "m", "manual":
 		t, err := rctx.Auth.LoginManual(rctx.Context)
 		if err != nil {
-			return fmt.Errorf("manual login: %w", err)
+			loginErr = fmt.Errorf("manual login: %w", err)
+		} else if err := rctx.Auth.SaveToken(rctx.Account, t); err != nil {
+			loginErr = fmt.Errorf("save token: %w", err)
 		}
-		token = t
-		if err := rctx.Auth.SaveToken(rctx.Account, t); err != nil {
-			return fmt.Errorf("save token: %w", err)
-		}
-	} else {
+	default:
 		t, err := rctx.Auth.LoginBrowser(rctx.Context)
 		if err != nil {
-			return fmt.Errorf("browser login: %w", err)
-		}
-		token = t
-		if err := rctx.Auth.SaveToken(rctx.Account, t); err != nil {
-			return fmt.Errorf("save token: %w", err)
+			loginErr = fmt.Errorf("browser login: %w", err)
+		} else if err := rctx.Auth.SaveToken(rctx.Account, t); err != nil {
+			loginErr = fmt.Errorf("save token: %w", err)
 		}
 	}
-	_ = token
+	if loginErr != nil {
+		return loginErr
+	}
 
 	fmt.Fprintln(os.Stderr, "  ✓ Token saved to OS Keyring (never written to disk)")
 	fmt.Fprintln(os.Stderr, "")
@@ -186,7 +195,7 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 //   - GWX_OAUTH_JSON: OAuth credentials JSON string (required)
 //   - GWX_OAUTH_FILE: Path to OAuth credentials JSON file (alternative to GWX_OAUTH_JSON)
 //   - GWX_SERVICES: Comma-separated services (default: all)
-//   - GWX_AUTH_METHOD: "browser" or "manual" (default: "manual" in --no-input)
+//   - GWX_AUTH_METHOD: "browser", "manual", or "remote" (default: "remote" in --no-input)
 func (c *OnboardCmd) runNonInteractive(rctx *RunContext) error {
 	// Step 1: Load credentials
 	var credJSON []byte
@@ -233,10 +242,19 @@ func (c *OnboardCmd) runNonInteractive(rctx *RunContext) error {
 	// Step 3: Login
 	method := os.Getenv("GWX_AUTH_METHOD")
 	if method == "" {
-		method = "manual" // default for non-interactive
+		method = "remote" // default for non-interactive (VPS-friendly)
 	}
 
-	if method == "manual" {
+	switch method {
+	case "remote":
+		t, err := rctx.Auth.LoginRemote(rctx.Context)
+		if err != nil {
+			return fmt.Errorf("remote login: %w", err)
+		}
+		if err := rctx.Auth.SaveToken(rctx.Account, t); err != nil {
+			return fmt.Errorf("save token: %w", err)
+		}
+	case "manual":
 		t, err := rctx.Auth.LoginManual(rctx.Context)
 		if err != nil {
 			return fmt.Errorf("manual login: %w", err)
@@ -244,7 +262,7 @@ func (c *OnboardCmd) runNonInteractive(rctx *RunContext) error {
 		if err := rctx.Auth.SaveToken(rctx.Account, t); err != nil {
 			return fmt.Errorf("save token: %w", err)
 		}
-	} else {
+	default:
 		t, err := rctx.Auth.LoginBrowser(rctx.Context)
 		if err != nil {
 			return fmt.Errorf("browser login: %w", err)
