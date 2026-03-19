@@ -109,7 +109,7 @@ gwx context "project"     # = 彙整 Gmail + Drive + Calendar 的相關上下文
 
 ### 各服務指令速查
 
-#### Gmail（9 個指令）
+#### Gmail（11 個指令）
 
 ```bash
 gwx gmail list [--limit N] [--unread] [--label LABEL]     # 列出信件
@@ -121,6 +121,8 @@ gwx gmail draft --to a@b.com --subject "Hi" --body "..."   # 建草稿
 gwx gmail reply MESSAGE_ID --body "收到"                    # 回信
 gwx gmail digest --limit 30                                 # 智慧摘要
 gwx gmail archive "subject:CI failed" --limit 50           # 批次封存
+gwx gmail label "from:github" --add CI --remove INBOX       # 批量標籤
+gwx gmail forward MESSAGE_ID --to colleague@co.com          # 轉發信件
 ```
 
 #### Calendar（6 個指令）
@@ -234,6 +236,16 @@ gwx workflow parallel-schedule --title "Review" \
 > 所有 workflow 預設輸出 JSON（唯讀模式）。加 `--execute` 才會真的執行動作（發信、建事件等）。
 > MCP 工具（`workflow_standup` 等）永遠是唯讀，不會執行動作。
 
+#### Pipeline（1 個指令）
+
+```bash
+gwx pipe "gmail search 'invoice' | sheets append SHEET_ID A:C"   # 串接指令
+    # 每個階段的 JSON 輸出自動傳給下一階段的 stdin
+    # 用 | 分隔多個 gwx 子命令
+```
+
+> Pipeline 中每個階段自動加 `--format json`，確保機器可讀輸出。
+
 #### Analytics（4 個指令）
 
 ```bash
@@ -330,7 +342,7 @@ MCP（Model Context Protocol）讓 Claude 直接呼叫 gwx 的工具，不需要
 
 #### 運作方式
 
-啟動後，Claude 可以直接呼叫 78 個 MCP tool，例如：
+啟動後，Claude 可以直接呼叫 92 個 MCP tool，例如：
 - `gmail_list` — 列出信件
 - `gmail_search` — 搜尋信件
 - `calendar_agenda` — 查看行程
@@ -372,6 +384,8 @@ CLI 指令對應到 MCP tool 的命名：`<service>_<command>`
 | `gwx context` | `context_gather` |
 | `gwx standup` | `workflow_standup` |
 | `gwx meeting-prep` | `workflow_meeting_prep` |
+| `gwx gmail label` | `gmail_batch_label` |
+| `gwx gmail forward` | `gmail_forward` |
 | `gwx workflow test-matrix stats` | `workflow_test_matrix_stats` |
 | `gwx workflow sprint-board stats` | `workflow_sprint_board_stats` |
 

@@ -2,7 +2,7 @@
 
 A unified CLI + MCP server for Google Workspace — Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console. Designed for both human use and LLM agent integration.
 
-**91 CLI commands · 78 MCP tools · 10 Google services**
+**95 CLI commands · 92 MCP tools · 10 Google services**
 
 ## Install
 
@@ -39,11 +39,11 @@ gwx find "topic"               # → unified search (Gmail + Drive)
 gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 ```
 
-## Commands (91)
+## Commands (95)
 
 | Service | Commands |
 |---------|----------|
-| **Gmail** (9) | `list` `get` `search` `labels` `send` `draft` `reply` `digest` `archive` |
+| **Gmail** (11) | `list` `get` `search` `labels` `send` `draft` `reply` `digest` `archive` `label` `forward` |
 | **Calendar** (6) | `agenda` `list` `create` `update` `delete` `find-slot` |
 | **Drive** (6) | `list` `search` `upload` `download` `share` `mkdir` |
 | **Docs** (8) | `get` `create` `append` `search` `replace` `template` `from-sheet` `export` |
@@ -56,6 +56,7 @@ gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 | **Config** (3) | `set` `get` `list` |
 | **Workflow** (13) | `standup` `meeting-prep` + `workflow` subgroup: `weekly-digest` `context-boost` `bug-intake` `test-matrix` `spec-health` `sprint-board` `review-notify` `email-from-doc` `sheet-to-email` `parallel-schedule` |
 | **Cross-service** (2) | `find` (unified search) · `context` (gather context) |
+| **Pipeline** (1) | `pipe` (chain commands via JSON stdin/stdout) |
 | **System** (9) | `auth login/logout/status` `onboard` `agent exit-codes` `schema` `mcp-server` `version` |
 
 ## Highlights
@@ -91,6 +92,12 @@ gwx gmail digest --limit 30
 
 # Batch archive noisy notifications
 gwx gmail archive "subject:Run failed" --limit 50
+
+# Batch label — add/remove labels on matching messages
+gwx gmail label "from:github" --add CI --remove INBOX --limit 100
+
+# Forward a message
+gwx gmail forward MESSAGE_ID --to colleague@company.com
 ```
 
 ### Docs Template Engine
@@ -172,7 +179,18 @@ gwx find "keyword"
 gwx context "project-name" --days 7
 ```
 
-## MCP Server (78 Tools)
+### Command Pipeline
+```bash
+# Chain commands — each stage passes JSON to the next
+gwx pipe "gmail search 'invoice' | sheets append SHEET_ID A:C"
+
+# Multi-stage pipeline
+gwx pipe "calendar agenda --days 7 | docs create --title 'Weekly Report'"
+```
+
+> Each stage runs as a subprocess with `--format json`. Output of stage N becomes stdin of stage N+1.
+
+## MCP Server (92 Tools)
 
 Native Claude integration — no Bash needed:
 
@@ -193,7 +211,7 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-All CLI commands are available as MCP tools. Claude can directly call `sheets_describe`, `gmail_digest`, `analytics_report`, `searchconsole_query`, `config_set`, `workflow_standup`, `workflow_meeting_prep`, etc.
+All CLI commands are available as MCP tools. Claude can directly call `sheets_describe`, `gmail_digest`, `gmail_batch_label`, `analytics_report`, `searchconsole_query`, `config_set`, `workflow_standup`, `workflow_meeting_prep`, etc.
 
 ## Claude Code Skill
 
@@ -438,6 +456,10 @@ export GWX_ENABLE_COMMANDS="gmail.*,calendar.list,sheets.read,sheets.describe"
 gwx onboard
 # Supports file path OR paste JSON directly (auto-detects '{' prefix)
 # VPS/headless: paste the credentials JSON, then choose (m)anual login
+
+# Non-interactive (CI/VPS — via environment variables)
+export GWX_OAUTH_JSON='{"installed":{"client_id":"...","client_secret":"..."}}'
+gwx onboard                    # auto-detects env var, skips prompts
 
 # Headless (loopback redirect on random port)
 gwx auth login --manual
