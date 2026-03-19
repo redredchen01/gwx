@@ -1,0 +1,49 @@
+{
+  "sdd_context": {
+    "version": "3.0.0",
+    "feature": "CLI UX 改善",
+    "current_stage": "S4",
+    "spec_mode": "full",
+    "spec_mode_reason": "5 個 FA，10+ 檔案修改",
+    "work_type": "refactor",
+    "spec_folder": "dev/specs/2026-03-19_3_ux-improvements",
+    "execution_mode": "autopilot",
+    "status": "in_progress",
+    "started_at": "2026-03-19T22:00:00+08:00",
+    "last_updated": "2026-03-19T22:00:00+08:00",
+    "last_updated_by": "orchestrator",
+    "stages": {
+      "s0": {
+        "status": "completed",
+        "output": {
+          "work_type": "refactor",
+          "requirement": "優化 gwx CLI UX：Plain/Table 格式、Onboard --no-input、錯誤翻譯、Help example、行為一致性",
+          "goal": "讓 gwx 對人類和 Agent 都更友善",
+          "success_criteria": [
+            "gwx gmail list --format table 輸出可讀表格",
+            "gwx onboard --no-input 搭配環境變數可完成",
+            "Google API 錯誤附帶修復建議",
+            "gwx gmail send --help 顯示用例",
+            "所有命令 DryRun 輸出格式統一"
+          ],
+          "scope_in": ["formatter.go", "onboard.go", "error handling", "help tags", "cmd consistency"],
+          "scope_out": ["新增命令", "API 層修改", "MCP 層修改"],
+          "functional_areas": [
+            {"id": "FA-A", "name": "輸出格式", "independence": "high"},
+            {"id": "FA-B", "name": "Onboard 自動化", "independence": "high"},
+            {"id": "FA-C", "name": "錯誤翻譯層", "independence": "medium"},
+            {"id": "FA-D", "name": "Help 用例", "independence": "high"},
+            {"id": "FA-E", "name": "行為一致性", "independence": "medium"}
+          ]
+        }
+      },
+      "s1": { "status": "completed" },
+      "s2": { "status": "skipped" },
+      "s3": { "status": "completed" },
+      "s4": { "status": "in_progress" },
+      "s5": { "status": "pending" },
+      "s6": { "status": "pending" },
+      "s7": { "status": "pending" }
+    }
+  }
+}

@@ -24,8 +24,8 @@ type GmailCmd struct {
 
 // GmailListCmd lists Gmail messages.
 type GmailListCmd struct {
-	Limit  int64  `help:"Max messages to return" default:"10" short:"n"`
-	Label  string `help:"Filter by label" short:"l"`
+	Limit  int64  `help:"Max messages to return (e.g. --limit 5)" default:"10" short:"n"`
+	Label  string `help:"Filter by label (e.g. --label INBOX)" short:"l"`
 	Unread bool   `help:"Only show unread messages" short:"u"`
 }
 
@@ -95,7 +95,7 @@ func (c *GmailGetCmd) Run(rctx *RunContext) error {
 
 // GmailSearchCmd searches messages.
 type GmailSearchCmd struct {
-	Query string `arg:"" help:"Gmail search query"`
+	Query string `arg:"" help:"Gmail search query (e.g. 'from:boss subject:urgent')"`
 	Limit int64  `help:"Max results" default:"10" short:"n"`
 }
 
@@ -157,11 +157,11 @@ func (c *GmailLabelsCmd) Run(rctx *RunContext) error {
 
 // GmailSendCmd sends an email.
 type GmailSendCmd struct {
-	To      []string `help:"Recipients (comma-separated)" required:"" short:"t"`
+	To      []string `help:"Recipients, comma-separated (e.g. --to a@b.com,c@d.com)" required:"" short:"t"`
 	CC      []string `help:"CC recipients" short:"c"`
 	BCC     []string `help:"BCC recipients"`
-	Subject string   `help:"Email subject" required:"" short:"s"`
-	Body    string   `help:"Email body text" required:"" short:"b"`
+	Subject string   `help:"Email subject (e.g. --subject 'Hello')" required:"" short:"s"`
+	Body    string   `help:"Email body text (e.g. --body 'Hi there')" required:"" short:"b"`
 	Attach  []string `help:"File paths to attach" short:"A"`
 }
 

@@ -20,7 +20,7 @@ type CalendarCmd struct {
 
 // CalendarAgendaCmd shows today's (or N days) events.
 type CalendarAgendaCmd struct {
-	Days int `help:"Number of days to show" default:"1" short:"d"`
+	Days int `help:"Number of days to show (e.g. --days 7)" default:"1" short:"d"`
 }
 
 func (c *CalendarAgendaCmd) Run(rctx *RunContext) error {

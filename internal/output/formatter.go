@@ -47,6 +47,7 @@ type ErrorInfo struct {
 	Code    int    `json:"code"`
 	Name    string `json:"name"`
 	Message string `json:"message"`
+	Action  string `json:"action,omitempty"`
 }
 
 // Printer handles formatted output.
@@ -75,10 +76,183 @@ func (p *Printer) Success(data interface{}) {
 		enc.SetIndent("", "  ")
 		enc.Encode(resp) //nolint:errcheck
 	case FormatPlain:
-		fmt.Fprintf(p.Writer, "%v\n", data)
+		p.printPlain(data)
 	case FormatTable:
-		fmt.Fprintf(p.Writer, "%v\n", data)
+		p.printTable(data)
 	}
+}
+
+// printPlain outputs data in a human-readable plain text format.
+func (p *Printer) printPlain(data interface{}) {
+	// Convert to map via JSON roundtrip
+	raw, err := json.Marshal(data)
+	if err != nil {
+		fmt.Fprintf(p.Writer, "%v\n", data)
+		return
+	}
+
+	// Try as map
+	var m map[string]interface{}
+	if err := json.Unmarshal(raw, &m); err == nil {
+		p.printPlainMap(m, "")
+		return
+	}
+
+	// Try as array
+	var arr []interface{}
+	if err := json.Unmarshal(raw, &arr); err == nil {
+		for i, item := range arr {
+			if i > 0 {
+				fmt.Fprintln(p.Writer, "---")
+			}
+			if im, ok := item.(map[string]interface{}); ok {
+				p.printPlainMap(im, "")
+			} else {
+				fmt.Fprintf(p.Writer, "%v\n", item)
+			}
+		}
+		return
+	}
+
+	fmt.Fprintf(p.Writer, "%v\n", data)
+}
+
+func (p *Printer) printPlainMap(m map[string]interface{}, indent string) {
+	for k, v := range m {
+		switch val := v.(type) {
+		case map[string]interface{}:
+			fmt.Fprintf(p.Writer, "%s%s:\n", indent, k)
+			p.printPlainMap(val, indent+"  ")
+		case []interface{}:
+			fmt.Fprintf(p.Writer, "%s%s: (%d items)\n", indent, k, len(val))
+			for _, item := range val {
+				if im, ok := item.(map[string]interface{}); ok {
+					// Print key fields inline
+					summary := mapSummary(im)
+					fmt.Fprintf(p.Writer, "%s  - %s\n", indent, summary)
+				} else {
+					fmt.Fprintf(p.Writer, "%s  - %v\n", indent, item)
+				}
+			}
+		default:
+			fmt.Fprintf(p.Writer, "%s%s: %v\n", indent, k, v)
+		}
+	}
+}
+
+// mapSummary picks the most useful fields from a map for one-line display.
+func mapSummary(m map[string]interface{}) string {
+	// Priority fields to show
+	keys := []string{"subject", "title", "name", "summary", "id", "email", "status"}
+	var parts []string
+	for _, k := range keys {
+		if v, ok := m[k]; ok && v != nil && fmt.Sprintf("%v", v) != "" {
+			parts = append(parts, fmt.Sprintf("%s=%v", k, v))
+		}
+		if len(parts) >= 3 {
+			break
+		}
+	}
+	if len(parts) == 0 {
+		// Fallback: first 3 fields
+		for k, v := range m {
+			parts = append(parts, fmt.Sprintf("%s=%v", k, v))
+			if len(parts) >= 3 {
+				break
+			}
+		}
+	}
+	return strings.Join(parts, "  ")
+}
+
+// printTable outputs data as a formatted table using tabwriter.
+func (p *Printer) printTable(data interface{}) {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		fmt.Fprintf(p.Writer, "%v\n", data)
+		return
+	}
+
+	// Try to find an array in the data (common pattern: {"messages": [...], "count": N})
+	var m map[string]interface{}
+	if err := json.Unmarshal(raw, &m); err == nil {
+		// Find the first array field
+		for _, v := range m {
+			if arr, ok := v.([]interface{}); ok && len(arr) > 0 {
+				p.renderArrayAsTable(arr)
+				return
+			}
+		}
+		// No array found — render map as key-value table
+		var headers []string
+		var values []string
+		for k, v := range m {
+			headers = append(headers, k)
+			values = append(values, fmt.Sprintf("%v", v))
+		}
+		p.Table(headers, [][]string{values})
+		return
+	}
+
+	// Direct array
+	var arr []interface{}
+	if err := json.Unmarshal(raw, &arr); err == nil && len(arr) > 0 {
+		p.renderArrayAsTable(arr)
+		return
+	}
+
+	fmt.Fprintf(p.Writer, "%v\n", data)
+}
+
+// renderArrayAsTable renders an array of objects as a table.
+func (p *Printer) renderArrayAsTable(arr []interface{}) {
+	if len(arr) == 0 {
+		return
+	}
+
+	// Extract headers from first element
+	first, ok := arr[0].(map[string]interface{})
+	if !ok {
+		for _, item := range arr {
+			fmt.Fprintf(p.Writer, "%v\n", item)
+		}
+		return
+	}
+
+	// Collect headers (skip nested objects/arrays for table display)
+	var headers []string
+	for k, v := range first {
+		switch v.(type) {
+		case map[string]interface{}, []interface{}:
+			continue // skip nested
+		default:
+			headers = append(headers, k)
+		}
+	}
+
+	// Build rows
+	var rows [][]string
+	for _, item := range arr {
+		im, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		var row []string
+		for _, h := range headers {
+			val := ""
+			if v, ok := im[h]; ok && v != nil {
+				s := fmt.Sprintf("%v", v)
+				if len(s) > 60 {
+					s = s[:57] + "..."
+				}
+				val = s
+			}
+			row = append(row, val)
+		}
+		rows = append(rows, row)
+	}
+
+	p.Table(headers, rows)
 }
 
 // filterFields keeps only the specified keys from a map or struct (via JSON roundtrip).
@@ -119,6 +293,8 @@ func filterFields(data interface{}, fields []string) interface{} {
 
 // Err prints an error response and returns the exit code.
 func (p *Printer) Err(code int, msg string) int {
+	action := suggestedAction(code, msg)
+
 	switch p.Format {
 	case FormatJSON:
 		resp := Response{
@@ -129,13 +305,43 @@ func (p *Printer) Err(code int, msg string) int {
 				Message: msg,
 			},
 		}
+		if action != "" {
+			resp.Error.Action = action
+		}
 		enc := json.NewEncoder(os.Stderr)
 		enc.SetIndent("", "  ")
 		enc.Encode(resp) //nolint:errcheck
 	default:
 		slog.Error("output error", "message", msg)
+		if action != "" {
+			fmt.Fprintf(os.Stderr, "  Fix: %s\n", action)
+		}
 	}
 	return code
+}
+
+// suggestedAction returns a user-friendly fix suggestion based on error code and message.
+func suggestedAction(code int, msg string) string {
+	switch code {
+	case exitcode.AuthRequired:
+		return "Run 'gwx onboard' to set up credentials, or 'gwx auth login' to sign in."
+	case exitcode.AuthExpired:
+		return "Run 'gwx auth login' to refresh your token."
+	case exitcode.PermissionDenied:
+		if strings.Contains(msg, "allowlist") {
+			return "Add this command to GWX_ENABLE_COMMANDS or remove the restriction."
+		}
+		return "You may need to re-authorize with additional scopes: 'gwx auth login'"
+	case exitcode.NotFound:
+		return "Check the ID/path and try again. Use 'gwx <service> list' to find valid IDs."
+	case exitcode.RateLimited:
+		return "Wait 30 seconds and retry. Google API quota may be exhausted."
+	case exitcode.CircuitOpen:
+		return "Google API is unstable. Wait 30 seconds for the circuit breaker to recover."
+	case exitcode.InvalidInput:
+		return "Check your command arguments. Run '<command> --help' for usage."
+	}
+	return ""
 }
 
 // Table prints data as a table. headers are column names, rows are string slices.

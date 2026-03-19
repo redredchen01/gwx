@@ -48,6 +48,11 @@ func readPastedJSON(firstLine string, reader *bufio.Reader) ([]byte, error) {
 type OnboardCmd struct{}
 
 func (c *OnboardCmd) Run(rctx *RunContext) error {
+	// Non-interactive mode: read from environment variables
+	if rctx.DryRun || os.Getenv("GWX_OAUTH_JSON") != "" {
+		return c.runNonInteractive(rctx)
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Fprintln(os.Stderr, "")
@@ -171,6 +176,89 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 		"status":   "onboarded",
 		"account":  rctx.Account,
 		"services": services,
+	})
+	return nil
+}
+
+// runNonInteractive handles onboard via environment variables (CI/VPS/Agent).
+//
+// Environment variables:
+//   - GWX_OAUTH_JSON: OAuth credentials JSON string (required)
+//   - GWX_OAUTH_FILE: Path to OAuth credentials JSON file (alternative to GWX_OAUTH_JSON)
+//   - GWX_SERVICES: Comma-separated services (default: all)
+//   - GWX_AUTH_METHOD: "browser" or "manual" (default: "manual" in --no-input)
+func (c *OnboardCmd) runNonInteractive(rctx *RunContext) error {
+	// Step 1: Load credentials
+	var credJSON []byte
+	if jsonStr := os.Getenv("GWX_OAUTH_JSON"); jsonStr != "" {
+		credJSON = []byte(jsonStr)
+	} else if filePath := os.Getenv("GWX_OAUTH_FILE"); filePath != "" {
+		var err error
+		credJSON, err = os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("read GWX_OAUTH_FILE %q: %w", filePath, err)
+		}
+	} else {
+		return fmt.Errorf("non-interactive onboard requires GWX_OAUTH_JSON or GWX_OAUTH_FILE environment variable")
+	}
+
+	// Step 2: Services
+	services := []string{"gmail", "calendar", "drive", "docs", "sheets", "tasks", "people", "chat"}
+	if svcEnv := os.Getenv("GWX_SERVICES"); svcEnv != "" {
+		services = nil
+		for _, s := range strings.Split(svcEnv, ",") {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				services = append(services, s)
+			}
+		}
+	}
+
+	scopes := auth.AllScopes(services, false)
+
+	if err := rctx.Auth.LoadConfigFromJSON(credJSON, scopes); err != nil {
+		return fmt.Errorf("load credentials: %w", err)
+	}
+
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]interface{}{
+			"dry_run":  true,
+			"command":  "onboard",
+			"services": services,
+			"source":   "environment",
+		})
+		return nil
+	}
+
+	// Step 3: Login
+	method := os.Getenv("GWX_AUTH_METHOD")
+	if method == "" {
+		method = "manual" // default for non-interactive
+	}
+
+	if method == "manual" {
+		t, err := rctx.Auth.LoginManual(rctx.Context)
+		if err != nil {
+			return fmt.Errorf("manual login: %w", err)
+		}
+		if err := rctx.Auth.SaveToken(rctx.Account, t); err != nil {
+			return fmt.Errorf("save token: %w", err)
+		}
+	} else {
+		t, err := rctx.Auth.LoginBrowser(rctx.Context)
+		if err != nil {
+			return fmt.Errorf("browser login: %w", err)
+		}
+		if err := rctx.Auth.SaveToken(rctx.Account, t); err != nil {
+			return fmt.Errorf("save token: %w", err)
+		}
+	}
+
+	rctx.Printer.Success(map[string]interface{}{
+		"status":   "onboarded",
+		"account":  rctx.Account,
+		"services": services,
+		"mode":     "non-interactive",
 	})
 	return nil
 }
