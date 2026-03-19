@@ -316,6 +316,8 @@ func (h *GWXHandler) ListTools() []Tool {
 	tools = append(tools, ConfigTools()...)
 	// Append workflow tools
 	tools = append(tools, WorkflowTools()...)
+	// Append slides tools
+	tools = append(tools, SlidesTools()...)
 	return tools
 }
 
@@ -365,6 +367,8 @@ func (h *GWXHandler) buildRegistry() map[string]ToolHandler {
 	h.registerConfigTools(r)
 	// Register workflow tools
 	h.registerWorkflowTools(r)
+	// Register slides tools
+	h.registerSlidesTools(r)
 
 	return r
 }

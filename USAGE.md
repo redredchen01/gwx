@@ -241,6 +241,17 @@ gwx workflow parallel-schedule --title "Review" \
 > 所有 workflow 預設輸出 JSON（唯讀模式）。加 `--execute` 才會真的執行動作（發信、建事件等）。
 > MCP 工具（`workflow_standup` 等）永遠是唯讀，不會執行動作。
 
+#### Slides（6 個指令）
+
+```bash
+gwx slides get PRESENTATION_ID                              # 讀取簡報結構
+gwx slides list [--limit N]                                  # 列出簡報
+gwx slides create --title "報告"                             # 建立簡報
+gwx slides duplicate PRESENTATION_ID --title "副本"           # 複製簡報
+gwx slides export PRESENTATION_ID --export-format pdf -o r.pdf  # 匯出 PDF/PPTX
+gwx slides from-sheet --template ID --sheet-id ID --range "A:D" # 從 Sheet 套範本
+```
+
 #### Pipeline（1 個指令）
 
 ```bash
@@ -347,7 +358,7 @@ MCP（Model Context Protocol）讓 Claude 直接呼叫 gwx 的工具，不需要
 
 #### 運作方式
 
-啟動後，Claude 可以直接呼叫 92 個 MCP tool，例如：
+啟動後，Claude 可以直接呼叫 98 個 MCP tool，例如：
 - `gmail_list` — 列出信件
 - `gmail_search` — 搜尋信件
 - `calendar_agenda` — 查看行程

@@ -18,7 +18,7 @@ func (c *MCPServerCmd) Run(rctx *RunContext) error {
 	slog.SetDefault(logger)
 
 	// MCP server needs auth — load token silently
-	if err := EnsureAuth(rctx, []string{"gmail", "calendar", "drive", "docs", "sheets", "tasks", "people", "chat", "analytics", "searchconsole"}); err != nil {
+	if err := EnsureAuth(rctx, []string{"gmail", "calendar", "drive", "docs", "sheets", "tasks", "people", "chat", "analytics", "searchconsole", "slides"}); err != nil {
 		// Try loading with whatever scopes are available
 		if token := os.Getenv("GWX_ACCESS_TOKEN"); token != "" {
 			ts := auth.TokenFromDirect(token)

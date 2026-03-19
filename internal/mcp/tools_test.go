@@ -10,8 +10,8 @@ func TestListTools_Count(t *testing.T) {
 
 	// Verify total tool count matches actual registration
 	// 22 base + 19 extended + 18 new + 2 batch + 4 analytics + 5 searchconsole + 3 config + 19 workflow = 92
-	if len(tools) != 92 {
-		t.Errorf("expected 92 tools, got %d", len(tools))
+	if len(tools) != 98 {
+		t.Errorf("expected 98 tools, got %d", len(tools))
 	}
 }
 

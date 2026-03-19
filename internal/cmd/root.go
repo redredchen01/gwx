@@ -47,6 +47,7 @@ type CLI struct {
 	Chat          ChatCmd          `cmd:"" help:"Google Chat operations"`
 	Analytics     AnalyticsCmd     `cmd:"" help:"Google Analytics 4 operations"`
 	SearchConsole SearchConsoleCmd `cmd:"searchconsole" help:"Google Search Console operations"`
+	Slides        SlidesCmd        `cmd:"" help:"Google Slides operations"`
 	Config        ConfigCmd        `cmd:"" help:"Configuration management"`
 	// Workflow commands
 	Standup     StandupCmd     `cmd:"" help:"Daily standup report (aggregate Git + Gmail + Calendar + Tasks)"`

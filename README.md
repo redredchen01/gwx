@@ -2,7 +2,7 @@
 
 A unified CLI + MCP server for Google Workspace — Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console. Designed for both human use and LLM agent integration.
 
-**95 CLI commands · 92 MCP tools · 10 Google services**
+**101 CLI commands · 98 MCP tools · 11 Google services**
 
 ## Install
 
@@ -39,7 +39,7 @@ gwx find "topic"               # → unified search (Gmail + Drive)
 gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 ```
 
-## Commands (95)
+## Commands (101)
 
 | Service | Commands |
 |---------|----------|
@@ -53,6 +53,7 @@ gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 | **Chat** (3) | `spaces` `send` `messages` |
 | **Analytics** (4) | `report` `realtime` `properties` `audiences` |
 | **Search Console** (5) | `query` `sites` `inspect` `sitemaps` `index-status` |
+| **Slides** (6) | `get` `list` `create` `duplicate` `export` `from-sheet` |
 | **Config** (3) | `set` `get` `list` |
 | **Workflow** (13) | `standup` `meeting-prep` + `workflow` subgroup: `weekly-digest` `context-boost` `bug-intake` `test-matrix` `spec-health` `sprint-board` `review-notify` `email-from-doc` `sheet-to-email` `parallel-schedule` |
 | **Cross-service** (2) | `find` (unified search) · `context` (gather context) |
@@ -136,6 +137,27 @@ gwx searchconsole sitemaps --site https://example.com
 gwx config set searchconsole.default-site https://example.com
 ```
 
+### Google Slides
+```bash
+# List presentations
+gwx slides list
+
+# Get presentation structure
+gwx slides get PRESENTATION_ID
+
+# Create a new presentation
+gwx slides create --title "Q2 Report"
+
+# Export to PDF
+gwx slides export PRESENTATION_ID --export-format pdf -o report.pdf
+
+# Duplicate a presentation
+gwx slides duplicate PRESENTATION_ID --title "Copy of Report"
+
+# Generate from Sheet data + template (replaces {{placeholders}})
+gwx slides from-sheet --template TEMPLATE_ID --sheet-id SHEET_ID --range "A:D"
+```
+
 ### Built-in Workflows
 ```bash
 # Daily standup — aggregate Git + Gmail + Calendar + Tasks
@@ -190,7 +212,7 @@ gwx pipe "calendar agenda --days 7 | docs create --title 'Weekly Report'"
 
 > Each stage runs as a subprocess with `--format json`. Output of stage N becomes stdin of stage N+1.
 
-## MCP Server (92 Tools)
+## MCP Server (98 Tools)
 
 Native Claude integration — no Bash needed:
 
