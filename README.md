@@ -2,7 +2,7 @@
 
 A unified CLI + MCP server for Google Workspace — Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console. Designed for both human use and LLM agent integration.
 
-**78 CLI commands · 71 MCP tools · 10 Google services**
+**91 CLI commands · 78 MCP tools · 10 Google services**
 
 ## Install
 
@@ -39,7 +39,7 @@ gwx find "topic"               # → unified search (Gmail + Drive)
 gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 ```
 
-## Commands (78)
+## Commands (91)
 
 | Service | Commands |
 |---------|----------|
@@ -54,6 +54,7 @@ gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 | **Analytics** (4) | `report` `realtime` `properties` `audiences` |
 | **Search Console** (5) | `query` `sites` `inspect` `sitemaps` `index-status` |
 | **Config** (3) | `set` `get` `list` |
+| **Workflow** (13) | `standup` `meeting-prep` + `workflow` subgroup: `weekly-digest` `context-boost` `bug-intake` `test-matrix` `spec-health` `sprint-board` `review-notify` `email-from-doc` `sheet-to-email` `parallel-schedule` |
 | **Cross-service** (2) | `find` (unified search) · `context` (gather context) |
 | **System** (9) | `auth login/logout/status` `onboard` `agent exit-codes` `schema` `mcp-server` `version` |
 
@@ -128,6 +129,40 @@ gwx searchconsole sitemaps --site https://example.com
 gwx config set searchconsole.default-site https://example.com
 ```
 
+### Built-in Workflows
+```bash
+# Daily standup — aggregate Git + Gmail + Calendar + Tasks
+gwx standup
+
+# Push standup to Google Chat
+gwx standup --execute --push chat:spaces/AAAA
+
+# Meeting prep — attendees, recent emails, related docs
+gwx meeting-prep "Weekly Sync"
+
+# Weekly digest
+gwx workflow weekly-digest
+
+# Deep context gathering
+gwx workflow context-boost "Project X"
+
+# Test matrix in Sheets (init → sync → stats)
+gwx workflow test-matrix init --feature "invoice"
+gwx workflow test-matrix stats
+
+# Sprint board in Sheets
+gwx workflow sprint-board init --feature "Q2"
+gwx workflow sprint-board ticket --title "Fix login" --priority P1
+
+# Send review notification (requires --execute)
+gwx workflow review-notify --spec-folder dev/specs/xxx --reviewers a@co.com --execute --channel email
+
+# Mail merge from Sheets (hard limit: 50 rows)
+gwx workflow sheet-to-email --sheet-id XXX --range "A:F" --email-col 0 --subject-col 1 --body-col 2 --execute
+```
+
+> All workflows default to **read-only** (JSON output). Add `--execute` for actions. MCP tools are always read-only.
+
 ### Cross-Service Operations
 ```bash
 # Search across Gmail + Drive simultaneously
@@ -137,7 +172,7 @@ gwx find "keyword"
 gwx context "project-name" --days 7
 ```
 
-## MCP Server (71 Tools)
+## MCP Server (78 Tools)
 
 Native Claude integration — no Bash needed:
 
@@ -158,7 +193,7 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-All CLI commands are available as MCP tools. Claude can directly call `sheets_describe`, `gmail_digest`, `analytics_report`, `searchconsole_query`, `config_set`, etc.
+All CLI commands are available as MCP tools. Claude can directly call `sheets_describe`, `gmail_digest`, `analytics_report`, `searchconsole_query`, `config_set`, `workflow_standup`, `workflow_meeting_prep`, etc.
 
 ## Claude Code Skill
 
@@ -401,6 +436,8 @@ export GWX_ENABLE_COMMANDS="gmail.*,calendar.list,sheets.read,sheets.describe"
 ```bash
 # Interactive setup (browser OAuth — requests all 10 service scopes)
 gwx onboard
+# Supports file path OR paste JSON directly (auto-detects '{' prefix)
+# VPS/headless: paste the credentials JSON, then choose (m)anual login
 
 # Headless (loopback redirect on random port)
 gwx auth login --manual

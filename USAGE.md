@@ -51,9 +51,11 @@ gwx onboard
 
 互動式精靈會引導你完成三步：
 
-1. **提供 OAuth 憑證** — 到 [Google Cloud Console](https://console.cloud.google.com/apis/credentials) 建立 OAuth 2.0 Client ID（類型選 Desktop App），下載 JSON 檔案，貼上路徑
+1. **提供 OAuth 憑證** — 到 [Google Cloud Console](https://console.cloud.google.com/apis/credentials) 建立 OAuth 2.0 Client ID（類型選 Desktop App），下載 JSON 檔案。兩種方式擇一：
+   - **本地**：貼上檔案路徑（如 `~/Downloads/credentials.json`）
+   - **VPS/遠端**：直接貼上 JSON 內容（以 `{` 開頭，自動偵測）
 2. **選擇服務** — 預設全選 10 個服務（Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console），直接按 Enter
-3. **登入** — 開瀏覽器完成 Google OAuth 授權
+3. **登入** — 選擇 (b)rowser 或 (m)anual。VPS 環境建議用 manual 模式
 
 完成後，你的 OAuth token 會存在作業系統的 Keyring（macOS Keychain / Linux Secret Service / Windows Credential Manager），**不會寫到檔案裡**。
 
@@ -202,6 +204,36 @@ gwx chat send spaces/AAAA --text "Hello"                    # 發送訊息
 gwx chat messages spaces/AAAA [--limit N]                   # 讀取訊息
 ```
 
+#### Workflow（13 個指令）
+
+```bash
+# 頂層命令（高頻）
+gwx standup [--days N] [--execute --push chat:spaces/XXX]  # 每日站會報告
+gwx meeting-prep "會議關鍵字" [--days N]                    # 會議準備資料
+
+# gwx workflow 子命令群組
+gwx workflow weekly-digest [--weeks N]                      # 每週摘要
+gwx workflow context-boost "主題" [--days N] [--limit N]    # 主題上下文彙整
+gwx workflow bug-intake [--bug-id "BUG-123"] [--after 2026/03/15]  # Bug 相關資料
+gwx workflow test-matrix init --feature "功能名"             # 建立測試追蹤 Sheet
+gwx workflow test-matrix sync --file results.json            # 同步測試結果
+gwx workflow test-matrix stats                               # 測試統計
+gwx workflow spec-health init --feature "功能名"             # Spec 品質追蹤 Sheet
+gwx workflow spec-health record --spec-folder dev/specs/xxx  # 記錄 spec 狀態
+gwx workflow sprint-board init --feature "Sprint Q2"         # 建立看板 Sheet
+gwx workflow sprint-board ticket --title "修 Bug" --priority P1  # 新增 ticket
+gwx workflow sprint-board stats                              # 看板統計
+gwx workflow review-notify --spec-folder xxx --reviewers a@co.com  # 審查通知預覽
+gwx workflow email-from-doc --doc-id XXX --recipients a@co.com     # Doc 轉 Email 預覽
+gwx workflow sheet-to-email --sheet-id XXX --range "A:F" \
+    --email-col 0 --subject-col 1 --body-col 2              # 批量 Email 預覽（上限 50 列）
+gwx workflow parallel-schedule --title "Review" \
+    --attendees a@co.com,b@co.com --duration 30m             # 排程 1-on-1 預覽
+```
+
+> 所有 workflow 預設輸出 JSON（唯讀模式）。加 `--execute` 才會真的執行動作（發信、建事件等）。
+> MCP 工具（`workflow_standup` 等）永遠是唯讀，不會執行動作。
+
 #### Analytics（4 個指令）
 
 ```bash
@@ -298,7 +330,7 @@ MCP（Model Context Protocol）讓 Claude 直接呼叫 gwx 的工具，不需要
 
 #### 運作方式
 
-啟動後，Claude 可以直接呼叫 71 個 MCP tool，例如：
+啟動後，Claude 可以直接呼叫 78 個 MCP tool，例如：
 - `gmail_list` — 列出信件
 - `gmail_search` — 搜尋信件
 - `calendar_agenda` — 查看行程
@@ -310,6 +342,11 @@ MCP（Model Context Protocol）讓 Claude 直接呼叫 gwx 的工具，不需要
 - `searchconsole_inspect` — 網址索引檢查
 - `config_set` — 設定偏好（如預設 Property/Site）
 - `context_gather` — 跨服務彙整上下文
+- `workflow_standup` — 站會報告（唯讀）
+- `workflow_meeting_prep` — 會議準備資料（唯讀）
+- `workflow_test_matrix_stats` — 測試統計（唯讀）
+- `workflow_sprint_board_stats` — 看板統計（唯讀）
+- 還有 15 個 `workflow_*` 工具（全部唯讀，不執行動作）
 
 Agent 直接傳 JSON 參數呼叫，不需要組裝 CLI 指令字串。
 
@@ -333,6 +370,10 @@ CLI 指令對應到 MCP tool 的命名：`<service>_<command>`
 | `gwx config set` | `config_set` |
 | `gwx find` | `unified_search` |
 | `gwx context` | `context_gather` |
+| `gwx standup` | `workflow_standup` |
+| `gwx meeting-prep` | `workflow_meeting_prep` |
+| `gwx workflow test-matrix stats` | `workflow_test_matrix_stats` |
+| `gwx workflow sprint-board stats` | `workflow_sprint_board_stats` |
 
 ### 方式 B：Bash 工具呼叫
 
