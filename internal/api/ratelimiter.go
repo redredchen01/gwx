@@ -18,7 +18,9 @@ var defaultRates = map[string]rate.Limit{
 	"docs":     rate.Every(500 * time.Millisecond),  // 2 QPS
 	"tasks":    rate.Every(250 * time.Millisecond),  // 4 QPS
 	"people":   rate.Every(250 * time.Millisecond),  // 4 QPS
-	"chat":     rate.Every(250 * time.Millisecond),  // 4 QPS
+	"chat":          rate.Every(250 * time.Millisecond),  // 4 QPS
+	"analytics":     rate.Every(500 * time.Millisecond),  // 2 QPS (GA4 quota: 10 concurrent)
+	"searchconsole": rate.Every(500 * time.Millisecond),  // 2 QPS (GSC quota: ~5 QPS)
 }
 
 // ServiceRateLimiter manages per-service token bucket rate limiters.

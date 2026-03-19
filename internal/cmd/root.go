@@ -44,7 +44,10 @@ type CLI struct {
 	Sheets   SheetsCmd   `cmd:"" help:"Google Sheets operations"`
 	Tasks    TasksCmd    `cmd:"" help:"Google Tasks operations"`
 	Contacts ContactsCmd `cmd:"" help:"Contacts operations"`
-	Chat     ChatCmd     `cmd:"" help:"Google Chat operations"`
+	Chat          ChatCmd          `cmd:"" help:"Google Chat operations"`
+	Analytics     AnalyticsCmd     `cmd:"" help:"Google Analytics 4 operations"`
+	SearchConsole SearchConsoleCmd `cmd:"searchconsole" help:"Google Search Console operations"`
+	Config        ConfigCmd        `cmd:"" help:"Configuration management"`
 	Agent     AgentCmd     `cmd:"" help:"Agent automation helpers"`
 	Schema    SchemaCmd    `cmd:"" help:"Print full command schema (for agent introspection)"`
 	MCPServer MCPServerCmd `cmd:"mcp-server" help:"Start MCP server (stdio) for Claude integration"`

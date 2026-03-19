@@ -1,0 +1,376 @@
+{
+  "sdd_context": {
+    "version": "3.0.0",
+    "feature": "GA4 & Google Search Console 整合",
+    "current_stage": "S7",
+    "spec_mode": "full",
+    "spec_mode_reason": "新功能，2 個全新服務整合，涉及 API/CMD/MCP 三層，預估 10+ 檔案變更",
+    "work_type": "new_feature",
+    "spec_folder": "dev/specs/2026-03-19_1_ga4-gsc-integration",
+    "execution_mode": "autopilot",
+    "status": "completed",
+    "started_at": "2026-03-19T14:00:00+08:00",
+    "completed_at": "2026-03-19T18:30:00+08:00",
+    "last_updated": "2026-03-19T18:30:00+08:00",
+    "last_updated_by": "claude",
+    "stages": {
+      "s0": {
+        "status": "completed",
+        "agent": "requirement-analyst",
+        "started_at": "2026-03-19T14:00:00+08:00",
+        "completed_at": "2026-03-19T14:05:00+08:00",
+        "output": {
+          "brief_spec_path": "dev/specs/2026-03-19_1_ga4-gsc-integration/s0_brief_spec.md",
+          "work_type": "new_feature",
+          "requirement": "為 gwx 新增 GA4 和 Google Search Console 整合，涵蓋 CLI、MCP、設定管理",
+          "goal": "讓 CLI 使用者和 Claude Agent 能直接查詢 GA4/GSC 數據",
+          "success_criteria": [
+            "GA4 report/realtime/properties/audiences 命令可用",
+            "GSC query/sites/inspect/sitemaps/index-status 命令可用",
+            "所有命令有對應 MCP 工具",
+            "支援 default property/site config",
+            "所有操作為唯讀"
+          ],
+          "pain_points": [
+            "查看流量/SEO 數據需手動開 GA4/GSC 介面",
+            "Agent 缺乏網站分析與 SEO 數據",
+            "報表無法自動化整合"
+          ],
+          "scope_in": [
+            "GA4 Data API (RunReport, RunRealtimeReport)",
+            "GA4 Admin API (ListProperties, ListAudiences)",
+            "GSC API (SearchAnalytics, Sites, URL Inspection, Sitemaps, Index Coverage)",
+            "CLI 命令、MCP 工具、OAuth scope、Config 管理"
+          ],
+          "scope_out": [
+            "GA4 Admin 寫入操作",
+            "GSC Sitemap 提交",
+            "批量 URL Inspection",
+            "Dashboard/視覺化",
+            "/standup 深度整合"
+          ],
+          "constraints": [
+            "GA4 Data API 為 v1beta",
+            "GA4 quota 200K tokens/day",
+            "GSC 資料延遲 2-3 天",
+            "GSC URL Inspection 限額 2K/day",
+            "需重新授權 OAuth scope"
+          ],
+          "functional_areas": [
+            {
+              "id": "FA-A",
+              "name": "Google Analytics 4",
+              "description": "GA4 報表查詢、即時數據、Property/Audience 管理",
+              "independence": "high"
+            },
+            {
+              "id": "FA-B",
+              "name": "Google Search Console",
+              "description": "搜尋成效查詢、網站管理、網址檢查、Sitemap、索引狀態",
+              "independence": "high"
+            }
+          ],
+          "decomposition_strategy": "single_sop",
+          "child_sops": []
+        }
+      },
+      "s1": {
+        "status": "completed",
+        "agents": ["codebase-explorer", "architect"],
+        "started_at": "2026-03-19T14:10:00+08:00",
+        "completed_at": "2026-03-19T15:15:00+08:00",
+        "output": {
+          "completed_phases": [1, 2, 3, 4],
+          "validation_summary": { "critical": 0, "warnings": 1, "note": "defaultRates unexported - not blocking" },
+          "dev_spec_path": "dev/specs/2026-03-19_1_ga4-gsc-integration/s1_dev_spec.md",
+          "impact_scope": {
+            "new_files": [
+              "internal/api/analytics.go",
+              "internal/api/searchconsole.go",
+              "internal/cmd/analytics.go",
+              "internal/cmd/searchconsole.go",
+              "internal/cmd/config.go",
+              "internal/config/preferences.go",
+              "internal/mcp/tools_analytics.go",
+              "internal/mcp/tools_searchconsole.go"
+            ],
+            "modified_files": [
+              "internal/auth/scopes.go",
+              "internal/cmd/root.go",
+              "internal/cmd/mcpserver.go",
+              "internal/cmd/auth.go",
+              "internal/cmd/onboard.go",
+              "internal/api/ratelimiter.go",
+              "internal/mcp/tools.go",
+              "go.mod",
+              "go.sum"
+            ]
+          },
+          "tasks": ["T-01","T-02","T-03","T-04","T-05","T-06","T-07","T-08","T-09","T-10","T-11","T-12","T-13"],
+          "acceptance_criteria": ["AC-01","AC-02","AC-03","AC-04","AC-05","AC-06","AC-07","AC-08","AC-09","AC-10","AC-11","AC-12","AC-13","AC-14","AC-15"],
+          "solution_summary": "遵循現有三層架構（API Service→CMD→MCP Tool）新增 AnalyticsService 和 SearchConsoleService，搭配 JSON flat map config 機制（config.Dir()/preferences.json），全部唯讀操作，13 個任務、15 個驗收標準",
+          "assumptions": [
+            "google.golang.org/api v0.272.0 包含 analyticsdata/v1beta、analyticsadmin/v1alpha、searchconsole/v1 子包",
+            "analytics.readonly scope 足以涵蓋 ListAudiences 操作",
+            "使用者願意重新執行 gwx auth login 取得新 scope"
+          ],
+          "tech_debt": [
+            "mcpserver.go EnsureAuth services 清單硬編碼未修復（超出 scope）",
+            "onboard.go allServices 字串硬編碼未修復（超出 scope）",
+            "handleAPIError 在 cmd/gmail.go 裡未提取為共用函式"
+          ],
+          "regression_risks": [
+            "OAuth scope 擴大導致現有使用者需重新授權",
+            "MCP server EnsureAuth 服務清單擴大可能影響無新 scope token 的使用者",
+            "auth.go/onboard.go default services 擴大，Google Cloud Project 未啟用新 API 會在授權頁報錯"
+          ],
+          "risks": [
+            {
+              "area": "go.mod 新依賴",
+              "level": "medium",
+              "description": "analyticsdata/analyticsadmin/searchconsole 子包需 go get 驗證"
+            },
+            {
+              "area": "OAuth scope 重新授權",
+              "level": "high",
+              "description": "現有 token 不含新 scope，使用者必須重新授權"
+            },
+            {
+              "area": "GA4 Admin v1alpha 不穩定",
+              "level": "medium",
+              "description": "v1alpha API 介面可能變動，ListAudiences 降為 P1"
+            },
+            {
+              "area": "GSC URL Inspection 配額",
+              "level": "medium",
+              "description": "2K/day 限額，需在 help text 和 MCP description 標示"
+            }
+          ],
+          "unknowns": [
+            "go.mod 子包實際可用性（需 go get 驗證）",
+            "GA4 Admin ListAudiences 是否需要額外 IAM 權限"
+          ],
+          "dependencies": {
+            "upstream": ["internal/auth/scopes.go", "internal/api/client.go", "internal/api/ratelimiter.go", "internal/config/paths.go"],
+            "downstream": ["internal/cmd/root.go", "internal/cmd/mcpserver.go", "internal/mcp/tools.go"]
+          }
+        }
+      },
+      "s2": {
+        "status": "completed",
+        "agents": ["codebase-explorer", "codex-liaison", "architect"],
+        "started_at": "2026-03-19T15:15:00+08:00",
+        "completed_at": "2026-03-19T16:00:00+08:00",
+        "output": {
+          "conclusion": "conditional_pass → 修正後 pass",
+          "r1_engine": "codex",
+          "engine_used": "codex",
+          "findings_summary": { "P0": 0, "P1": 6, "P2": 3 },
+          "fixes_applied": [
+            "§3.4 OAuth 策略重寫（auto-upgrade → 明確 auth login）",
+            "新增 T-13 MCP config 工具",
+            "T-01 DoD 補 malformed JSON",
+            "全文路徑改為 config.Dir()",
+            "Sitemap 統一為列出",
+            "§3.5 CB 自動繼承說明",
+            "T-04 flatten 說明",
+            "T-12 go build 驗證"
+          ],
+          "review_report_path": "dev/specs/2026-03-19_1_ga4-gsc-integration/s2_review_report.md",
+          "pre_review": { "P0": 0, "P1": 2, "P2": 3, "agents": ["codebase-explorer"] }
+        }
+      },
+      "s3": {
+        "status": "completed",
+        "agent": "architect",
+        "started_at": "2026-03-19T16:30:00+08:00",
+        "completed_at": "2026-03-19T16:30:00+08:00",
+        "output": {
+          "implementation_plan_path": "dev/specs/2026-03-19_1_ga4-gsc-integration/s3_implementation_plan.md",
+          "total_tasks": 13,
+          "estimated_waves": 6,
+          "waves": [
+            {
+              "wave": 1,
+              "name": "基礎設施",
+              "tasks": ["T-01", "T-02"],
+              "parallel": true
+            },
+            {
+              "wave": 2,
+              "name": "基礎設施同步",
+              "tasks": ["T-03"],
+              "parallel": false
+            },
+            {
+              "wave": 3,
+              "name": "API 層",
+              "tasks": ["T-04", "T-05"],
+              "parallel": true
+            },
+            {
+              "wave": 4,
+              "name": "CLI + MCP",
+              "tasks": ["T-06", "T-07", "T-09", "T-10"],
+              "parallel": true
+            },
+            {
+              "wave": 5,
+              "name": "整合",
+              "tasks": ["T-08", "T-11", "T-12"],
+              "parallel": true
+            },
+            {
+              "wave": 6,
+              "name": "收尾",
+              "tasks": ["T-13"],
+              "parallel": false
+            }
+          ],
+          "verification": {
+            "static_analysis": ["go vet ./..."],
+            "unit_tests": ["go test ./..."],
+            "build": ["go build ./..."]
+          }
+        }
+      },
+      "s4": {
+        "status": "completed",
+        "started_at": "2026-03-19T16:35:00+08:00",
+        "completed_at": "2026-03-19T17:30:00+08:00",
+        "output": {
+          "completed_tasks": ["T-01","T-02","T-03","T-04","T-05","T-06","T-07","T-08","T-09","T-10","T-11","T-12","T-13"],
+          "progress": "13/13",
+          "build_status": "pass",
+          "changes": {
+            "new_files": [
+              "internal/config/preferences.go",
+              "internal/config/preferences_test.go",
+              "internal/cmd/config.go",
+              "internal/api/analytics.go",
+              "internal/api/searchconsole.go",
+              "internal/cmd/analytics.go",
+              "internal/cmd/searchconsole.go",
+              "internal/mcp/tools_analytics.go",
+              "internal/mcp/tools_searchconsole.go",
+              "internal/mcp/tools_config.go"
+            ],
+            "modified_files": [
+              "internal/auth/scopes.go",
+              "internal/api/ratelimiter.go",
+              "internal/cmd/auth.go",
+              "internal/cmd/onboard.go",
+              "internal/cmd/mcpserver.go",
+              "internal/cmd/root.go",
+              "internal/mcp/tools.go",
+              "internal/mcp/tools_test.go"
+            ]
+          }
+        }
+      },
+      "s5": {
+        "status": "completed",
+        "started_at": "2026-03-19T17:30:00+08:00",
+        "completed_at": "2026-03-19T18:00:00+08:00",
+        "output": {
+          "conclusion": "pass",
+          "engine_used": "codex",
+          "review_scope": "scoped",
+          "issues": { "p0": 0, "p1_initial": 4, "p1_fixed": 3, "p1_deferred": 1, "p2": 0 },
+          "fixes_applied": [
+            "CR-P1-001: analytics.go service key 統一為 analytics（原 analyticsdata/analyticsadmin）",
+            "CR-P1-002: searchconsole Query 補 EndDate default + Limit 上限 25000",
+            "CR-P1-003: MCP resolveSearchConsoleSite 補空值錯誤回傳"
+          ],
+          "spec_verification": {
+            "s0_success_criteria": { "total": 5, "passed": 5, "failed": 0 },
+            "s1_scope_consistency": "exact_match",
+            "dod_coverage": { "total": 13, "passed": 13, "failed": 0 }
+          },
+          "repair_loop_count": 1
+        }
+      },
+      "s6": {
+        "status": "completed",
+        "started_at": "2026-03-19T18:00:00+08:00",
+        "completed_at": "2026-03-19T18:05:00+08:00",
+        "output": {
+          "automated_tests": { "go_build": "pass", "go_test": "pass", "go_vet": "pass" },
+          "defects": [],
+          "repair_loop_count": 0,
+          "recommendation": "pass — 純 CLI/MCP 功能，go build/test/vet 全綠，無 UI 需手動測試"
+        }
+      },
+      "s7": {
+        "status": "completed",
+        "agent": "git-operator",
+        "started_at": "2026-03-19T18:10:00+08:00",
+        "completed_at": "2026-03-19T18:30:00+08:00",
+        "output": {
+          "commit_hash": "",
+          "branch": "main",
+          "changes": {
+            "new_files": [
+              "internal/api/analytics.go",
+              "internal/api/searchconsole.go",
+              "internal/cmd/analytics.go",
+              "internal/cmd/config.go",
+              "internal/cmd/searchconsole.go",
+              "internal/config/preferences.go",
+              "internal/config/preferences_test.go",
+              "internal/mcp/tools_analytics.go",
+              "internal/mcp/tools_config.go",
+              "internal/mcp/tools_searchconsole.go",
+              "dev/specs/2026-03-19_1_ga4-gsc-integration/"
+            ],
+            "modified_files": [
+              "internal/auth/scopes.go",
+              "internal/api/ratelimiter.go",
+              "internal/cmd/auth.go",
+              "internal/cmd/onboard.go",
+              "internal/cmd/mcpserver.go",
+              "internal/cmd/root.go",
+              "internal/mcp/tools.go",
+              "internal/mcp/tools_test.go",
+              "dev/knowledge/pitfalls.md"
+            ]
+          },
+          "stats": {
+            "files_changed": 0,
+            "insertions": 0,
+            "deletions": 0
+          }
+        }
+      }
+    },
+    "lessons_learned": {
+      "what_went_well": [
+        "三層架構模式（API → CMD → MCP）讓新服務整合非常順暢，每層職責清晰，幾乎沒有跨層污染",
+        "Circuit Breaker 自動套用所有服務，不需額外接線，現有基礎設施設計良好",
+        "S2 對抗式審查發現了多個文件不一致問題（macOS 路徑、OAuth scope 語意），顯示 R1/R2 雙引擎審查的價值"
+      ],
+      "what_went_wrong": [
+        "analytics.go 的 service key 用了 analyticsdata/analyticsadmin 而非統一的 analytics，S5 Code Review 才發現，應在 S4 實作時即對照 ratelimiter.go defaultRates 驗證",
+        "MCP handler 漏了空值驗證（CLI 有做但 MCP 沒做），兩層實作不同步是常見陷阱",
+        "dev_spec 中 config.Dir() 路徑描述硬編碼為 ~/.config/gwx，macOS 實際路徑不同，S2 才修正"
+      ],
+      "new_pitfalls": [
+        {
+          "id": "new-service-key-mismatch",
+          "description": "新增 Google 服務時，WaitRate/ClientOptions 的 service key 必須與 auth/scopes.go ServiceScopes map key 和 ratelimiter.go defaultRates map key 完全一致",
+          "severity": "P1",
+          "tags": ["go", "api", "auth", "ratelimiter"],
+          "source": "GA4 & Google Search Console 整合 (2026-03)"
+        },
+        {
+          "id": "mcp-cli-validation-parity",
+          "description": "MCP handler 必須比照對應 CLI 命令做相同的輸入驗證（必填參數空值檢查、數值範圍限制），不能依賴底層 API 回傳的晦澀錯誤",
+          "severity": "P1",
+          "tags": ["mcp", "cli", "validation"],
+          "source": "GA4 & Google Search Console 整合 (2026-03)"
+        }
+      ],
+      "captured_at": "2026-03-19T18:30:00+08:00"
+    }
+  }
+}

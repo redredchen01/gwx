@@ -9,8 +9,8 @@ func TestListTools_Count(t *testing.T) {
 	tools := h.ListTools()
 
 	// Verify total tool count matches actual registration
-	if len(tools) != 59 {
-		t.Errorf("expected 59 tools, got %d", len(tools))
+	if len(tools) != 71 {
+		t.Errorf("expected 71 tools, got %d", len(tools))
 	}
 }
 

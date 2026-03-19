@@ -32,6 +32,12 @@ var ServiceScopes = map[string][]string{
 		"https://www.googleapis.com/auth/chat.messages",
 		"https://www.googleapis.com/auth/chat.spaces.readonly",
 	},
+	"analytics": {
+		"https://www.googleapis.com/auth/analytics.readonly",
+	},
+	"searchconsole": {
+		"https://www.googleapis.com/auth/webmasters.readonly",
+	},
 }
 
 // ReadOnlyScopes returns read-only scopes for services that support it.
@@ -43,7 +49,9 @@ var ReadOnlyScopes = map[string][]string{
 	"sheets":   {"https://www.googleapis.com/auth/spreadsheets.readonly"},
 	"tasks":    {"https://www.googleapis.com/auth/tasks.readonly"},
 	"people":   {"https://www.googleapis.com/auth/contacts.readonly"},
-	"chat":     {"https://www.googleapis.com/auth/chat.spaces.readonly"},
+	"chat":          {"https://www.googleapis.com/auth/chat.spaces.readonly"},
+	"analytics":     {"https://www.googleapis.com/auth/analytics.readonly"},
+	"searchconsole": {"https://www.googleapis.com/auth/webmasters.readonly"},
 }
 
 // AllScopes returns the union of all scopes for the given services.
