@@ -18,7 +18,8 @@
       "Bash(mkdir *)",
       "Bash(jq *)",
       "Bash(curl *)",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(grep -E \"\\\\.go$\")"
     ],
     "deny": []
   },
