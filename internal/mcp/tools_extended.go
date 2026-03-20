@@ -10,7 +10,12 @@ import (
 )
 
 // ExtendedTools returns the additional tools not in the base set.
-func ExtendedTools() []Tool {
+// Kept for backward-compat with tests.
+func ExtendedTools() []Tool { return extendedProvider{}.Tools() }
+
+type extendedProvider struct{}
+
+func (extendedProvider) Tools() []Tool {
 	return []Tool{
 		// Sheets extended
 		{
@@ -251,71 +256,31 @@ func ExtendedTools() []Tool {
 	}
 }
 
-// CallExtendedTool handles calls to extended tools.
-// Returns (result, error, handled). Handled=true means the tool name was recognized.
-func (h *GWXHandler) CallExtendedTool(ctx context.Context, name string, args map[string]interface{}) (*ToolResult, error, bool) {
-	switch name {
-	case "sheets_stats":
-		r, err := h.sheetsStats(ctx, args)
-		return r, err, true
-	case "sheets_diff":
-		r, err := h.sheetsDiff(ctx, args)
-		return r, err, true
-	case "sheets_copy_tab":
-		r, err := h.sheetsCopyTab(ctx, args)
-		return r, err, true
-	case "sheets_export":
-		r, err := h.sheetsExport(ctx, args)
-		return r, err, true
-	case "sheets_info":
-		r, err := h.sheetsInfo(ctx, args)
-		return r, err, true
-	case "sheets_clear":
-		r, err := h.sheetsClear(ctx, args)
-		return r, err, true
-	case "docs_search":
-		r, err := h.docsSearch(ctx, args)
-		return r, err, true
-	case "docs_replace":
-		r, err := h.docsReplace(ctx, args)
-		return r, err, true
-	case "docs_create":
-		r, err := h.docsCreate(ctx, args)
-		return r, err, true
-	case "docs_append":
-		r, err := h.docsAppend(ctx, args)
-		return r, err, true
-	case "calendar_find_slot":
-		r, err := h.calendarFindSlot(ctx, args)
-		return r, err, true
-	case "calendar_delete":
-		r, err := h.calendarDelete(ctx, args)
-		return r, err, true
-	case "drive_upload":
-		r, err := h.driveUpload(ctx, args)
-		return r, err, true
-	case "drive_share":
-		r, err := h.driveShare(ctx, args)
-		return r, err, true
-	case "drive_mkdir":
-		r, err := h.driveMkdir(ctx, args)
-		return r, err, true
-	case "gmail_labels":
-		r, err := h.gmailLabels(ctx, args)
-		return r, err, true
-	case "gmail_draft":
-		r, err := h.gmailDraft(ctx, args)
-		return r, err, true
-	case "gmail_batch_label":
-		r, err := h.gmailBatchLabel(ctx, args)
-		return r, err, true
-	case "gmail_forward":
-		r, err := h.gmailForward(ctx, args)
-		return r, err, true
-	default:
-		return nil, nil, false
+func (extendedProvider) Handlers(h *GWXHandler) map[string]ToolHandler {
+	return map[string]ToolHandler{
+		"sheets_stats":      h.sheetsStats,
+		"sheets_diff":       h.sheetsDiff,
+		"sheets_copy_tab":   h.sheetsCopyTab,
+		"sheets_export":     h.sheetsExport,
+		"sheets_info":       h.sheetsInfo,
+		"sheets_clear":      h.sheetsClear,
+		"docs_search":       h.docsSearch,
+		"docs_replace":      h.docsReplace,
+		"docs_create":       h.docsCreate,
+		"docs_append":       h.docsAppend,
+		"calendar_find_slot": h.calendarFindSlot,
+		"calendar_delete":   h.calendarDelete,
+		"drive_upload":      h.driveUpload,
+		"drive_share":       h.driveShare,
+		"drive_mkdir":       h.driveMkdir,
+		"gmail_labels":      h.gmailLabels,
+		"gmail_draft":       h.gmailDraft,
+		"gmail_batch_label": h.gmailBatchLabel,
+		"gmail_forward":     h.gmailForward,
 	}
 }
+
+func init() { RegisterProvider(extendedProvider{}) }
 
 // --- Implementations ---
 
@@ -522,25 +487,3 @@ func (h *GWXHandler) gmailForward(ctx context.Context, args map[string]interface
 	return jsonResult(map[string]interface{}{"forwarded": true, "result": result})
 }
 
-// registerExtendedTools registers all extended tool handlers into the registry.
-func (h *GWXHandler) registerExtendedTools(r map[string]ToolHandler) {
-	r["sheets_stats"] = h.sheetsStats
-	r["sheets_diff"] = h.sheetsDiff
-	r["sheets_copy_tab"] = h.sheetsCopyTab
-	r["sheets_export"] = h.sheetsExport
-	r["sheets_info"] = h.sheetsInfo
-	r["sheets_clear"] = h.sheetsClear
-	r["docs_search"] = h.docsSearch
-	r["docs_replace"] = h.docsReplace
-	r["docs_create"] = h.docsCreate
-	r["docs_append"] = h.docsAppend
-	r["calendar_find_slot"] = h.calendarFindSlot
-	r["calendar_delete"] = h.calendarDelete
-	r["drive_upload"] = h.driveUpload
-	r["drive_share"] = h.driveShare
-	r["drive_mkdir"] = h.driveMkdir
-	r["gmail_labels"] = h.gmailLabels
-	r["gmail_draft"] = h.gmailDraft
-	r["gmail_batch_label"] = h.gmailBatchLabel
-	r["gmail_forward"] = h.gmailForward
-}

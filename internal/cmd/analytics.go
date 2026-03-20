@@ -27,11 +27,8 @@ type AnalyticsReportCmd struct {
 }
 
 func (c *AnalyticsReportCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "analytics.report"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"analytics"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "analytics.report", []string{"analytics"}); done {
+		return err
 	}
 
 	// Resolve property: flag > config default.
@@ -43,19 +40,6 @@ func (c *AnalyticsReportCmd) Run(rctx *RunContext) error {
 				"property is required. Use --property or 'gwx config set analytics.default-property <id>'")
 		}
 		property = val
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":    "analytics.report",
-			"property":   property,
-			"metrics":    c.Metrics,
-			"dimensions": c.Dimensions,
-			"start_date": c.StartDate,
-			"end_date":   c.EndDate,
-			"limit":      c.Limit,
-		})
-		return nil
 	}
 
 	svc := api.NewAnalyticsService(rctx.APIClient)
@@ -83,11 +67,8 @@ type AnalyticsRealtimeCmd struct {
 }
 
 func (c *AnalyticsRealtimeCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "analytics.realtime"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"analytics"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "analytics.realtime", []string{"analytics"}); done {
+		return err
 	}
 
 	// Resolve property: flag > config default.
@@ -99,17 +80,6 @@ func (c *AnalyticsRealtimeCmd) Run(rctx *RunContext) error {
 				"property is required. Use --property or 'gwx config set analytics.default-property <id>'")
 		}
 		property = val
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":    "analytics.realtime",
-			"property":   property,
-			"metrics":    c.Metrics,
-			"dimensions": c.Dimensions,
-			"limit":      c.Limit,
-		})
-		return nil
 	}
 
 	svc := api.NewAnalyticsService(rctx.APIClient)
@@ -125,16 +95,8 @@ func (c *AnalyticsRealtimeCmd) Run(rctx *RunContext) error {
 type AnalyticsPropertiesCmd struct{}
 
 func (c *AnalyticsPropertiesCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "analytics.properties"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"analytics"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]string{"dry_run": "analytics.properties"})
-		return nil
+	if done, err := Preflight(rctx, "analytics.properties", []string{"analytics"}); done {
+		return err
 	}
 
 	svc := api.NewAnalyticsService(rctx.APIClient)
@@ -155,11 +117,8 @@ type AnalyticsAudiencesCmd struct {
 }
 
 func (c *AnalyticsAudiencesCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "analytics.audiences"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"analytics"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "analytics.audiences", []string{"analytics"}); done {
+		return err
 	}
 
 	// Resolve property: flag > config default.
@@ -171,14 +130,6 @@ func (c *AnalyticsAudiencesCmd) Run(rctx *RunContext) error {
 				"property is required. Use --property or 'gwx config set analytics.default-property <id>'")
 		}
 		property = val
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":  "analytics.audiences",
-			"property": property,
-		})
-		return nil
 	}
 
 	svc := api.NewAnalyticsService(rctx.APIClient)

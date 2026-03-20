@@ -1,0 +1,225 @@
+{
+  "sdd_context": {
+    "version": "3.0.0",
+    "feature": "architecture-refactor",
+    "current_stage": "S7",
+    "spec_mode": "full",
+    "spec_mode_reason": "架構重構，50+ 檔案影響，6 個功能區",
+    "work_type": "refactor",
+    "spec_folder": "dev/specs/2026-03-20_1_architecture-refactor",
+    "execution_mode": "autopilot",
+    "status": "in_progress",
+    "started_at": "2026-03-20T10:00:00+08:00",
+    "last_updated": "2026-03-20T14:00:00+08:00",
+    "last_updated_by": "claude",
+    "stages": {
+      "s0": {
+        "status": "completed",
+        "agent": "requirement-analyst",
+        "completed_at": "2026-03-20T10:05:00+08:00",
+        "started_at": "2026-03-20T10:00:00+08:00",
+        "output": {
+          "brief_spec_path": "dev/specs/2026-03-20_1_architecture-refactor/s0_brief_spec.md",
+          "work_type": "refactor",
+          "requirement": "重構 gwx CLI 架構：command middleware、MCP Tool Registry、API service split、workflow interface、error consolidation、integration tests",
+          "goal": "消除重複、建立可擴展架構模式、提升測試覆蓋率",
+          "success_criteria": [
+            "50+ cmd 無 preflight boilerplate",
+            "MCP 新增工具只需新檔案 + init()",
+            "gmail.go 拆成 ≤3 檔，每檔 <350 LOC",
+            "主要 command 有 integration test",
+            "16 個 workflow 實作統一 interface",
+            "error type 完整、handleAPIError 集中一處",
+            "go test -race ./... 全過",
+            "CLI 對外行為不變"
+          ],
+          "pain_points": [
+            "Command boilerplate 重複 50+ 次",
+            "MCP tools 3591 LOC 無統一註冊",
+            "gmail.go 873 LOC 職責混雜",
+            "16 workflow 無共用 interface",
+            "Error type 散亂",
+            "測試覆蓋率 ~25%"
+          ],
+          "scope_in": [
+            "FA-A: Command Middleware",
+            "FA-B: MCP Tool Registry",
+            "FA-C: API Service Split",
+            "FA-D: Command Integration Tests",
+            "FA-E: Workflow Interface",
+            "FA-F: Error Consolidation"
+          ],
+          "scope_out": [
+            "不改 API 呼叫邏輯",
+            "不改 CLI flag/output",
+            "不改 auth flow",
+            "不新增功能",
+            "不改 MCP protocol",
+            "不改 npm package"
+          ],
+          "constraints": [
+            "行為不變原則",
+            "Go init() 順序依賴檔名字母序",
+            "特殊 cmd 不適用標準 middleware"
+          ],
+          "functional_areas": [
+            {"id": "FA-A", "name": "Command Middleware", "description": "抽取 Preflight decorator", "independence": "high"},
+            {"id": "FA-B", "name": "MCP Tool Registry", "description": "Tool interface + Registry 自註冊", "independence": "high"},
+            {"id": "FA-C", "name": "API Service Split", "description": "拆分 gmail.go + 整理 sheets", "independence": "medium"},
+            {"id": "FA-D", "name": "Command Integration Tests", "description": "補主要 cmd happy path 測試", "independence": "medium"},
+            {"id": "FA-E", "name": "Workflow Interface", "description": "統一 16 workflow 的共用 interface", "independence": "medium"},
+            {"id": "FA-F", "name": "Error Consolidation", "description": "集中 error type + exit code mapping", "independence": "medium"}
+          ],
+          "decomposition_strategy": "single_sop_fa_labeled",
+          "child_sops": []
+        }
+      },
+      "s1": {
+        "status": "completed",
+        "agents": ["codebase-explorer", "architect"],
+        "started_at": "2026-03-20T10:10:00+08:00",
+        "completed_at": "2026-03-20T12:30:00+08:00",
+        "output": {
+          "completed_phases": [1, 2, 3],
+          "dev_spec_path": "dev/specs/2026-03-20_1_architecture-refactor/s1_dev_spec.md",
+          "solution_summary": "六個功能區按依賴順序推進：FA-F（搬移 handleAPIError）→ FA-C（拆分 gmail.go）→ FA-A（35 cmd 遷移 Preflight，17 特殊 cmd 保留 manual）→ FA-B（ToolProvider interface + init() 自注冊）/ FA-E（workflow/types.go 文件化規範）→ FA-D（integration tests）。唯一已知外部行為差異：dry-run JSON 格式統一為 {dry_run:true, command:xxx}（D-01 記錄）。",
+          "tasks": [
+            {"id": "T01", "fa": "FA-F", "name": "新建 cmd/errors.go，搬移 handleAPIError", "complexity": "S", "agent": "backend-expert", "wave": 1, "dependencies": []},
+            {"id": "T02", "fa": "FA-C", "name": "新建 api/gmail_read.go", "complexity": "M", "agent": "backend-expert", "wave": 1, "dependencies": []},
+            {"id": "T03", "fa": "FA-C", "name": "新建 api/gmail_write.go", "complexity": "M", "agent": "backend-expert", "wave": 1, "dependencies": []},
+            {"id": "T04", "fa": "FA-C", "name": "新建 api/gmail_digest.go", "complexity": "M", "agent": "backend-expert", "wave": 1, "dependencies": []},
+            {"id": "T05", "fa": "FA-C", "name": "精簡 api/gmail.go 保留 struct/constructor", "complexity": "S", "agent": "backend-expert", "wave": 1, "dependencies": ["T02", "T03", "T04"]},
+            {"id": "T06", "fa": "FA-A", "name": "遷移 cmd/gmail.go 11 個子命令到 Preflight", "complexity": "M", "agent": "backend-expert", "wave": 2, "dependencies": ["T01"]},
+            {"id": "T07", "fa": "FA-A", "name": "遷移 cmd/calendar.go（部分）", "complexity": "M", "agent": "backend-expert", "wave": 2, "dependencies": ["T01"]},
+            {"id": "T08", "fa": "FA-A", "name": "遷移 cmd/drive.go, docs.go", "complexity": "M", "agent": "backend-expert", "wave": 2, "dependencies": ["T01"]},
+            {"id": "T09", "fa": "FA-A", "name": "遷移 cmd/sheets.go, tasks.go, contacts.go, chat.go", "complexity": "M", "agent": "backend-expert", "wave": 2, "dependencies": ["T01"]},
+            {"id": "T10", "fa": "FA-A", "name": "遷移 cmd/analytics.go, searchconsole.go, meeting_prep.go, context.go", "complexity": "M", "agent": "backend-expert", "wave": 2, "dependencies": ["T01"]},
+            {"id": "T11", "fa": "FA-B", "name": "新建 mcp/registry.go", "complexity": "M", "agent": "backend-expert", "wave": 3, "dependencies": []},
+            {"id": "T12", "fa": "FA-B", "name": "改造 mcp/tools.go 使用 globalRegistry", "complexity": "M", "agent": "backend-expert", "wave": 3, "dependencies": ["T11"]},
+            {"id": "T13", "fa": "FA-B", "name": "改造 9 個 tools_*.go 實作 ToolProvider", "complexity": "M", "agent": "backend-expert", "wave": 3, "dependencies": ["T11", "T12"]},
+            {"id": "T14", "fa": "FA-E", "name": "新建 workflow/types.go", "complexity": "S", "agent": "backend-expert", "wave": 3, "dependencies": []},
+            {"id": "T15", "fa": "FA-E", "name": "驗證 16 workflow 符合命名規範", "complexity": "S", "agent": "backend-expert", "wave": 3, "dependencies": ["T14"]},
+            {"id": "T16", "fa": "FA-D", "name": "Gmail/Drive/Docs integration tests", "complexity": "M", "agent": "backend-expert", "wave": 4, "dependencies": ["T06", "T08"]},
+            {"id": "T17", "fa": "FA-D", "name": "Calendar/Sheets/Tasks integration tests", "complexity": "M", "agent": "backend-expert", "wave": 4, "dependencies": ["T07", "T09"]},
+            {"id": "T18", "fa": "FA-D", "name": "擴充 cli_test.go 覆蓋率", "complexity": "S", "agent": "backend-expert", "wave": 4, "dependencies": ["T06", "T07", "T08", "T09", "T10"]}
+          ],
+          "acceptance_criteria": [
+            "AC-01: Preflight 遷移後 auth 拒絕路徑，exit 12，JSON 含 permission_denied",
+            "AC-02: Preflight 遷移後 auth 缺失路徑，exit 10，JSON 含 auth_required",
+            "AC-03: dry-run 格式統一為 {dry_run:true, command:xxx}，exit 0",
+            "AC-04: 特殊 cmd（standup 等）保留正確 manual 行為",
+            "AC-05: MCP ListTools 回應與重構前 tool 數量/schema 相同",
+            "AC-06: MCP 重複 key 情況下明確 panic（mcp: duplicate tool key registered: xxx）",
+            "AC-07: gmail API 拆分後 gwx gmail list 正常呼叫，exit 0",
+            "AC-08: handleAPIError 409 mapping 正確，exit 21，JSON 含 conflict",
+            "AC-09: workflow Runnable interface 可被 cmd/workflow.go dispatch",
+            "AC-10: go test -race ./... 全部通過"
+          ],
+          "assumptions": [
+            "go.mod 的 go 指令 >= 1.18（FA-E 泛型 WorkflowFunc 需要）",
+            "現有 go test -race ./... 在重構前全過（無既有 race condition）",
+            "calendar_test.go 若已存在有實際內容，T17 以其為基礎擴充",
+            "tools_*.go 的 handler method 仍定義在原位置，不搬移至新檔"
+          ],
+          "tech_debt": [
+            "slides.go 是唯一已使用新 Preflight() 的 cmd，FA-A 後全員統一",
+            "handleAPIError 定義在 gmail.go 的耦合問題，FA-F 後解除",
+            "tools.go buildRegistry 硬編碼 22 個 core tool，FA-B 後消除",
+            "workflow 函數簽名隱性規範未顯式文件化，FA-E 後透明化"
+          ],
+          "regression_risks": [
+            "dry-run JSON 格式改變（已知 breaking change，D-01 記錄）",
+            "FA-C 拆分後 private helper 歸屬需正確，go build 立即驗證",
+            "FA-B init() 若有 tools_*.go 未被 link，RegisterProvider 不執行，tool 遺失"
+          ],
+          "impact_scope": {
+            "fa_a_cmd_middleware": {
+              "files": [
+                "internal/cmd/root.go",
+                "internal/cmd/gmail.go",
+                "internal/cmd/calendar.go",
+                "internal/cmd/drive.go",
+                "internal/cmd/docs.go",
+                "internal/cmd/sheets.go",
+                "internal/cmd/tasks.go",
+                "internal/cmd/contacts.go",
+                "internal/cmd/chat.go",
+                "internal/cmd/analytics.go",
+                "internal/cmd/searchconsole.go",
+                "internal/cmd/standup.go",
+                "internal/cmd/workflow.go",
+                "internal/cmd/context.go",
+                "internal/cmd/usearch.go",
+                "internal/cmd/slides.go",
+                "internal/cmd/meeting_prep.go"
+              ],
+              "note": "slides.go 已採用新 Preflight()，其他 16 檔仍用舊 3-step boilerplate。35 個子命令直接遷移，17 個保留 manual 邏輯加 NOTE 說明"
+            },
+            "fa_b_mcp_registry": {
+              "files": [
+                "internal/mcp/tools.go",
+                "internal/mcp/registry.go",
+                "internal/mcp/tools_core.go",
+                "internal/mcp/tools_extended.go",
+                "internal/mcp/tools_new.go",
+                "internal/mcp/tools_batch.go",
+                "internal/mcp/tools_analytics.go",
+                "internal/mcp/tools_searchconsole.go",
+                "internal/mcp/tools_config.go",
+                "internal/mcp/tools_workflow.go",
+                "internal/mcp/tools_slides.go",
+                "internal/mcp/protocol.go"
+              ],
+              "note": "新建 registry.go（ToolProvider interface + globalRegistry），新建 tools_core.go（22 個 core tools），改造 9 個 tools_*.go 實作 ToolProvider + init()"
+            },
+            "fa_c_api_split": {
+              "files": [
+                "internal/api/gmail.go",
+                "internal/api/gmail_read.go",
+                "internal/api/gmail_write.go",
+                "internal/api/gmail_digest.go"
+              ],
+              "note": "gmail.go 拆為 4 個 package-internal 檔案。struct/constructor 保留在 gmail.go，methods 分散至 3 個新檔"
+            },
+            "fa_d_integration_tests": {
+              "files": [
+                "internal/cmd/cli_test.go",
+                "internal/cmd/gmail_test.go",
+                "internal/cmd/calendar_test.go",
+                "internal/cmd/sheets_test.go",
+                "internal/cmd/drive_test.go"
+              ],
+              "note": "沿用 binary exec 模式，--dry-run happy path 測試"
+            },
+            "fa_e_workflow_interface": {
+              "files": [
+                "internal/workflow/types.go"
+              ],
+              "note": "新建 types.go 定義 Runnable interface（runtime dispatch 用）和 WorkflowFunc 泛型類型（文件用）。現有 workflow 檔案不修改"
+            },
+            "fa_f_error_consolidation": {
+              "files": [
+                "internal/cmd/errors.go",
+                "internal/cmd/gmail.go"
+              ],
+              "note": "新建 errors.go 定義 handleAPIError，從 gmail.go 移除原定義"
+            }
+          },
+          "risks": [
+            {"fa": "FA-A", "risk": "誤套用 Preflight 到特殊 cmd", "level": "high", "mitigation": "明確 17 個特殊 cmd 清單，逐一 code review"},
+            {"fa": "FA-B", "risk": "init() 重複 key panic", "level": "high", "mitigation": "buildHandlers 明確 panic，T12 加測試"},
+            {"fa": "FA-C", "risk": "private helper 歸屬錯誤導致編譯失敗", "level": "medium", "mitigation": "實作者完整讀取 874 LOC 後再分配，go build 立即驗證"},
+            {"fa": "FA-F", "risk": "import cycle", "level": "low", "mitigation": "errors.go 在 cmd package 內，無新跨 package 依賴"},
+            {"fa": "FA-A", "risk": "dry-run 格式改變（D-01）", "level": "medium", "mitigation": "已知 breaking change，記錄於 changelog"}
+          ]
+        }
+      },
+      "s2": {"status": "pending"},
+      "s3": {"status": "pending"},
+      "s4": {"status": "pending"},
+      "s5": {"status": "pending"},
+      "s6": {"status": "pending"},
+      "s7": {"status": "pending"}
+    }
+  }
+}

@@ -24,15 +24,8 @@ type CalendarAgendaCmd struct {
 }
 
 func (c *CalendarAgendaCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "calendar.agenda"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"calendar"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "calendar.agenda", "days": c.Days})
-		return nil
+	if done, err := Preflight(rctx, "calendar.agenda", []string{"calendar"}); done {
+		return err
 	}
 
 	calSvc := api.NewCalendarService(rctx.APIClient)
@@ -57,13 +50,7 @@ type CalendarListCmd struct {
 }
 
 func (c *CalendarListCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "calendar.list"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"calendar"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
+	// parseTime is pure input validation (no auth dependency); run before Preflight.
 	from, err := parseTime(c.From)
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.InvalidInput, fmt.Sprintf("invalid --from: %v", err))
@@ -73,9 +60,8 @@ func (c *CalendarListCmd) Run(rctx *RunContext) error {
 		return rctx.Printer.ErrExit(exitcode.InvalidInput, fmt.Sprintf("invalid --to: %v", err))
 	}
 
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "calendar.list", "from": c.From, "to": c.To})
-		return nil
+	if done, err := Preflight(rctx, "calendar.list", []string{"calendar"}); done {
+		return err
 	}
 
 	calSvc := api.NewCalendarService(rctx.APIClient)
@@ -105,11 +91,8 @@ type CalendarCreateCmd struct {
 }
 
 func (c *CalendarCreateCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "calendar.create"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"calendar"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "calendar.create", []string{"calendar"}); done {
+		return err
 	}
 
 	input := &api.EventInput{
@@ -120,17 +103,6 @@ func (c *CalendarCreateCmd) Run(rctx *RunContext) error {
 		Description: c.Description,
 		Attendees:   c.Attendees,
 		TimeZone:    c.Timezone,
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":   "calendar.create",
-			"title":     input.Title,
-			"start":     input.Start,
-			"end":       input.End,
-			"attendees": input.Attendees,
-		})
-		return nil
 	}
 
 	calSvc := api.NewCalendarService(rctx.APIClient)
@@ -169,11 +141,8 @@ type CalendarUpdateCmd struct {
 }
 
 func (c *CalendarUpdateCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "calendar.update"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"calendar"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "calendar.update", []string{"calendar"}); done {
+		return err
 	}
 
 	input := &api.EventInput{
@@ -184,11 +153,6 @@ func (c *CalendarUpdateCmd) Run(rctx *RunContext) error {
 		Description: c.Description,
 		Attendees:   c.Attendees,
 		TimeZone:    c.Timezone,
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "calendar.update", "event_id": c.EventID})
-		return nil
 	}
 
 	calSvc := api.NewCalendarService(rctx.APIClient)
@@ -210,16 +174,8 @@ type CalendarDeleteCmd struct {
 }
 
 func (c *CalendarDeleteCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "calendar.delete"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"calendar"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "calendar.delete", "event_id": c.EventID})
-		return nil
+	if done, err := Preflight(rctx, "calendar.delete", []string{"calendar"}); done {
+		return err
 	}
 
 	calSvc := api.NewCalendarService(rctx.APIClient)
@@ -242,25 +198,14 @@ type CalendarFindSlotCmd struct {
 }
 
 func (c *CalendarFindSlotCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "calendar.find-slot"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"calendar"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
+	// time.ParseDuration is pure input validation; run before Preflight.
 	duration, err := time.ParseDuration(c.Duration)
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.InvalidInput, fmt.Sprintf("invalid duration: %v", err))
 	}
 
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":   "calendar.find-slot",
-			"attendees": c.Attendees,
-			"duration":  c.Duration,
-		})
-		return nil
+	if done, err := Preflight(rctx, "calendar.find-slot", []string{"calendar"}); done {
+		return err
 	}
 
 	calSvc := api.NewCalendarService(rctx.APIClient)

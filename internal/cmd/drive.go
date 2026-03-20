@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"github.com/redredchen01/gwx/internal/api"
-	"github.com/redredchen01/gwx/internal/exitcode"
 )
 
 // DriveCmd groups Drive operations.
@@ -22,15 +21,8 @@ type DriveListCmd struct {
 }
 
 func (c *DriveListCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "drive.list"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"drive"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "drive.list", "folder": c.Folder})
-		return nil
+	if done, err := Preflight(rctx, "drive.list", []string{"drive"}); done {
+		return err
 	}
 
 	drvSvc := api.NewDriveService(rctx.APIClient)
@@ -53,15 +45,8 @@ type DriveSearchCmd struct {
 }
 
 func (c *DriveSearchCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "drive.search"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"drive"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "drive.search", "query": c.Query})
-		return nil
+	if done, err := Preflight(rctx, "drive.search", []string{"drive"}); done {
+		return err
 	}
 
 	drvSvc := api.NewDriveService(rctx.APIClient)
@@ -86,21 +71,8 @@ type DriveUploadCmd struct {
 }
 
 func (c *DriveUploadCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "drive.upload"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"drive"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "drive.upload",
-			"file":    c.File,
-			"folder":  c.Folder,
-			"name":    c.Name,
-		})
-		return nil
+	if done, err := Preflight(rctx, "drive.upload", []string{"drive"}); done {
+		return err
 	}
 
 	drvSvc := api.NewDriveService(rctx.APIClient)
@@ -123,15 +95,8 @@ type DriveDownloadCmd struct {
 }
 
 func (c *DriveDownloadCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "drive.download"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"drive"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "drive.download", "file_id": c.FileID})
-		return nil
+	if done, err := Preflight(rctx, "drive.download", []string{"drive"}); done {
+		return err
 	}
 
 	drvSvc := api.NewDriveService(rctx.APIClient)
@@ -155,21 +120,8 @@ type DriveShareCmd struct {
 }
 
 func (c *DriveShareCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "drive.share"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"drive"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "drive.share",
-			"file_id": c.FileID,
-			"email":   c.Email,
-			"role":    c.Role,
-		})
-		return nil
+	if done, err := Preflight(rctx, "drive.share", []string{"drive"}); done {
+		return err
 	}
 
 	drvSvc := api.NewDriveService(rctx.APIClient)
@@ -193,20 +145,8 @@ type DriveMkdirCmd struct {
 }
 
 func (c *DriveMkdirCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "drive.mkdir"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"drive"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "drive.mkdir",
-			"name":    c.Name,
-			"parent":  c.Parent,
-		})
-		return nil
+	if done, err := Preflight(rctx, "drive.mkdir", []string{"drive"}); done {
+		return err
 	}
 
 	drvSvc := api.NewDriveService(rctx.APIClient)
@@ -221,4 +161,3 @@ func (c *DriveMkdirCmd) Run(rctx *RunContext) error {
 	})
 	return nil
 }
-

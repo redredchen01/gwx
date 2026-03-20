@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/redredchen01/gwx/internal/api"
-	"github.com/redredchen01/gwx/internal/exitcode"
 )
 
 // ContextCmd gathers all context related to a topic across Gmail, Drive, and Calendar.
@@ -17,41 +16,34 @@ type ContextCmd struct {
 
 // ContextResult holds aggregated context from multiple services.
 type ContextResult struct {
-	Topic    string            `json:"topic"`
-	Emails   *ContextEmails    `json:"emails"`
-	Files    *ContextFiles     `json:"files"`
-	Events   *ContextEvents    `json:"events,omitempty"`
-	Summary  string            `json:"summary"`
+	Topic   string         `json:"topic"`
+	Emails  *ContextEmails `json:"emails"`
+	Files   *ContextFiles  `json:"files"`
+	Events  *ContextEvents `json:"events,omitempty"`
+	Summary string         `json:"summary"`
 }
 
 type ContextEmails struct {
-	Count    int                   `json:"count"`
-	Messages []api.MessageSummary  `json:"messages"`
-	Error    string                `json:"error,omitempty"`
+	Count    int                  `json:"count"`
+	Messages []api.MessageSummary `json:"messages"`
+	Error    string               `json:"error,omitempty"`
 }
 
 type ContextFiles struct {
-	Count int               `json:"count"`
-	Files []api.FileSummary  `json:"files"`
-	Error string            `json:"error,omitempty"`
+	Count int              `json:"count"`
+	Files []api.FileSummary `json:"files"`
+	Error string           `json:"error,omitempty"`
 }
 
 type ContextEvents struct {
-	Count  int                 `json:"count"`
-	Events []api.EventSummary  `json:"events"`
-	Error  string              `json:"error,omitempty"`
+	Count  int                `json:"count"`
+	Events []api.EventSummary `json:"events"`
+	Error  string             `json:"error,omitempty"`
 }
 
 func (c *ContextCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "context"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"gmail", "drive", "calendar"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "context", "topic": c.Topic})
-		return nil
+	if done, err := Preflight(rctx, "context", []string{"gmail", "drive", "calendar"}); done {
+		return err
 	}
 
 	result := &ContextResult{Topic: c.Topic}

@@ -10,7 +10,12 @@ import (
 )
 
 // NewTools returns the 18 additional tool definitions for gwx v0.8.0.
-func NewTools() []Tool {
+// Kept for backward-compat with tests.
+func NewTools() []Tool { return newProvider{}.Tools() }
+
+type newProvider struct{}
+
+func (newProvider) Tools() []Tool {
 	return []Tool{
 		// Gmail
 		{
@@ -242,68 +247,30 @@ func NewTools() []Tool {
 	}
 }
 
-// CallNewTool routes a tool call to the appropriate new handler.
-// Returns (result, error, handled). handled=true means the tool name was recognized.
-func (h *GWXHandler) CallNewTool(ctx context.Context, name string, args map[string]interface{}) (*ToolResult, error, bool) {
-	switch name {
-	case "gmail_reply":
-		r, err := h.gmailReply(ctx, args)
-		return r, err, true
-	case "calendar_list":
-		r, err := h.calendarList(ctx, args)
-		return r, err, true
-	case "calendar_update":
-		r, err := h.calendarUpdate(ctx, args)
-		return r, err, true
-	case "contacts_list":
-		r, err := h.contactsList(ctx, args)
-		return r, err, true
-	case "contacts_get":
-		r, err := h.contactsGet(ctx, args)
-		return r, err, true
-	case "drive_download":
-		r, err := h.driveDownload(ctx, args)
-		return r, err, true
-	case "sheets_update":
-		r, err := h.sheetsUpdate(ctx, args)
-		return r, err, true
-	case "sheets_import":
-		r, err := h.sheetsImport(ctx, args)
-		return r, err, true
-	case "sheets_create":
-		r, err := h.sheetsCreate(ctx, args)
-		return r, err, true
-	case "tasks_lists":
-		r, err := h.tasksLists(ctx, args)
-		return r, err, true
-	case "tasks_complete":
-		r, err := h.tasksComplete(ctx, args)
-		return r, err, true
-	case "tasks_delete":
-		r, err := h.tasksDelete(ctx, args)
-		return r, err, true
-	case "docs_template":
-		r, err := h.docsTemplate(ctx, args)
-		return r, err, true
-	case "docs_from_sheet":
-		r, err := h.docsFromSheet(ctx, args)
-		return r, err, true
-	case "docs_export":
-		r, err := h.docsExport(ctx, args)
-		return r, err, true
-	case "chat_spaces":
-		r, err := h.chatSpaces(ctx, args)
-		return r, err, true
-	case "chat_send":
-		r, err := h.chatSend(ctx, args)
-		return r, err, true
-	case "chat_messages":
-		r, err := h.chatMessages(ctx, args)
-		return r, err, true
-	default:
-		return nil, nil, false
+func (newProvider) Handlers(h *GWXHandler) map[string]ToolHandler {
+	return map[string]ToolHandler{
+		"gmail_reply":     h.gmailReply,
+		"calendar_list":   h.calendarList,
+		"calendar_update": h.calendarUpdate,
+		"contacts_list":   h.contactsList,
+		"contacts_get":    h.contactsGet,
+		"drive_download":  h.driveDownload,
+		"sheets_update":   h.sheetsUpdate,
+		"sheets_import":   h.sheetsImport,
+		"sheets_create":   h.sheetsCreate,
+		"tasks_lists":     h.tasksLists,
+		"tasks_complete":  h.tasksComplete,
+		"tasks_delete":    h.tasksDelete,
+		"docs_template":   h.docsTemplate,
+		"docs_from_sheet": h.docsFromSheet,
+		"docs_export":     h.docsExport,
+		"chat_spaces":     h.chatSpaces,
+		"chat_send":       h.chatSend,
+		"chat_messages":   h.chatMessages,
 	}
 }
+
+func init() { RegisterProvider(newProvider{}) }
 
 // --- Gmail ---
 
@@ -569,23 +536,3 @@ func (h *GWXHandler) chatMessages(ctx context.Context, args map[string]interface
 	return jsonResult(map[string]interface{}{"messages": messages, "count": len(messages)})
 }
 
-func (h *GWXHandler) registerNewTools(r map[string]ToolHandler) {
-	r["gmail_reply"] = h.gmailReply
-	r["calendar_list"] = h.calendarList
-	r["calendar_update"] = h.calendarUpdate
-	r["contacts_list"] = h.contactsList
-	r["contacts_get"] = h.contactsGet
-	r["drive_download"] = h.driveDownload
-	r["sheets_update"] = h.sheetsUpdate
-	r["sheets_import"] = h.sheetsImport
-	r["sheets_create"] = h.sheetsCreate
-	r["tasks_lists"] = h.tasksLists
-	r["tasks_complete"] = h.tasksComplete
-	r["tasks_delete"] = h.tasksDelete
-	r["docs_template"] = h.docsTemplate
-	r["docs_from_sheet"] = h.docsFromSheet
-	r["docs_export"] = h.docsExport
-	r["chat_spaces"] = h.chatSpaces
-	r["chat_send"] = h.chatSend
-	r["chat_messages"] = h.chatMessages
-}

@@ -25,15 +25,8 @@ type DocsGetCmd struct {
 }
 
 func (c *DocsGetCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "docs.get"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"docs"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "docs.get", "doc_id": c.DocID})
-		return nil
+	if done, err := Preflight(rctx, "docs.get", []string{"docs"}); done {
+		return err
 	}
 
 	docsSvc := api.NewDocsService(rctx.APIClient)
@@ -53,15 +46,8 @@ type DocsCreateCmd struct {
 }
 
 func (c *DocsCreateCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "docs.create"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"docs"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "docs.create", "title": c.Title})
-		return nil
+	if done, err := Preflight(rctx, "docs.create", []string{"docs"}); done {
+		return err
 	}
 
 	docsSvc := api.NewDocsService(rctx.APIClient)
@@ -84,15 +70,8 @@ type DocsAppendCmd struct {
 }
 
 func (c *DocsAppendCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "docs.append"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"docs"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "docs.append", "doc_id": c.DocID})
-		return nil
+	if done, err := Preflight(rctx, "docs.append", []string{"docs"}); done {
+		return err
 	}
 
 	docsSvc := api.NewDocsService(rctx.APIClient)
@@ -108,22 +87,16 @@ func (c *DocsAppendCmd) Run(rctx *RunContext) error {
 }
 
 // DocsExportCmd exports a document.
+// NOTE: services = ["docs", "drive"] — export writes to Drive, requires both scopes.
 type DocsExportCmd struct {
-	DocID  string `arg:"" help:"Document ID"`
+	DocID     string `arg:"" help:"Document ID"`
 	ExportFmt string `help:"Export format: pdf, docx, txt, html" default:"pdf" enum:"pdf,docx,txt,html" name:"export-format"`
-	Output string `help:"Output file path" short:"o"`
+	Output    string `help:"Output file path" short:"o"`
 }
 
 func (c *DocsExportCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "docs.export"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"docs", "drive"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "docs.export", "doc_id": c.DocID, "format": c.ExportFmt})
-		return nil
+	if done, err := Preflight(rctx, "docs.export", []string{"docs", "drive"}); done {
+		return err
 	}
 
 	docsSvc := api.NewDocsService(rctx.APIClient)
@@ -147,11 +120,8 @@ type DocsSearchCmd struct {
 }
 
 func (c *DocsSearchCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "docs.search"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"docs"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "docs.search", []string{"docs"}); done {
+		return err
 	}
 
 	docsSvc := api.NewDocsService(rctx.APIClient)
@@ -172,20 +142,8 @@ type DocsReplaceCmd struct {
 }
 
 func (c *DocsReplaceCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "docs.replace"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"docs"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "docs.replace",
-			"doc_id":  c.DocID,
-			"find":    c.Find,
-			"replace": c.Replace,
-		})
-		return nil
+	if done, err := Preflight(rctx, "docs.replace", []string{"docs"}); done {
+		return err
 	}
 
 	docsSvc := api.NewDocsService(rctx.APIClient)
@@ -195,15 +153,16 @@ func (c *DocsReplaceCmd) Run(rctx *RunContext) error {
 	}
 
 	rctx.Printer.Success(map[string]interface{}{
-		"replaced":           true,
+		"replaced":            true,
 		"occurrences_changed": count,
-		"find":               c.Find,
-		"replace":            c.Replace,
+		"find":                c.Find,
+		"replace":             c.Replace,
 	})
 	return nil
 }
 
 // DocsFromSheetCmd creates a doc from spreadsheet data.
+// NOTE: services = ["docs", "sheets"] — reads Sheets then writes Docs, requires both scopes.
 type DocsFromSheetCmd struct {
 	SpreadsheetID string `arg:"" help:"Source spreadsheet ID"`
 	Range         string `arg:"" help:"Range to read (e.g. Sheet1!A1:D10)"`
@@ -211,20 +170,8 @@ type DocsFromSheetCmd struct {
 }
 
 func (c *DocsFromSheetCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "docs.from-sheet"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"docs", "sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":        "docs.from-sheet",
-			"spreadsheet_id": c.SpreadsheetID,
-			"range":          c.Range,
-			"title":          c.Title,
-		})
-		return nil
+	if done, err := Preflight(rctx, "docs.from-sheet", []string{"docs", "sheets"}); done {
+		return err
 	}
 
 	// Read sheet data
@@ -259,6 +206,9 @@ func (c *DocsFromSheetCmd) Run(rctx *RunContext) error {
 }
 
 // DocsTemplateCmd creates a doc from a template with {{var}} replacement.
+// NOTE: manual Preflight — json.Unmarshal(vars) must happen before DryRun so that
+// invalid --vars JSON is caught even in dry-run mode. Preflight would short-circuit
+// at DryRun before the validation runs, causing silent bad input to pass.
 type DocsTemplateCmd struct {
 	TemplateID string `arg:"" help:"Template document ID"`
 	Vars       string `help:"JSON object of variables: {\"name\":\"Alice\",\"date\":\"2026-03-17\"}" required:"" short:"v"`
@@ -273,6 +223,7 @@ func (c *DocsTemplateCmd) Run(rctx *RunContext) error {
 		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
 	}
 
+	// Validate --vars JSON before DryRun so bad input is caught in all modes.
 	var vars map[string]string
 	if err := json.Unmarshal([]byte(c.Vars), &vars); err != nil {
 		return rctx.Printer.ErrExit(exitcode.InvalidInput, "invalid --vars JSON: "+err.Error())

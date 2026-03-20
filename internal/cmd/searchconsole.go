@@ -29,12 +29,8 @@ type SearchConsoleQueryCmd struct {
 }
 
 func (c *SearchConsoleQueryCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "searchconsole.query"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"searchconsole"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "searchconsole.query", []string{"searchconsole"}); done {
+		return err
 	}
 
 	site := c.Site
@@ -47,18 +43,6 @@ func (c *SearchConsoleQueryCmd) Run(rctx *RunContext) error {
 	}
 	if site == "" {
 		return rctx.Printer.ErrExit(exitcode.UsageError, "site URL is required (use --site or set searchconsole.default-site in config)")
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":    "searchconsole.query would execute",
-			"site":       site,
-			"start_date": c.StartDate,
-			"end_date":   c.EndDate,
-			"dimensions": c.Dimensions,
-			"limit":      c.Limit,
-		})
-		return nil
 	}
 
 	scSvc := api.NewSearchConsoleService(rctx.APIClient)
@@ -83,17 +67,8 @@ func (c *SearchConsoleQueryCmd) Run(rctx *RunContext) error {
 type SearchConsoleSitesCmd struct{}
 
 func (c *SearchConsoleSitesCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "searchconsole.sites"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"searchconsole"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]string{"dry_run": "searchconsole.sites would execute"})
-		return nil
+	if done, err := Preflight(rctx, "searchconsole.sites", []string{"searchconsole"}); done {
+		return err
 	}
 
 	scSvc := api.NewSearchConsoleService(rctx.APIClient)
@@ -117,21 +92,8 @@ type SearchConsoleInspectCmd struct {
 }
 
 func (c *SearchConsoleInspectCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "searchconsole.inspect"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"searchconsole"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "searchconsole.inspect would execute",
-			"site":    c.Site,
-			"url":     c.URL,
-		})
-		return nil
+	if done, err := Preflight(rctx, "searchconsole.inspect", []string{"searchconsole"}); done {
+		return err
 	}
 
 	scSvc := api.NewSearchConsoleService(rctx.APIClient)
@@ -151,12 +113,8 @@ type SearchConsoleSitemapsCmd struct {
 }
 
 func (c *SearchConsoleSitemapsCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "searchconsole.sitemaps"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"searchconsole"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "searchconsole.sitemaps", []string{"searchconsole"}); done {
+		return err
 	}
 
 	site := c.Site
@@ -169,14 +127,6 @@ func (c *SearchConsoleSitemapsCmd) Run(rctx *RunContext) error {
 	}
 	if site == "" {
 		return rctx.Printer.ErrExit(exitcode.UsageError, "site URL is required (use --site or set searchconsole.default-site in config)")
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "searchconsole.sitemaps would execute",
-			"site":    site,
-		})
-		return nil
 	}
 
 	scSvc := api.NewSearchConsoleService(rctx.APIClient)
@@ -202,12 +152,8 @@ type SearchConsoleIndexStatusCmd struct {
 }
 
 func (c *SearchConsoleIndexStatusCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "searchconsole.index-status"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"searchconsole"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "searchconsole.index-status", []string{"searchconsole"}); done {
+		return err
 	}
 
 	site := c.Site
@@ -230,16 +176,6 @@ func (c *SearchConsoleIndexStatusCmd) Run(rctx *RunContext) error {
 	startDate := c.StartDate
 	if startDate == "" {
 		startDate = time.Now().AddDate(0, 0, -28).Format("2006-01-02")
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":    "searchconsole.index-status would execute",
-			"site":       site,
-			"start_date": startDate,
-			"end_date":   endDate,
-		})
-		return nil
 	}
 
 	scSvc := api.NewSearchConsoleService(rctx.APIClient)

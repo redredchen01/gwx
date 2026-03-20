@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"github.com/redredchen01/gwx/internal/api"
-	"github.com/redredchen01/gwx/internal/exitcode"
 )
 
 // TasksCmd groups Tasks operations.
@@ -21,15 +20,8 @@ type TasksListCmd struct {
 }
 
 func (c *TasksListCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "tasks.list"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"tasks"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "tasks.list"})
-		return nil
+	if done, err := Preflight(rctx, "tasks.list", []string{"tasks"}); done {
+		return err
 	}
 
 	tasksSvc := api.NewTasksService(rctx.APIClient)
@@ -49,11 +41,8 @@ func (c *TasksListCmd) Run(rctx *RunContext) error {
 type TasksListsCmd struct{}
 
 func (c *TasksListsCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "tasks.lists"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"tasks"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "tasks.lists", []string{"tasks"}); done {
+		return err
 	}
 
 	tasksSvc := api.NewTasksService(rctx.APIClient)
@@ -78,15 +67,8 @@ type TasksCreateCmd struct {
 }
 
 func (c *TasksCreateCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "tasks.create"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"tasks"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "tasks.create", "title": c.Title})
-		return nil
+	if done, err := Preflight(rctx, "tasks.create", []string{"tasks"}); done {
+		return err
 	}
 
 	tasksSvc := api.NewTasksService(rctx.APIClient)
@@ -109,15 +91,8 @@ type TasksCompleteCmd struct {
 }
 
 func (c *TasksCompleteCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "tasks.complete"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"tasks"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "tasks.complete", "task_id": c.TaskID})
-		return nil
+	if done, err := Preflight(rctx, "tasks.complete", []string{"tasks"}); done {
+		return err
 	}
 
 	tasksSvc := api.NewTasksService(rctx.APIClient)
@@ -140,15 +115,8 @@ type TasksDeleteCmd struct {
 }
 
 func (c *TasksDeleteCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "tasks.delete"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"tasks"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "tasks.delete", "task_id": c.TaskID})
-		return nil
+	if done, err := Preflight(rctx, "tasks.delete", []string{"tasks"}); done {
+		return err
 	}
 
 	tasksSvc := api.NewTasksService(rctx.APIClient)

@@ -253,7 +253,8 @@ func TestCLI_CalendarAgenda_Unauthenticated(t *testing.T) {
 }
 
 func TestCLI_CalendarList_Unauthenticated(t *testing.T) {
-	_, _, code := runGWX(t, "calendar", "list", "--from", "20.7.03-17", "--to", "2026-03-18")
+	// parseTime runs before Preflight (input validation), so dates must be valid
+	_, _, code := runGWX(t, "calendar", "list", "--from", "2026-03-17", "--to", "2026-03-18")
 	if code != 10 {
 		t.Fatalf("expected exit 10, got %d", code)
 	}

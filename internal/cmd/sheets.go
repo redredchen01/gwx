@@ -31,15 +31,8 @@ type SheetsReadCmd struct {
 }
 
 func (c *SheetsReadCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.read"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "sheets.read", "id": c.SpreadsheetID, "range": c.Range})
-		return nil
+	if done, err := Preflight(rctx, "sheets.read", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -60,21 +53,13 @@ type SheetsAppendCmd struct {
 }
 
 func (c *SheetsAppendCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.append"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "sheets.append", []string{"sheets"}); done {
+		return err
 	}
 
 	values, err := api.ParseValuesJSON(c.Values)
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.InvalidInput, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "sheets.append", "rows": len(values)})
-		return nil
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -98,21 +83,13 @@ type SheetsUpdateCmd struct {
 }
 
 func (c *SheetsUpdateCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.update"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "sheets.update", []string{"sheets"}); done {
+		return err
 	}
 
 	values, err := api.ParseValuesJSON(c.Values)
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.InvalidInput, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "sheets.update", "rows": len(values)})
-		return nil
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -134,15 +111,8 @@ type SheetsCreateCmd struct {
 }
 
 func (c *SheetsCreateCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.create"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "sheets.create", "title": c.Title})
-		return nil
+	if done, err := Preflight(rctx, "sheets.create", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -164,11 +134,8 @@ type SheetsInfoCmd struct {
 }
 
 func (c *SheetsInfoCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.info"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "sheets.info", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -189,11 +156,8 @@ type SheetsSearchCmd struct {
 }
 
 func (c *SheetsSearchCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.search"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "sheets.search", []string{"sheets"}); done {
+		return err
 	}
 
 	searchRange := c.Range
@@ -230,11 +194,8 @@ type SheetsFilterCmd struct {
 }
 
 func (c *SheetsFilterCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.filter"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "sheets.filter", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -254,15 +215,8 @@ type SheetsClearCmd struct {
 }
 
 func (c *SheetsClearCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.clear"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "sheets.clear", "range": c.Range})
-		return nil
+	if done, err := Preflight(rctx, "sheets.clear", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -285,11 +239,8 @@ type SheetsDescribeCmd struct {
 }
 
 func (c *SheetsDescribeCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.describe"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "sheets.describe", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -310,6 +261,8 @@ type SheetsSmartAppendCmd struct {
 }
 
 func (c *SheetsSmartAppendCmd) Run(rctx *RunContext) error {
+	// NOTE: smart-append DryRun is deferred to step 3 (after schema describe + validation),
+	// so we bypass Preflight's DryRun handling and manage it manually below.
 	if err := CheckAllowlist(rctx, "sheets.smart-append"); err != nil {
 		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
 	}
@@ -362,11 +315,11 @@ func (c *SheetsSmartAppendCmd) Run(rctx *RunContext) error {
 	// Step 3: Dry-run shows what would be written
 	if rctx.DryRun {
 		rctx.Printer.Success(map[string]interface{}{
-			"valid":      true,
-			"dry_run":    "sheets.smart-append",
-			"rows":       len(values),
-			"values":     values,
-			"schema":     schema,
+			"valid":   true,
+			"dry_run": "sheets.smart-append",
+			"rows":    len(values),
+			"values":  values,
+			"schema":  schema,
 		})
 		return nil
 	}
@@ -393,11 +346,8 @@ type SheetsStatsCmd struct {
 }
 
 func (c *SheetsStatsCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.stats"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "sheets.stats", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -418,11 +368,8 @@ type SheetsDiffCmd struct {
 }
 
 func (c *SheetsDiffCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.diff"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "sheets.diff", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -443,19 +390,8 @@ type SheetsCopyTabCmd struct {
 }
 
 func (c *SheetsCopyTabCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.copy-tab"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "sheets.copy-tab",
-			"source":  c.Source,
-			"name":    c.Name,
-		})
-		return nil
+	if done, err := Preflight(rctx, "sheets.copy-tab", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -480,11 +416,8 @@ type SheetsExportCmd struct {
 }
 
 func (c *SheetsExportCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.export"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "sheets.export", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)
@@ -513,19 +446,8 @@ type SheetsImportCmd struct {
 }
 
 func (c *SheetsImportCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "sheets.import"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "sheets.import",
-			"file":    c.File,
-			"format":  c.ImportFmt,
-		})
-		return nil
+	if done, err := Preflight(rctx, "sheets.import", []string{"sheets"}); done {
+		return err
 	}
 
 	sheetsSvc := api.NewSheetsService(rctx.APIClient)

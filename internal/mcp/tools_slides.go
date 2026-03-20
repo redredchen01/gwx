@@ -6,8 +6,9 @@ import (
 	"github.com/redredchen01/gwx/internal/api"
 )
 
-// SlidesTools returns MCP tool definitions for Google Slides.
-func SlidesTools() []Tool {
+type slidesProvider struct{}
+
+func (slidesProvider) Tools() []Tool {
 	return []Tool{
 		{
 			Name:        "slides_get",
@@ -82,15 +83,18 @@ func SlidesTools() []Tool {
 	}
 }
 
-// registerSlidesTools registers Slides tool handlers into the registry.
-func (h *GWXHandler) registerSlidesTools(r map[string]ToolHandler) {
-	r["slides_get"] = h.slidesGet
-	r["slides_list"] = h.slidesList
-	r["slides_create"] = h.slidesCreate
-	r["slides_duplicate"] = h.slidesDuplicate
-	r["slides_export"] = h.slidesExport
-	r["slides_from_sheet"] = h.slidesFromSheet
+func (slidesProvider) Handlers(h *GWXHandler) map[string]ToolHandler {
+	return map[string]ToolHandler{
+		"slides_get":       h.slidesGet,
+		"slides_list":      h.slidesList,
+		"slides_create":    h.slidesCreate,
+		"slides_duplicate": h.slidesDuplicate,
+		"slides_export":    h.slidesExport,
+		"slides_from_sheet": h.slidesFromSheet,
+	}
 }
+
+func init() { RegisterProvider(slidesProvider{}) }
 
 func (h *GWXHandler) slidesGet(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	svc := api.NewSlidesService(h.client)

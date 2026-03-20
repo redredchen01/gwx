@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"github.com/redredchen01/gwx/internal/api"
-	"github.com/redredchen01/gwx/internal/exitcode"
 )
 
 // ChatCmd groups Chat operations.
@@ -18,15 +17,8 @@ type ChatSpacesCmd struct {
 }
 
 func (c *ChatSpacesCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "chat.spaces"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"chat"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "chat.spaces"})
-		return nil
+	if done, err := Preflight(rctx, "chat.spaces", []string{"chat"}); done {
+		return err
 	}
 
 	chatSvc := api.NewChatService(rctx.APIClient)
@@ -49,20 +41,8 @@ type ChatSendCmd struct {
 }
 
 func (c *ChatSendCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "chat.send"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"chat"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "chat.send",
-			"space":   c.Space,
-			"text":    c.Text,
-		})
-		return nil
+	if done, err := Preflight(rctx, "chat.send", []string{"chat"}); done {
+		return err
 	}
 
 	chatSvc := api.NewChatService(rctx.APIClient)
@@ -85,15 +65,8 @@ type ChatMessagesCmd struct {
 }
 
 func (c *ChatMessagesCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "chat.messages"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"chat"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "chat.messages", "space": c.Space})
-		return nil
+	if done, err := Preflight(rctx, "chat.messages", []string{"chat"}); done {
+		return err
 	}
 
 	chatSvc := api.NewChatService(rctx.APIClient)

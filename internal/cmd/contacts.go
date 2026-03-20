@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"github.com/redredchen01/gwx/internal/api"
-	"github.com/redredchen01/gwx/internal/exitcode"
 )
 
 // ContactsCmd groups Contacts operations.
@@ -18,15 +17,8 @@ type ContactsListCmd struct {
 }
 
 func (c *ContactsListCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "contacts.list"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"people"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "contacts.list"})
-		return nil
+	if done, err := Preflight(rctx, "contacts.list", []string{"people"}); done {
+		return err
 	}
 
 	contactsSvc := api.NewContactsService(rctx.APIClient)
@@ -49,15 +41,8 @@ type ContactsSearchCmd struct {
 }
 
 func (c *ContactsSearchCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "contacts.search"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"people"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "contacts.search", "query": c.Query})
-		return nil
+	if done, err := Preflight(rctx, "contacts.search", []string{"people"}); done {
+		return err
 	}
 
 	contactsSvc := api.NewContactsService(rctx.APIClient)
@@ -80,15 +65,8 @@ type ContactsGetCmd struct {
 }
 
 func (c *ContactsGetCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "contacts.get"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"people"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "contacts.get", "resource": c.ResourceName})
-		return nil
+	if done, err := Preflight(rctx, "contacts.get", []string{"people"}); done {
+		return err
 	}
 
 	contactsSvc := api.NewContactsService(rctx.APIClient)

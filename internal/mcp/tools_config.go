@@ -7,8 +7,9 @@ import (
 	"github.com/redredchen01/gwx/internal/config"
 )
 
-// ConfigTools returns the 3 config management tool definitions.
-func ConfigTools() []Tool {
+type configProvider struct{}
+
+func (configProvider) Tools() []Tool {
 	return []Tool{
 		{
 			Name:        "config_set",
@@ -43,23 +44,21 @@ func ConfigTools() []Tool {
 	}
 }
 
-// CallConfigTool routes a tool call to the appropriate config handler.
-// Returns (result, error, handled). handled=true means the tool name was recognized.
-func (h *GWXHandler) CallConfigTool(_ context.Context, name string, args map[string]interface{}) (*ToolResult, error, bool) {
-	switch name {
-	case "config_set":
-		r, err := h.configSet(args)
-		return r, err, true
-	case "config_get":
-		r, err := h.configGet(args)
-		return r, err, true
-	case "config_list":
-		r, err := h.configList()
-		return r, err, true
-	default:
-		return nil, nil, false
+func (configProvider) Handlers(h *GWXHandler) map[string]ToolHandler {
+	return map[string]ToolHandler{
+		"config_set": func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+			return h.configSet(args)
+		},
+		"config_get": func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+			return h.configGet(args)
+		},
+		"config_list": func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
+			return h.configList()
+		},
 	}
 }
+
+func init() { RegisterProvider(configProvider{}) }
 
 // --- Config handlers ---
 
@@ -95,14 +94,3 @@ func (h *GWXHandler) configList() (*ToolResult, error) {
 	return jsonResult(map[string]interface{}{"preferences": prefs, "count": len(prefs)})
 }
 
-func (h *GWXHandler) registerConfigTools(r map[string]ToolHandler) {
-	r["config_set"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
-		return h.configSet(args)
-	}
-	r["config_get"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
-		return h.configGet(args)
-	}
-	r["config_list"] = func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
-		return h.configList()
-	}
-}

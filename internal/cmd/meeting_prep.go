@@ -13,15 +13,8 @@ type MeetingPrepCmd struct {
 }
 
 func (c *MeetingPrepCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.meeting-prep"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"calendar", "contacts", "gmail", "drive"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "meeting-prep", "meeting": c.Meeting})
-		return nil
+	if done, err := Preflight(rctx, "meeting-prep", []string{"calendar", "contacts", "gmail", "drive"}); done {
+		return err
 	}
 
 	result, err := workflow.RunMeetingPrep(rctx.Context, rctx.APIClient, workflow.MeetingPrepOpts{

@@ -8,8 +8,9 @@ import (
 	"github.com/redredchen01/gwx/internal/config"
 )
 
-// AnalyticsTools returns the 4 Google Analytics 4 tool definitions.
-func AnalyticsTools() []Tool {
+type analyticsProvider struct{}
+
+func (analyticsProvider) Tools() []Tool {
 	return []Tool{
 		{
 			Name:        "analytics_report",
@@ -61,26 +62,16 @@ func AnalyticsTools() []Tool {
 	}
 }
 
-// CallAnalyticsTool routes a tool call to the appropriate analytics handler.
-// Returns (result, error, handled). handled=true means the tool name was recognized.
-func (h *GWXHandler) CallAnalyticsTool(ctx context.Context, name string, args map[string]interface{}) (*ToolResult, error, bool) {
-	switch name {
-	case "analytics_report":
-		r, err := h.analyticsReport(ctx, args)
-		return r, err, true
-	case "analytics_realtime":
-		r, err := h.analyticsRealtime(ctx, args)
-		return r, err, true
-	case "analytics_properties":
-		r, err := h.analyticsProperties(ctx, args)
-		return r, err, true
-	case "analytics_audiences":
-		r, err := h.analyticsAudiences(ctx, args)
-		return r, err, true
-	default:
-		return nil, nil, false
+func (analyticsProvider) Handlers(h *GWXHandler) map[string]ToolHandler {
+	return map[string]ToolHandler{
+		"analytics_report":     h.analyticsReport,
+		"analytics_realtime":   h.analyticsRealtime,
+		"analytics_properties": h.analyticsProperties,
+		"analytics_audiences":  h.analyticsAudiences,
 	}
 }
+
+func init() { RegisterProvider(analyticsProvider{}) }
 
 // resolveProperty returns the property arg if provided, otherwise falls back to
 // the "analytics.default-property" config key. Returns an error if neither is set.
@@ -173,9 +164,3 @@ func (h *GWXHandler) analyticsAudiences(ctx context.Context, args map[string]int
 	return jsonResult(map[string]interface{}{"property": property, "audiences": audiences, "count": len(audiences)})
 }
 
-func (h *GWXHandler) registerAnalyticsTools(r map[string]ToolHandler) {
-	r["analytics_report"] = h.analyticsReport
-	r["analytics_realtime"] = h.analyticsRealtime
-	r["analytics_properties"] = h.analyticsProperties
-	r["analytics_audiences"] = h.analyticsAudiences
-}

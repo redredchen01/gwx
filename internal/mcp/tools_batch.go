@@ -8,8 +8,13 @@ import (
 	"github.com/redredchen01/gwx/internal/api"
 )
 
-// BatchTools returns the batch tool definitions for drive_batch_upload and sheets_batch_append.
-func BatchTools() []Tool {
+// BatchTools returns the batch tool definitions.
+// Kept for backward-compat with tests.
+func BatchTools() []Tool { return batchProvider{}.Tools() }
+
+type batchProvider struct{}
+
+func (batchProvider) Tools() []Tool {
 	return []Tool{
 		{
 			Name:        "drive_batch_upload",
@@ -40,20 +45,14 @@ func BatchTools() []Tool {
 	}
 }
 
-// CallBatchTool routes batch tool calls.
-// Returns (result, error, handled). handled=true means the tool name was recognised.
-func (h *GWXHandler) CallBatchTool(ctx context.Context, name string, args map[string]interface{}) (*ToolResult, error, bool) {
-	switch name {
-	case "drive_batch_upload":
-		result, err := h.driveBatchUpload(ctx, args)
-		return result, err, true
-	case "sheets_batch_append":
-		result, err := h.sheetsBatchAppend(ctx, args)
-		return result, err, true
-	default:
-		return nil, nil, false
+func (batchProvider) Handlers(h *GWXHandler) map[string]ToolHandler {
+	return map[string]ToolHandler{
+		"drive_batch_upload":  h.driveBatchUpload,
+		"sheets_batch_append": h.sheetsBatchAppend,
 	}
 }
+
+func init() { RegisterProvider(batchProvider{}) }
 
 // --- Batch handlers ---
 
@@ -104,7 +103,3 @@ func (h *GWXHandler) sheetsBatchAppend(ctx context.Context, args map[string]inte
 	return jsonResult(result)
 }
 
-func (h *GWXHandler) registerBatchTools(r map[string]ToolHandler) {
-	r["drive_batch_upload"] = h.driveBatchUpload
-	r["sheets_batch_append"] = h.sheetsBatchAppend
-}

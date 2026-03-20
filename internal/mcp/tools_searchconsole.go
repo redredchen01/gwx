@@ -10,8 +10,9 @@ import (
 	"github.com/redredchen01/gwx/internal/config"
 )
 
-// SearchConsoleTools returns MCP tool definitions for Google Search Console.
-func SearchConsoleTools() []Tool {
+type searchconsoleProvider struct{}
+
+func (searchconsoleProvider) Tools() []Tool {
 	return []Tool{
 		{
 			Name:        "searchconsole_query",
@@ -73,29 +74,17 @@ func SearchConsoleTools() []Tool {
 	}
 }
 
-// CallSearchConsoleTool routes a tool call to the appropriate Search Console handler.
-// Returns (result, error, handled). handled=false means the tool name was not recognised.
-func (h *GWXHandler) CallSearchConsoleTool(ctx context.Context, name string, args map[string]interface{}) (*ToolResult, error, bool) {
-	switch name {
-	case "searchconsole_query":
-		r, err := h.searchconsoleQuery(ctx, args)
-		return r, err, true
-	case "searchconsole_sites":
-		r, err := h.searchconsoleSites(ctx, args)
-		return r, err, true
-	case "searchconsole_inspect":
-		r, err := h.searchconsoleInspect(ctx, args)
-		return r, err, true
-	case "searchconsole_sitemaps":
-		r, err := h.searchconsoleSitemaps(ctx, args)
-		return r, err, true
-	case "searchconsole_index_status":
-		r, err := h.searchconsoleIndexStatus(ctx, args)
-		return r, err, true
-	default:
-		return nil, nil, false
+func (searchconsoleProvider) Handlers(h *GWXHandler) map[string]ToolHandler {
+	return map[string]ToolHandler{
+		"searchconsole_query":        h.searchconsoleQuery,
+		"searchconsole_sites":        h.searchconsoleSites,
+		"searchconsole_inspect":      h.searchconsoleInspect,
+		"searchconsole_sitemaps":     h.searchconsoleSitemaps,
+		"searchconsole_index_status": h.searchconsoleIndexStatus,
 	}
 }
+
+func init() { RegisterProvider(searchconsoleProvider{}) }
 
 // --- helpers ---
 
@@ -206,10 +195,3 @@ func (h *GWXHandler) searchconsoleIndexStatus(ctx context.Context, args map[stri
 	return jsonResult(summary)
 }
 
-func (h *GWXHandler) registerSearchConsoleTools(r map[string]ToolHandler) {
-	r["searchconsole_query"] = h.searchconsoleQuery
-	r["searchconsole_sites"] = h.searchconsoleSites
-	r["searchconsole_inspect"] = h.searchconsoleInspect
-	r["searchconsole_sitemaps"] = h.searchconsoleSitemaps
-	r["searchconsole_index_status"] = h.searchconsoleIndexStatus
-}

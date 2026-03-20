@@ -1,12 +1,8 @@
 package cmd
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/redredchen01/gwx/internal/api"
 	"github.com/redredchen01/gwx/internal/exitcode"
-	"google.golang.org/api/googleapi"
 )
 
 // GmailCmd groups Gmail operations.
@@ -32,17 +28,8 @@ type GmailListCmd struct {
 }
 
 func (c *GmailListCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.list"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]string{"dry_run": "gmail.list would execute"})
-		return nil
+	if done, err := Preflight(rctx, "gmail.list", []string{"gmail"}); done {
+		return err
 	}
 
 	gmailSvc := api.NewGmailService(rctx.APIClient)
@@ -58,8 +45,8 @@ func (c *GmailListCmd) Run(rctx *RunContext) error {
 	}
 
 	rctx.Printer.Success(map[string]interface{}{
-		"messages":    messages,
-		"count":       len(messages),
+		"messages":       messages,
+		"count":          len(messages),
 		"total_estimate": total,
 	})
 	return nil
@@ -71,17 +58,8 @@ type GmailGetCmd struct {
 }
 
 func (c *GmailGetCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.get"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]string{"dry_run": fmt.Sprintf("gmail.get %s would execute", c.MessageID)})
-		return nil
+	if done, err := Preflight(rctx, "gmail.get", []string{"gmail"}); done {
+		return err
 	}
 
 	gmailSvc := api.NewGmailService(rctx.APIClient)
@@ -102,17 +80,8 @@ type GmailSearchCmd struct {
 }
 
 func (c *GmailSearchCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.search"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]string{"dry_run": fmt.Sprintf("gmail.search %q would execute", c.Query)})
-		return nil
+	if done, err := Preflight(rctx, "gmail.search", []string{"gmail"}); done {
+		return err
 	}
 
 	gmailSvc := api.NewGmailService(rctx.APIClient)
@@ -135,12 +104,8 @@ func (c *GmailSearchCmd) Run(rctx *RunContext) error {
 type GmailLabelsCmd struct{}
 
 func (c *GmailLabelsCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.labels"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "gmail.labels", []string{"gmail"}); done {
+		return err
 	}
 
 	gmailSvc := api.NewGmailService(rctx.APIClient)
@@ -168,12 +133,8 @@ type GmailSendCmd struct {
 }
 
 func (c *GmailSendCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.send"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "gmail.send", []string{"gmail"}); done {
+		return err
 	}
 
 	input := &api.SendInput{
@@ -183,18 +144,6 @@ func (c *GmailSendCmd) Run(rctx *RunContext) error {
 		Subject:     c.Subject,
 		Body:        c.Body,
 		Attachments: c.Attach,
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":     "gmail.send would execute",
-			"to":          input.To,
-			"cc":          input.CC,
-			"subject":     input.Subject,
-			"body_length": len(input.Body),
-			"attachments": len(input.Attachments),
-		})
-		return nil
 	}
 
 	gmailSvc := api.NewGmailService(rctx.APIClient)
@@ -221,12 +170,8 @@ type GmailDraftCmd struct {
 }
 
 func (c *GmailDraftCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.draft"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "gmail.draft", []string{"gmail"}); done {
+		return err
 	}
 
 	input := &api.SendInput{
@@ -235,15 +180,6 @@ func (c *GmailDraftCmd) Run(rctx *RunContext) error {
 		Subject:     c.Subject,
 		Body:        c.Body,
 		Attachments: c.Attach,
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "gmail.draft would execute",
-			"to":      input.To,
-			"subject": input.Subject,
-		})
-		return nil
 	}
 
 	gmailSvc := api.NewGmailService(rctx.APIClient)
@@ -268,26 +204,13 @@ type GmailReplyCmd struct {
 }
 
 func (c *GmailReplyCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.reply"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
+	if done, err := Preflight(rctx, "gmail.reply", []string{"gmail"}); done {
+		return err
 	}
 
 	input := &api.SendInput{
 		Body:     c.Body,
 		ReplyAll: c.ReplyAll,
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":    "gmail.reply would execute",
-			"message_id": c.MessageID,
-			"reply_all":  c.ReplyAll,
-		})
-		return nil
 	}
 
 	gmailSvc := api.NewGmailService(rctx.APIClient)
@@ -311,15 +234,8 @@ type GmailDigestCmd struct {
 }
 
 func (c *GmailDigestCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.digest"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "gmail.digest"})
-		return nil
+	if done, err := Preflight(rctx, "gmail.digest", []string{"gmail"}); done {
+		return err
 	}
 
 	gmailSvc := api.NewGmailService(rctx.APIClient)
@@ -340,20 +256,8 @@ type GmailArchiveCmd struct {
 }
 
 func (c *GmailArchiveCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.archive"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": "gmail.archive",
-			"query":   c.Query,
-			"limit":   c.Limit,
-		})
-		return nil
+	if done, err := Preflight(rctx, "gmail.archive", []string{"gmail"}); done {
+		return err
 	}
 
 	gmailSvc := api.NewGmailService(rctx.APIClient)
@@ -390,25 +294,13 @@ type GmailLabelCmd struct {
 }
 
 func (c *GmailLabelCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.label"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
+	// Input validation does not depend on auth; checked before Preflight.
 	if len(c.Add) == 0 && len(c.Remove) == 0 {
 		return rctx.Printer.ErrExit(exitcode.InvalidInput, "at least one of --add or --remove is required")
 	}
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run": true,
-			"command": "gmail.label",
-			"query":   c.Query,
-			"add":     c.Add,
-			"remove":  c.Remove,
-			"limit":   c.Limit,
-		})
-		return nil
+
+	if done, err := Preflight(rctx, "gmail.label", []string{"gmail"}); done {
+		return err
 	}
 
 	svc := api.NewGmailService(rctx.APIClient)
@@ -418,11 +310,11 @@ func (c *GmailLabelCmd) Run(rctx *RunContext) error {
 	}
 
 	rctx.Printer.Success(map[string]interface{}{
-		"action":   "labels_modified",
-		"count":    count,
-		"query":    c.Query,
-		"added":    c.Add,
-		"removed":  c.Remove,
+		"action":  "labels_modified",
+		"count":   count,
+		"query":   c.Query,
+		"added":   c.Add,
+		"removed": c.Remove,
 	})
 	return nil
 }
@@ -434,20 +326,8 @@ type GmailForwardCmd struct {
 }
 
 func (c *GmailForwardCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "gmail.forward"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{
-			"dry_run":    true,
-			"command":    "gmail.forward",
-			"message_id": c.MessageID,
-			"to":         c.To,
-		})
-		return nil
+	if done, err := Preflight(rctx, "gmail.forward", []string{"gmail"}); done {
+		return err
 	}
 
 	svc := api.NewGmailService(rctx.APIClient)
@@ -459,34 +339,3 @@ func (c *GmailForwardCmd) Run(rctx *RunContext) error {
 	rctx.Printer.Success(result)
 	return nil
 }
-
-// handleAPIError maps Google API errors to exit codes.
-func handleAPIError(rctx *RunContext, err error) error {
-	msg := err.Error()
-
-	var circuitErr *api.CircuitOpenError
-	if errors.As(err, &circuitErr) {
-		return rctx.Printer.ErrExit(exitcode.CircuitOpen, msg)
-	}
-
-	var gErr *googleapi.Error
-	if errors.As(err, &gErr) {
-		switch gErr.Code {
-		case 401:
-			return rctx.Printer.ErrExit(exitcode.AuthExpired, msg)
-		case 403:
-			return rctx.Printer.ErrExit(exitcode.PermissionDenied, msg)
-		case 404:
-			return rctx.Printer.ErrExit(exitcode.NotFound, msg)
-		case 429:
-			return rctx.Printer.ErrExit(exitcode.RateLimited, msg)
-		case 409:
-			return rctx.Printer.ErrExit(exitcode.Conflict, msg)
-		}
-	}
-
-	return rctx.Printer.ErrExit(exitcode.GeneralError, msg)
-}
-
-// ensure fmt is used (for Sprintf in dry-run messages)
-var _ = fmt.Sprintf
