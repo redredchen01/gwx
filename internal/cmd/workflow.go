@@ -31,15 +31,8 @@ type WeeklyDigestCmd struct {
 }
 
 func (c *WeeklyDigestCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.weekly-digest"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"gmail", "calendar", "tasks"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "weekly-digest"})
-		return nil
+	if done, err := Preflight(rctx, "workflow.weekly-digest", []string{"gmail", "calendar", "tasks"}); done {
+		return err
 	}
 
 	result, err := workflow.RunWeeklyDigest(rctx.Context, rctx.APIClient, workflow.WeeklyDigestOpts{
@@ -60,15 +53,8 @@ type ContextBoostCmd struct {
 }
 
 func (c *ContextBoostCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.context-boost"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"gmail", "drive", "calendar", "contacts"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "context-boost", "topic": c.Topic})
-		return nil
+	if done, err := Preflight(rctx, "workflow.context-boost", []string{"gmail", "drive", "calendar", "contacts"}); done {
+		return err
 	}
 
 	result, err := workflow.RunContextBoost(rctx.Context, rctx.APIClient, workflow.ContextBoostOpts{
@@ -91,15 +77,8 @@ type BugIntakeCmd struct {
 }
 
 func (c *BugIntakeCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.bug-intake"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"gmail", "drive"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "bug-intake"})
-		return nil
+	if done, err := Preflight(rctx, "workflow.bug-intake", []string{"gmail", "drive"}); done {
+		return err
 	}
 
 	result, err := workflow.RunBugIntake(rctx.Context, rctx.APIClient, workflow.BugIntakeOpts{
@@ -124,15 +103,8 @@ type TestMatrixCmd struct {
 }
 
 func (c *TestMatrixCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.test-matrix"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "test-matrix", "action": c.Action})
-		return nil
+	if done, err := Preflight(rctx, "workflow.test-matrix", []string{"sheets"}); done {
+		return err
 	}
 
 	result, err := workflow.RunTestMatrix(rctx.Context, rctx.APIClient, workflow.TestMatrixOpts{
@@ -157,15 +129,8 @@ type SpecHealthCmd struct {
 }
 
 func (c *SpecHealthCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.spec-health"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "spec-health", "action": c.Action})
-		return nil
+	if done, err := Preflight(rctx, "workflow.spec-health", []string{"sheets"}); done {
+		return err
 	}
 
 	result, err := workflow.RunSpecHealth(rctx.Context, rctx.APIClient, workflow.SpecHealthOpts{
@@ -193,15 +158,8 @@ type SprintBoardCmd struct {
 }
 
 func (c *SprintBoardCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.sprint-board"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "sprint-board", "action": c.Action})
-		return nil
+	if done, err := Preflight(rctx, "workflow.sprint-board", []string{"sheets"}); done {
+		return err
 	}
 
 	result, err := workflow.RunSprintBoard(rctx.Context, rctx.APIClient, workflow.SprintBoardOpts{
@@ -231,9 +189,6 @@ type ReviewNotifyCmd struct {
 }
 
 func (c *ReviewNotifyCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.review-notify"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
 	if c.Execute && c.Channel == "" {
 		return rctx.Printer.ErrExit(exitcode.UsageError, "--channel required when --execute is set")
 	}
@@ -241,12 +196,8 @@ func (c *ReviewNotifyCmd) Run(rctx *RunContext) error {
 	if strings.HasPrefix(c.Channel, "chat:") {
 		services = append(services, "chat")
 	}
-	if err := EnsureAuth(rctx, services); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "review-notify"})
-		return nil
+	if done, err := Preflight(rctx, "workflow.review-notify", services); done {
+		return err
 	}
 
 	result, err := workflow.RunReviewNotify(rctx.Context, rctx.APIClient, workflow.ReviewNotifyOpts{
@@ -254,7 +205,7 @@ func (c *ReviewNotifyCmd) Run(rctx *RunContext) error {
 		Reviewers:  strings.Split(c.Reviewers, ","),
 		Channel:    c.Channel,
 		Execute:    c.Execute,
-		NoInput:    false,
+		NoInput:    rctx.NoInput,
 	})
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, err.Error())
@@ -272,18 +223,11 @@ type EmailFromDocCmd struct {
 }
 
 func (c *EmailFromDocCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.email-from-doc"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
 	if c.Execute && c.Recipients == "" {
 		return rctx.Printer.ErrExit(exitcode.UsageError, "--recipients required when --execute is set")
 	}
-	if err := EnsureAuth(rctx, []string{"docs", "gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "email-from-doc"})
-		return nil
+	if done, err := Preflight(rctx, "workflow.email-from-doc", []string{"docs", "gmail"}); done {
+		return err
 	}
 
 	var recipientList []string
@@ -296,7 +240,7 @@ func (c *EmailFromDocCmd) Run(rctx *RunContext) error {
 		Recipients: recipientList,
 		Subject:    c.Subject,
 		Execute:    c.Execute,
-		NoInput:    false,
+		NoInput:    rctx.NoInput,
 	})
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, err.Error())
@@ -316,15 +260,8 @@ type SheetToEmailCmd struct {
 }
 
 func (c *SheetToEmailCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.sheet-to-email"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"sheets", "gmail"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "sheet-to-email"})
-		return nil
+	if done, err := Preflight(rctx, "workflow.sheet-to-email", []string{"sheets", "gmail"}); done {
+		return err
 	}
 
 	result, err := workflow.RunSheetToEmail(rctx.Context, rctx.APIClient, workflow.SheetToEmailOpts{
@@ -334,7 +271,7 @@ func (c *SheetToEmailCmd) Run(rctx *RunContext) error {
 		SubjectCol: c.SubjectCol,
 		BodyCol:    c.BodyCol,
 		Execute:    c.Execute,
-		NoInput:    false,
+		NoInput:    rctx.NoInput,
 	})
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, err.Error())
@@ -353,15 +290,8 @@ type ParallelScheduleCmd struct {
 }
 
 func (c *ParallelScheduleCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.parallel-schedule"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-	if err := EnsureAuth(rctx, []string{"calendar"}); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "parallel-schedule"})
-		return nil
+	if done, err := Preflight(rctx, "workflow.parallel-schedule", []string{"calendar"}); done {
+		return err
 	}
 
 	result, err := workflow.RunParallelSchedule(rctx.Context, rctx.APIClient, workflow.ParallelScheduleOpts{
@@ -370,7 +300,7 @@ func (c *ParallelScheduleCmd) Run(rctx *RunContext) error {
 		Duration:  c.Duration,
 		DaysAhead: c.DaysAhead,
 		Execute:   c.Execute,
-		NoInput:   false,
+		NoInput:   rctx.NoInput,
 	})
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, err.Error())

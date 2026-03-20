@@ -179,6 +179,7 @@ func (workflowProvider) Tools() []Tool {
 				Required: []string{"sheet_id"},
 			},
 		},
+		// Note: sprint_board_archive is intentionally excluded from MCP — destructive operation
 		// FA-D: Action Workflows (preview only in MCP)
 		{
 			Name:        "workflow_review_notify",
@@ -250,32 +251,26 @@ func (workflowProvider) Tools() []Tool {
 }
 
 func (workflowProvider) Handlers(h *GWXHandler) map[string]ToolHandler {
-	wrap := func(fn func(context.Context, map[string]interface{}) (*ToolResult, error, bool)) ToolHandler {
-		return func(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
-			result, err, _ := fn(ctx, args)
-			return result, err
-		}
-	}
 	return map[string]ToolHandler{
-		"workflow_standup":           wrap(h.workflowStandup),
-		"workflow_meeting_prep":      wrap(h.workflowMeetingPrep),
-		"workflow_weekly_digest":     wrap(h.workflowWeeklyDigest),
-		"workflow_digest":            wrap(h.workflowWeeklyDigest),
-		"workflow_context_boost":     wrap(h.workflowContextBoost),
-		"workflow_bug_intake":        wrap(h.workflowBugIntake),
-		"workflow_test_matrix_init":  wrap(h.workflowTestMatrixInit),
-		"workflow_test_matrix_sync":  wrap(h.workflowTestMatrixSync),
-		"workflow_test_matrix_stats": wrap(h.workflowTestMatrixStats),
-		"workflow_spec_health_init":  wrap(h.workflowSpecHealthInit),
-		"workflow_spec_health_record": wrap(h.workflowSpecHealthRecord),
-		"workflow_spec_health_stats": wrap(h.workflowSpecHealthStats),
-		"workflow_sprint_board_init":   wrap(h.workflowSprintBoardInit),
-		"workflow_sprint_board_ticket": wrap(h.workflowSprintBoardTicket),
-		"workflow_sprint_board_stats":  wrap(h.workflowSprintBoardStats),
-		"workflow_review_notify":      wrap(h.workflowReviewNotify),
-		"workflow_email_from_doc":     wrap(h.workflowEmailFromDoc),
-		"workflow_sheet_to_email":     wrap(h.workflowSheetToEmail),
-		"workflow_parallel_schedule":  wrap(h.workflowParallelSchedule),
+		"workflow_standup":             h.workflowStandup,
+		"workflow_meeting_prep":        h.workflowMeetingPrep,
+		"workflow_weekly_digest":       h.workflowWeeklyDigest,
+		"workflow_digest":              h.workflowWeeklyDigest,
+		"workflow_context_boost":       h.workflowContextBoost,
+		"workflow_bug_intake":          h.workflowBugIntake,
+		"workflow_test_matrix_init":    h.workflowTestMatrixInit,
+		"workflow_test_matrix_sync":    h.workflowTestMatrixSync,
+		"workflow_test_matrix_stats":   h.workflowTestMatrixStats,
+		"workflow_spec_health_init":    h.workflowSpecHealthInit,
+		"workflow_spec_health_record":  h.workflowSpecHealthRecord,
+		"workflow_spec_health_stats":   h.workflowSpecHealthStats,
+		"workflow_sprint_board_init":   h.workflowSprintBoardInit,
+		"workflow_sprint_board_ticket": h.workflowSprintBoardTicket,
+		"workflow_sprint_board_stats":  h.workflowSprintBoardStats,
+		"workflow_review_notify":       h.workflowReviewNotify,
+		"workflow_email_from_doc":      h.workflowEmailFromDoc,
+		"workflow_sheet_to_email":      h.workflowSheetToEmail,
+		"workflow_parallel_schedule":   h.workflowParallelSchedule,
 	}
 }
 
@@ -283,44 +278,44 @@ func init() { RegisterProvider(workflowProvider{}) }
 
 // --- FA-B handlers ---
 
-func (h *GWXHandler) workflowStandup(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowStandup(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunStandup(ctx, h.client, workflow.StandupOpts{
 		Days:  intArg(args, "days", 1),
 		IsMCP: true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowMeetingPrep(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowMeetingPrep(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunMeetingPrep(ctx, h.client, workflow.MeetingPrepOpts{
 		Meeting: strArg(args, "meeting"),
 		Days:    intArg(args, "days", 1),
 		IsMCP:   true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowWeeklyDigest(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowWeeklyDigest(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunWeeklyDigest(ctx, h.client, workflow.WeeklyDigestOpts{
 		Weeks: intArg(args, "weeks", 1),
 		IsMCP: true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowContextBoost(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowContextBoost(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunContextBoost(ctx, h.client, workflow.ContextBoostOpts{
 		Topic: strArg(args, "topic"),
 		Days:  intArg(args, "days", 14),
@@ -328,41 +323,41 @@ func (h *GWXHandler) workflowContextBoost(ctx context.Context, args map[string]i
 		IsMCP: true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowBugIntake(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowBugIntake(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunBugIntake(ctx, h.client, workflow.BugIntakeOpts{
 		BugID: strArg(args, "bug_id"),
 		After: strArg(args, "after"),
 		IsMCP: true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
 // --- FA-C: Test Matrix handlers ---
 
-func (h *GWXHandler) workflowTestMatrixInit(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowTestMatrixInit(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunTestMatrix(ctx, h.client, workflow.TestMatrixOpts{
 		Action:  "init",
 		Feature: strArg(args, "feature"),
 		IsMCP:   true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowTestMatrixSync(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowTestMatrixSync(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunTestMatrix(ctx, h.client, workflow.TestMatrixOpts{
 		Action:  "sync",
 		SheetID: strArg(args, "sheet_id"),
@@ -370,41 +365,41 @@ func (h *GWXHandler) workflowTestMatrixSync(ctx context.Context, args map[string
 		IsMCP:   true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowTestMatrixStats(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowTestMatrixStats(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunTestMatrix(ctx, h.client, workflow.TestMatrixOpts{
 		Action:  "stats",
 		SheetID: strArg(args, "sheet_id"),
 		IsMCP:   true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
 // --- FA-C: Spec Health handlers ---
 
-func (h *GWXHandler) workflowSpecHealthInit(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowSpecHealthInit(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunSpecHealth(ctx, h.client, workflow.SpecHealthOpts{
 		Action:  "init",
 		Feature: strArg(args, "feature"),
 		IsMCP:   true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowSpecHealthRecord(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowSpecHealthRecord(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunSpecHealth(ctx, h.client, workflow.SpecHealthOpts{
 		Action:     "record",
 		SheetID:    strArg(args, "sheet_id"),
@@ -412,13 +407,13 @@ func (h *GWXHandler) workflowSpecHealthRecord(ctx context.Context, args map[stri
 		IsMCP:      true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowSpecHealthStats(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowSpecHealthStats(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunSpecHealth(ctx, h.client, workflow.SpecHealthOpts{
 		Action:     "stats",
 		SheetID:    strArg(args, "sheet_id"),
@@ -426,28 +421,28 @@ func (h *GWXHandler) workflowSpecHealthStats(ctx context.Context, args map[strin
 		IsMCP:      true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
 // --- FA-C: Sprint Board handlers ---
 
-func (h *GWXHandler) workflowSprintBoardInit(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowSprintBoardInit(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunSprintBoard(ctx, h.client, workflow.SprintBoardOpts{
 		Action:  "init",
 		Feature: strArg(args, "feature"),
 		IsMCP:   true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowSprintBoardTicket(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowSprintBoardTicket(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunSprintBoard(ctx, h.client, workflow.SprintBoardOpts{
 		Action:   "ticket",
 		SheetID:  strArg(args, "sheet_id"),
@@ -457,28 +452,28 @@ func (h *GWXHandler) workflowSprintBoardTicket(ctx context.Context, args map[str
 		IsMCP:    true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowSprintBoardStats(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowSprintBoardStats(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunSprintBoard(ctx, h.client, workflow.SprintBoardOpts{
 		Action:  "stats",
 		SheetID: strArg(args, "sheet_id"),
 		IsMCP:   true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
 // --- FA-D handlers ---
 
-func (h *GWXHandler) workflowReviewNotify(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowReviewNotify(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunReviewNotify(ctx, h.client, workflow.ReviewNotifyOpts{
 		SpecFolder: strArg(args, "spec_folder"),
 		Reviewers:  splitArg(args, "reviewers"),
@@ -486,13 +481,13 @@ func (h *GWXHandler) workflowReviewNotify(ctx context.Context, args map[string]i
 		IsMCP:      true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowEmailFromDoc(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowEmailFromDoc(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunEmailFromDoc(ctx, h.client, workflow.EmailFromDocOpts{
 		DocID:      strArg(args, "doc_id"),
 		Recipients: splitArg(args, "recipients"),
@@ -500,13 +495,13 @@ func (h *GWXHandler) workflowEmailFromDoc(ctx context.Context, args map[string]i
 		IsMCP:      true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowSheetToEmail(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowSheetToEmail(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunSheetToEmail(ctx, h.client, workflow.SheetToEmailOpts{
 		SheetID:    strArg(args, "sheet_id"),
 		Range:      strArg(args, "range"),
@@ -516,13 +511,13 @@ func (h *GWXHandler) workflowSheetToEmail(ctx context.Context, args map[string]i
 		IsMCP:      true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 
-func (h *GWXHandler) workflowParallelSchedule(ctx context.Context, args map[string]interface{}) (*ToolResult, error, bool) {
+func (h *GWXHandler) workflowParallelSchedule(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
 	result, err := workflow.RunParallelSchedule(ctx, h.client, workflow.ParallelScheduleOpts{
 		Title:     strArg(args, "title"),
 		Attendees: splitArg(args, "attendees"),
@@ -531,9 +526,9 @@ func (h *GWXHandler) workflowParallelSchedule(ctx context.Context, args map[stri
 		IsMCP:     true,
 	})
 	if err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	r, err := jsonResult(result)
-	return r, err, true
+	return r, err
 }
 

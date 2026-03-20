@@ -1,0 +1,40 @@
+{
+  "sdd_context": {
+    "version": "3.0.0",
+    "feature": "codebase-upgrade",
+    "current_stage": "S7",
+    "spec_mode": "full",
+    "work_type": "refactor",
+    "spec_folder": "dev/specs/2026-03-20_2_codebase-upgrade",
+    "execution_mode": "autopilot",
+    "status": "completed",
+    "started_at": "2026-03-20T15:00:00+08:00",
+    "completed_at": "2026-03-20T16:00:00+08:00",
+    "last_updated": "2026-03-20T16:00:00+08:00",
+    "last_updated_by": "claude",
+    "stages": {
+      "s0": { "status": "completed" },
+      "phase0": {
+        "status": "completed",
+        "description": "SOP 收尾 — S5 Code Review + fixes for builtin-workflow-skills and ux-improvements",
+        "fixes": 7
+      },
+      "phase1": {
+        "status": "completed",
+        "description": "依賴升級 (10 Go modules) + SOP context 清理",
+        "go_modules_upgraded": 10
+      },
+      "phase2": {
+        "status": "completed",
+        "description": "Tech debt: Preflight migration (12 cmds), MCP handler cleanup (19 handlers), suggestedAction Conflict, CLI audit (101 cmds, 1 alias, no true duplicates)"
+      },
+      "phase3": {
+        "status": "completed",
+        "description": "Test coverage: +2 test files, 29 new test cases (output formatter + workflow pure functions)",
+        "test_files_before": 27,
+        "test_files_after": 29,
+        "total_passing_tests": 257
+      }
+    }
+  }
+}

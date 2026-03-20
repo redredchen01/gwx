@@ -69,6 +69,7 @@ type RunContext struct {
 	APIClient *api.Client
 	Account   string
 	DryRun    bool
+	NoInput   bool
 	NoCache   bool
 	Allowlist *config.Allowlist
 }
@@ -118,6 +119,7 @@ func Execute() int {
 		Auth:      authMgr,
 		Account:   cli.Account,
 		DryRun:    cli.DryRun,
+		NoInput:   cli.NoInput,
 		NoCache:   cli.NoCache,
 		Allowlist: allowlist,
 	}

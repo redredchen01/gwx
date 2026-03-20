@@ -13,26 +13,18 @@ type StandupCmd struct {
 }
 
 func (c *StandupCmd) Run(rctx *RunContext) error {
-	if err := CheckAllowlist(rctx, "workflow.standup"); err != nil {
-		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
-	}
-
 	services := []string{"gmail", "calendar", "tasks"}
 	if c.Push != "" {
 		services = append(services, "chat")
 	}
-	if err := EnsureAuth(rctx, services); err != nil {
-		return rctx.Printer.ErrExit(exitcode.AuthRequired, err.Error())
-	}
-	if rctx.DryRun {
-		rctx.Printer.Success(map[string]interface{}{"dry_run": "standup"})
-		return nil
+	if done, err := Preflight(rctx, "workflow.standup", services); done {
+		return err
 	}
 
 	result, err := workflow.RunStandup(rctx.Context, rctx.APIClient, workflow.StandupOpts{
 		Days:    c.Days,
 		Execute: c.Execute,
-		NoInput: rctx.DryRun,
+		NoInput: rctx.NoInput,
 		Push:    c.Push,
 	})
 	if err != nil {

@@ -8,7 +8,7 @@
     "work_type": "refactor",
     "spec_folder": "dev/specs/2026-03-20_1_architecture-refactor",
     "execution_mode": "autopilot",
-    "status": "in_progress",
+    "status": "completed",
     "started_at": "2026-03-20T10:00:00+08:00",
     "last_updated": "2026-03-20T14:00:00+08:00",
     "last_updated_by": "claude",

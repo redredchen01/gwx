@@ -182,9 +182,9 @@
           }
         }
       },
-      "s5": { "status": "pending" },
-      "s6": { "status": "pending" },
-      "s7": { "status": "pending" }
+      "s5": { "status": "completed", "output": { "findings": { "P0": 2, "P1": 6, "P2": 5 }, "fixes_applied": ["P0-1 NoInput binding", "P0-2 archive MCP comment", "P1-1 test comment", "P1-3 MCP bool return noted for Phase 2"] } },
+      "s6": { "status": "completed", "output": { "test_result": "pass", "packages": 4 } },
+      "s7": { "status": "completed", "output": { "note": "fixes committed as part of codebase-upgrade Phase 0" } }
     }
   }
 }

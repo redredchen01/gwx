@@ -41,10 +41,10 @@
       "s1": { "status": "completed" },
       "s2": { "status": "skipped" },
       "s3": { "status": "completed" },
-      "s4": { "status": "in_progress" },
-      "s5": { "status": "pending" },
-      "s6": { "status": "pending" },
-      "s7": { "status": "pending" }
+      "s4": { "status": "completed" },
+      "s5": { "status": "completed", "output": { "findings": { "P0": 0, "P1": 6, "P2": 5 }, "fixes_applied": ["P1-3 map sort", "P1-4 table sort + largest array", "P1-5 duplicate comment", "P1-2 DryRun unification deferred to Phase 2"] } },
+      "s6": { "status": "completed", "output": { "test_result": "pass", "packages": 4 } },
+      "s7": { "status": "completed", "output": { "note": "fixes committed as part of codebase-upgrade Phase 0" } }
     }
   }
 }

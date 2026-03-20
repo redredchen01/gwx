@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -50,7 +51,6 @@ type ErrorInfo struct {
 	Action  string `json:"action,omitempty"`
 }
 
-// Printer handles formatted output.
 // Printer handles formatted output.
 type Printer struct {
 	Format Format
@@ -118,7 +118,13 @@ func (p *Printer) printPlain(data interface{}) {
 }
 
 func (p *Printer) printPlainMap(m map[string]interface{}, indent string) {
-	for k, v := range m {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		v := m[k]
 		switch val := v.(type) {
 		case map[string]interface{}:
 			fmt.Fprintf(p.Writer, "%s%s:\n", indent, k)
@@ -176,19 +182,28 @@ func (p *Printer) printTable(data interface{}) {
 	// Try to find an array in the data (common pattern: {"messages": [...], "count": N})
 	var m map[string]interface{}
 	if err := json.Unmarshal(raw, &m); err == nil {
-		// Find the first array field
-		for _, v := range m {
-			if arr, ok := v.([]interface{}); ok && len(arr) > 0 {
-				p.renderArrayAsTable(arr)
-				return
+		// Find the largest array field (deterministic: sort keys, pick largest)
+		sortedKeys := make([]string, 0, len(m))
+		for k := range m {
+			sortedKeys = append(sortedKeys, k)
+		}
+		sort.Strings(sortedKeys)
+		var bestArr []interface{}
+		for _, k := range sortedKeys {
+			if arr, ok := m[k].([]interface{}); ok && len(arr) > len(bestArr) {
+				bestArr = arr
 			}
+		}
+		if len(bestArr) > 0 {
+			p.renderArrayAsTable(bestArr)
+			return
 		}
 		// No array found — render map as key-value table
 		var headers []string
 		var values []string
-		for k, v := range m {
+		for _, k := range sortedKeys {
 			headers = append(headers, k)
-			values = append(values, fmt.Sprintf("%v", v))
+			values = append(values, fmt.Sprintf("%v", m[k]))
 		}
 		p.Table(headers, [][]string{values})
 		return
@@ -219,7 +234,7 @@ func (p *Printer) renderArrayAsTable(arr []interface{}) {
 		return
 	}
 
-	// Collect headers (skip nested objects/arrays for table display)
+	// Collect headers (skip nested objects/arrays for table display), sorted for deterministic output
 	var headers []string
 	for k, v := range first {
 		switch v.(type) {
@@ -229,6 +244,7 @@ func (p *Printer) renderArrayAsTable(arr []interface{}) {
 			headers = append(headers, k)
 		}
 	}
+	sort.Strings(headers)
 
 	// Build rows
 	var rows [][]string
@@ -338,6 +354,8 @@ func suggestedAction(code int, msg string) string {
 		return "Wait 30 seconds and retry. Google API quota may be exhausted."
 	case exitcode.CircuitOpen:
 		return "Google API is unstable. Wait 30 seconds for the circuit breaker to recover."
+	case exitcode.Conflict:
+		return "Resource was modified by another process. Retry your operation."
 	case exitcode.InvalidInput:
 		return "Check your command arguments. Run '<command> --help' for usage."
 	}
