@@ -19,7 +19,18 @@
       "Bash(jq *)",
       "Bash(curl *)",
       "mcp__sequential-thinking__sequentialthinking",
-      "Bash(grep -E \"\\\\.go$\")"
+      "Bash(grep -E \"\\\\.go$\")",
+      "Bash(go get:*)",
+      "Bash(go build:*)",
+      "Bash(go vet:*)",
+      "Bash(go run:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(./build/gwx skill:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''✓'''' if d.get\\(''''data'''',{}\\).get\\(''''valid''''\\) else ''''✗ ''''+str\\(d\\)\\)\")",
+      "Bash(done)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''✓'''' if d.get\\(''''data'''',{}\\).get\\(''''valid''''\\) else ''''✗''''\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f\"\"{d[''''data''''][''''count'''']} skills loaded\"\"\\)\")",
+      "Bash(go test:*)"
     ],
     "deny": []
   },

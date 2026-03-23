@@ -8,6 +8,7 @@ import (
 	"github.com/redredchen01/gwx/internal/auth"
 	gwxlog "github.com/redredchen01/gwx/internal/log"
 	"github.com/redredchen01/gwx/internal/mcp"
+	"github.com/redredchen01/gwx/internal/skill"
 )
 
 // MCPServerCmd starts the MCP server over stdio.
@@ -27,6 +28,11 @@ func (c *MCPServerCmd) Run(rctx *RunContext) error {
 			slog.Error("not authenticated", "hint", "run gwx onboard")
 			return err
 		}
+	}
+
+	// Load skill DSL definitions so they appear as MCP tools.
+	if err := skill.Reload(); err != nil {
+		slog.Warn("failed to load skills", "error", err)
 	}
 
 	handler := mcp.NewGWXHandler(rctx.APIClient)

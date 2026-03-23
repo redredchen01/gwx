@@ -1,0 +1,43 @@
+name: batch-notify
+version: "1.0"
+description: "Look up a contact list and send a personalised email to each contact."
+
+inputs:
+  - name: spreadsheet_id
+    type: string
+    required: true
+    description: "Google Sheets ID containing the contact list"
+  - name: sheet
+    type: string
+    required: false
+    default: "Contacts"
+    description: "Sheet tab name"
+  - name: subject_prefix
+    type: string
+    required: false
+    default: "Update"
+    description: "Email subject prefix"
+
+steps:
+  - id: contacts
+    tool: sheets_read
+    args:
+      spreadsheet_id: "{{.input.spreadsheet_id}}"
+      range: "{{.input.sheet}}!A:C"
+
+  - id: notify
+    tool: gmail_send
+    each: "{{.steps.contacts}}"
+    args:
+      to: "{{.item.email}}"
+      subject: "{{.input.subject_prefix}}: Hello {{.item.name}}"
+      body: "Hi {{.item.name}}, this is an automated update."
+    on_fail: skip
+
+  - id: summary
+    tool: transform
+    args:
+      input: "{{.steps.notify}}"
+      count: "true"
+
+output: "{{.steps.summary}}"

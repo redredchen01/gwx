@@ -1,0 +1,28 @@
+name: sheet-compare
+version: "1.0"
+description: "Compare two tabs in a spreadsheet — shows added, removed, and modified rows with cell-level changes."
+
+inputs:
+  - name: spreadsheet-id
+    type: string
+    required: true
+    description: "Spreadsheet ID"
+  - name: from
+    type: string
+    required: true
+    description: "Source tab name or range (e.g. 'Week1' or 'Sheet1!A:F')"
+  - name: to
+    type: string
+    required: true
+    description: "Target tab name or range (e.g. 'Week2' or 'Sheet2!A:F')"
+
+steps:
+  - id: diff
+    tool: sheets_diff
+    args:
+      spreadsheet_id: "{{.input.spreadsheet-id}}"
+      range_a: "{{.input.from}}"
+      range_b: "{{.input.to}}"
+    store: diff
+
+output: "{{.steps.diff}}"

@@ -1,0 +1,24 @@
+name: chat-summary
+version: "1.0"
+description: "Read recent Google Chat messages from a space — useful for catching up on conversations."
+
+inputs:
+  - name: space
+    type: string
+    required: true
+    description: "Chat space name (e.g. spaces/XXXXXXXXX)"
+  - name: limit
+    type: int
+    required: false
+    default: "20"
+    description: "Max messages to retrieve"
+
+steps:
+  - id: messages
+    tool: chat_messages
+    args:
+      space: "{{.input.space}}"
+      limit: "{{.input.limit}}"
+    store: messages
+
+output: "{{.steps.messages}}"

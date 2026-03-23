@@ -1,0 +1,45 @@
+name: invoice-tracker
+version: "1.0"
+description: "Search Gmail for invoices, then log matches to a Google Sheet."
+
+meta:
+  author: gwx
+  category: finance
+
+inputs:
+  - name: query
+    type: string
+    required: true
+    description: "Gmail search query (e.g. 'subject:invoice has:attachment')"
+  - name: spreadsheet_id
+    type: string
+    required: true
+    description: "Target Google Sheets spreadsheet ID"
+  - name: range
+    type: string
+    required: false
+    default: "Sheet1!A:D"
+    description: "Sheet range to append to"
+  - name: limit
+    type: int
+    required: false
+    default: "20"
+    description: "Max Gmail results"
+
+steps:
+  - id: search
+    tool: gmail_search
+    args:
+      query: "{{.input.query}}"
+      limit: "{{.input.limit}}"
+    store: search
+
+  - id: describe
+    tool: sheets_describe
+    args:
+      spreadsheet_id: "{{.input.spreadsheet_id}}"
+      range: "{{.input.range}}"
+    store: schema
+    on_fail: skip
+
+output: "{{.steps.search}}"

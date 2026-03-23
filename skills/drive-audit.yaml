@@ -1,0 +1,24 @@
+name: drive-audit
+version: "1.0"
+description: "List Drive files sorted by modification time — useful for auditing recent changes across your Drive."
+
+inputs:
+  - name: limit
+    type: int
+    required: false
+    default: "50"
+    description: "Max files to return"
+  - name: folder
+    type: string
+    required: false
+    description: "Folder ID to scope the audit (leave empty for root)"
+
+steps:
+  - id: files
+    tool: drive_list
+    args:
+      limit: "{{.input.limit}}"
+      folder: "{{.input.folder}}"
+    store: files
+
+output: "{{.steps.files}}"

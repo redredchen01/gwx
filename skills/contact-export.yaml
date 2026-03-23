@@ -1,0 +1,36 @@
+name: contact-export
+version: "1.0"
+description: "Export contacts to a Google Sheet — lists contacts then appends them as rows to a spreadsheet."
+
+inputs:
+  - name: spreadsheet-id
+    type: string
+    required: true
+    description: "Target spreadsheet ID to export contacts into"
+  - name: range
+    type: string
+    required: false
+    default: "Sheet1!A:D"
+    description: "Target range for appending contact rows"
+  - name: limit
+    type: int
+    required: false
+    default: "100"
+    description: "Max contacts to export"
+
+steps:
+  - id: contacts
+    tool: contacts_list
+    args:
+      limit: "{{.input.limit}}"
+    store: contacts
+
+  - id: append
+    tool: sheets_append
+    args:
+      spreadsheet_id: "{{.input.spreadsheet-id}}"
+      range: "{{.input.range}}"
+      values: "{{.steps.contacts}}"
+    store: append
+
+output: "{{.steps.append}}"

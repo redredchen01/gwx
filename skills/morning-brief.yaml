@@ -1,0 +1,34 @@
+name: morning-brief
+version: "1.0"
+description: "每日開工簡報 — 未讀信件 + 今日行程 + 待辦事項，一次看完"
+
+inputs:
+  - name: email-limit
+    type: int
+    required: false
+    default: "10"
+    description: "顯示幾封最新信件"
+
+steps:
+  - id: inbox
+    tool: gmail_list
+    args:
+      limit: "{{.input.email-limit}}"
+      unread: "true"
+    store: inbox
+
+  - id: today
+    tool: calendar_agenda
+    args:
+      days: "1"
+    store: today
+    on_fail: skip
+
+  - id: tasks
+    tool: tasks_list
+    args:
+      show_completed: "false"
+    store: tasks
+    on_fail: skip
+
+output: "{{.steps.inbox}}"
