@@ -448,8 +448,21 @@ func generateBoundary() string {
 func writeHeader(buf *bytes.Buffer, key, value string) {
 	buf.WriteString(key)
 	buf.WriteString(": ")
-	buf.WriteString(value)
+	if key == "Subject" && needsMIMEEncoding(value) {
+		buf.WriteString(mime.BEncoding.Encode("utf-8", value))
+	} else {
+		buf.WriteString(value)
+	}
 	buf.WriteString("\r\n")
+}
+
+func needsMIMEEncoding(s string) bool {
+	for _, r := range s {
+		if r > 127 {
+			return true
+		}
+	}
+	return false
 }
 
 func (gs *GmailService) labelNameToID(ctx context.Context, svc *gmail.Service) (map[string]string, error) {
