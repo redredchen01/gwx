@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${1:-0.1.0}"
+VERSION="${1:-0.11.0}"
 BUILD_DIR="dist"
 MODULE="./cmd/gwx"
-LDFLAGS="-s -w -X github.com/user/gwx/internal/cmd.version=${VERSION}"
+LDFLAGS="-s -w -X github.com/redredchen01/gwx/internal/cmd.version=${VERSION}"
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
@@ -15,7 +15,6 @@ TARGETS=(
   "linux/amd64"
   "linux/arm64"
   "windows/amd64"
-  "windows/arm64"
 )
 
 for target in "${TARGETS[@]}"; do
