@@ -1,0 +1,25 @@
+name: email-digest
+version: "1.0"
+description: "Smart email digest — categorizes recent emails by sender, type (CI/transactional/personal), and generates a summary."
+
+inputs:
+  - name: limit
+    type: int
+    required: false
+    default: "30"
+    description: "Max messages to analyze"
+  - name: unread
+    type: bool
+    required: false
+    default: "false"
+    description: "Only include unread messages"
+
+steps:
+  - id: digest
+    tool: gmail_digest
+    args:
+      limit: "{{.input.limit}}"
+      unread: "{{.input.unread}}"
+    store: digest
+
+output: "{{.steps.digest}}"

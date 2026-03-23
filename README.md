@@ -212,7 +212,45 @@ gwx pipe "calendar agenda --days 7 | docs create --title 'Weekly Report'"
 
 > Each stage runs as a subprocess with `--format json`. Output of stage N becomes stdin of stage N+1.
 
-## MCP Server (98 Tools)
+### Skill DSL — YAML-Defined Workflows
+
+Define multi-step workflows in YAML — no Go code, no recompilation:
+
+```yaml
+# skills/morning-brief.yaml
+name: morning-brief
+description: "Daily briefing — inbox + calendar + tasks"
+inputs:
+  - name: email-limit
+    type: int
+    default: "10"
+steps:
+  - id: inbox
+    tool: gmail_list
+    args: { limit: "{{.input.email-limit}}", unread: "true" }
+  - id: today
+    tool: calendar_agenda
+    args: { days: "1" }
+    on_fail: skip
+  - id: tasks
+    tool: tasks_list
+    args: { show_completed: "false" }
+    on_fail: skip
+```
+
+```bash
+# Manage skills
+gwx skill list                           # List installed skills
+gwx skill validate skills/my-skill.yaml  # Validate YAML
+gwx skill inspect morning-brief          # Show skill details
+
+# Skills auto-register as MCP tools (skill_morning-brief)
+# Drop YAML files in ./skills/ or ~/.config/gwx/skills/
+```
+
+**15 built-in skills**: morning-brief, client-360, invoice-log, seo-daily, meeting-notes, email-digest, drive-audit, sheet-compare, contact-export, task-report, chat-summary, ga4-realtime, doc-from-sheet, and more.
+
+## MCP Server (98+ Tools)
 
 Native Claude integration — no Bash needed:
 

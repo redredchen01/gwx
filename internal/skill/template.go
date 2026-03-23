@@ -65,6 +65,9 @@ func renderValue(tmpl string, inputs map[string]string, store map[string]interfa
 }
 
 func resolveExpr(expr string, inputs map[string]string, store map[string]interface{}) (interface{}, error) {
+	// Strip leading dot: ".input.name" → "input.name"
+	expr = strings.TrimPrefix(expr, ".")
+
 	parts := strings.SplitN(expr, ".", 3)
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("invalid expression: %q", expr)

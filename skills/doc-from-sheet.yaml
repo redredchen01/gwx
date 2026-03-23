@@ -1,0 +1,34 @@
+name: doc-from-sheet
+version: "1.0"
+description: "Generate a Google Doc from spreadsheet data — reads a sheet range then creates a formatted document."
+
+inputs:
+  - name: spreadsheet-id
+    type: string
+    required: true
+    description: "Source spreadsheet ID"
+  - name: range
+    type: string
+    required: true
+    description: "Sheet range to read (e.g. Sheet1!A1:D20)"
+  - name: title
+    type: string
+    required: true
+    description: "Title for the new Google Doc"
+
+steps:
+  - id: data
+    tool: sheets_read
+    args:
+      spreadsheet_id: "{{.input.spreadsheet-id}}"
+      range: "{{.input.range}}"
+    store: data
+
+  - id: doc
+    tool: docs_create
+    args:
+      title: "{{.input.title}}"
+      body: "{{.steps.data}}"
+    store: doc
+
+output: "{{.steps.doc}}"

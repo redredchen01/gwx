@@ -1,0 +1,25 @@
+name: ga4-realtime
+version: "1.0"
+description: "Quick GA4 realtime check — active users right now, broken down by country and device."
+
+inputs:
+  - name: property
+    type: string
+    required: false
+    description: "GA4 property ID (e.g. properties/123456); uses config default if omitted"
+  - name: dimensions
+    type: string
+    required: false
+    default: "country,deviceCategory"
+    description: "Comma-separated dimensions to break down by"
+
+steps:
+  - id: realtime
+    tool: analytics_realtime
+    args:
+      property: "{{.input.property}}"
+      metrics: "activeUsers,screenPageViews"
+      dimensions: "{{.input.dimensions}}"
+    store: realtime
+
+output: "{{.steps.realtime}}"
