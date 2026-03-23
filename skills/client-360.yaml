@@ -1,0 +1,39 @@
+name: client-360
+version: "1.0"
+description: "客戶 360 度視圖 — 搜集該客戶的信件、檔案、聯絡人資訊"
+
+inputs:
+  - name: keyword
+    type: string
+    required: true
+    description: "客戶名稱或關鍵字"
+  - name: limit
+    type: int
+    required: false
+    default: "10"
+    description: "每個服務最多回傳幾筆"
+
+steps:
+  - id: emails
+    tool: gmail_search
+    args:
+      query: "{{.input.keyword}}"
+      limit: "{{.input.limit}}"
+    store: emails
+
+  - id: files
+    tool: drive_search
+    args:
+      query: "name contains '{{.input.keyword}}'"
+      limit: "{{.input.limit}}"
+    store: files
+    on_fail: skip
+
+  - id: contacts
+    tool: contacts_search
+    args:
+      query: "{{.input.keyword}}"
+    store: contacts
+    on_fail: skip
+
+output: "{{.steps.emails}}"
