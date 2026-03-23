@@ -17,6 +17,8 @@ type Client struct {
 	breakers    map[string]*CircuitBreaker
 	cache       *Cache
 	NoCache     bool
+	endpoint    string // override API endpoint for testing
+	httpClient  *http.Client // override HTTP client for testing
 	mu          sync.Mutex
 }
 
@@ -44,7 +46,12 @@ func (c *Client) breaker(service string) *CircuitBreaker {
 
 // HTTPClient returns an *http.Client wired with the full transport chain:
 // BaseTransport → OAuth2Transport → RetryTransport
+// If the client was created with NewTestClient, returns the injected test client.
 func (c *Client) HTTPClient(service string) *http.Client {
+	if c.httpClient != nil {
+		return c.httpClient
+	}
+
 	cb := c.breaker(service)
 	base := NewBaseTransport()
 
@@ -65,9 +72,27 @@ func (c *Client) HTTPClient(service string) *http.Client {
 // Rate limiting is NOT done here — callers must use WaitRate() before each API call.
 func (c *Client) ClientOptions(ctx context.Context, service string) ([]option.ClientOption, error) {
 	httpClient := c.HTTPClient(service)
-	return []option.ClientOption{
+	opts := []option.ClientOption{
 		option.WithHTTPClient(httpClient),
-	}, nil
+	}
+	if c.endpoint != "" {
+		opts = append(opts, option.WithEndpoint(c.endpoint))
+	}
+	return opts, nil
+}
+
+// NewTestClient creates an API client suitable for testing.
+// It uses the provided HTTP client and endpoint, bypasses OAuth, rate limiting,
+// circuit breakers, and caching so tests run fast and deterministically.
+func NewTestClient(httpClient *http.Client, endpoint string) *Client {
+	return &Client{
+		rateLimiter: NewServiceRateLimiter(),
+		breakers:    make(map[string]*CircuitBreaker),
+		cache:       NewCache(CacheConfig{MaxEntries: 256, DefaultTTL: 5 * time.Minute}),
+		NoCache:     true,
+		endpoint:    endpoint,
+		httpClient:  httpClient,
+	}
 }
 
 // WaitRate blocks until the rate limiter allows a request for the service.

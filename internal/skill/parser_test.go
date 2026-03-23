@@ -333,3 +333,126 @@ func TestParseFile_InvalidContent(t *testing.T) {
 		t.Fatal("expected error for missing steps")
 	}
 }
+
+// ── Validation for new fields ──────────────────────────────────────────────
+
+func TestParse_ParallelField(t *testing.T) {
+	yaml := `
+name: par-test
+steps:
+  - id: s1
+    tool: gmail_search
+    parallel: true
+  - id: s2
+    tool: drive_search
+    parallel: true
+  - id: s3
+    tool: sheets_append
+`
+	s, err := Parse([]byte(yaml))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !s.Steps[0].Parallel {
+		t.Error("step[0].parallel = false, want true")
+	}
+	if !s.Steps[1].Parallel {
+		t.Error("step[1].parallel = false, want true")
+	}
+	if s.Steps[2].Parallel {
+		t.Error("step[2].parallel = true, want false")
+	}
+}
+
+func TestParse_EachField(t *testing.T) {
+	yaml := `
+name: each-test
+steps:
+  - id: fetch
+    tool: contacts_list
+  - id: notify
+    tool: gmail_send
+    each: "{{.steps.fetch}}"
+    args:
+      to: "{{.item.email}}"
+`
+	s, err := Parse([]byte(yaml))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if s.Steps[0].Each != "" {
+		t.Error("step[0].each should be empty")
+	}
+	if s.Steps[1].Each != "{{.steps.fetch}}" {
+		t.Errorf("step[1].each = %q, want %q", s.Steps[1].Each, "{{.steps.fetch}}")
+	}
+}
+
+func TestParse_ParallelAndEachForbidden(t *testing.T) {
+	yaml := `
+name: bad-combo
+steps:
+  - id: s1
+    tool: gmail_send
+    parallel: true
+    each: "{{.steps.data}}"
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for parallel + each")
+	}
+	if !strings.Contains(err.Error(), "cannot be used together") {
+		t.Errorf("error = %q, want mention of 'cannot be used together'", err)
+	}
+}
+
+func TestParse_EachRequiresTemplate(t *testing.T) {
+	yaml := `
+name: bad-each
+steps:
+  - id: s1
+    tool: gmail_send
+    each: "some_literal"
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for non-template each")
+	}
+	if !strings.Contains(err.Error(), "template expression") {
+		t.Errorf("error = %q, want mention of 'template expression'", err)
+	}
+}
+
+func TestParse_TransformRequiresInput(t *testing.T) {
+	yaml := `
+name: bad-transform
+steps:
+  - id: s1
+    tool: transform
+    args:
+      count: "true"
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for transform without input")
+	}
+	if !strings.Contains(err.Error(), "requires 'input'") {
+		t.Errorf("error = %q, want mention of 'input'", err)
+	}
+}
+
+func TestParse_TransformWithInput(t *testing.T) {
+	yaml := `
+name: good-transform
+steps:
+  - id: s1
+    tool: transform
+    args:
+      input: "{{.steps.data}}"
+      pick: "name,email"
+`
+	_, err := Parse([]byte(yaml))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

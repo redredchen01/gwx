@@ -259,6 +259,262 @@ func TestRun_InvalidJSON(t *testing.T) {
 	}
 }
 
+// --- JSON roundtrip tests for protocol types ---
+
+func TestRequest_JSONRoundtrip(t *testing.T) {
+	original := Request{
+		JSONRPC: "2.0",
+		ID:      float64(42),
+		Method:  "tools/call",
+		Params:  json.RawMessage(`{"name":"gmail_list"}`),
+	}
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded Request
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.JSONRPC != "2.0" {
+		t.Errorf("JSONRPC = %q, want 2.0", decoded.JSONRPC)
+	}
+	if decoded.Method != "tools/call" {
+		t.Errorf("Method = %q, want tools/call", decoded.Method)
+	}
+	if string(decoded.Params) != `{"name":"gmail_list"}` {
+		t.Errorf("Params = %s, want {\"name\":\"gmail_list\"}", decoded.Params)
+	}
+}
+
+func TestResponse_JSONRoundtrip_Success(t *testing.T) {
+	resp := Response{
+		JSONRPC: "2.0",
+		ID:      float64(1),
+		Result:  map[string]string{"status": "ok"},
+	}
+	data, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded Response
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.Error != nil {
+		t.Error("expected nil Error for success response")
+	}
+	if decoded.Result == nil {
+		t.Error("expected non-nil Result")
+	}
+}
+
+func TestResponse_JSONRoundtrip_Error(t *testing.T) {
+	resp := Response{
+		JSONRPC: "2.0",
+		ID:      float64(1),
+		Error:   &RPCError{Code: -32601, Message: "Method not found", Data: "bad_method"},
+	}
+	data, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded Response
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.Error == nil {
+		t.Fatal("expected non-nil Error")
+	}
+	if decoded.Error.Code != -32601 {
+		t.Errorf("Error.Code = %d, want -32601", decoded.Error.Code)
+	}
+	if decoded.Error.Message != "Method not found" {
+		t.Errorf("Error.Message = %q, want 'Method not found'", decoded.Error.Message)
+	}
+}
+
+func TestTool_JSONSerialization(t *testing.T) {
+	tool := Tool{
+		Name:        "gmail_send",
+		Description: "Send an email",
+		InputSchema: InputSchema{
+			Type: "object",
+			Properties: map[string]Property{
+				"to":      {Type: "string", Description: "Recipient"},
+				"subject": {Type: "string", Description: "Subject line"},
+			},
+			Required: []string{"to", "subject"},
+		},
+	}
+
+	data, err := json.Marshal(tool)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded Tool
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.Name != "gmail_send" {
+		t.Errorf("Name = %q, want gmail_send", decoded.Name)
+	}
+	if decoded.InputSchema.Type != "object" {
+		t.Errorf("InputSchema.Type = %q, want object", decoded.InputSchema.Type)
+	}
+	if len(decoded.InputSchema.Properties) != 2 {
+		t.Errorf("Properties count = %d, want 2", len(decoded.InputSchema.Properties))
+	}
+	if len(decoded.InputSchema.Required) != 2 {
+		t.Errorf("Required count = %d, want 2", len(decoded.InputSchema.Required))
+	}
+	toProp, ok := decoded.InputSchema.Properties["to"]
+	if !ok {
+		t.Fatal("missing 'to' property")
+	}
+	if toProp.Type != "string" {
+		t.Errorf("to.Type = %q, want string", toProp.Type)
+	}
+}
+
+func TestToolResult_JSONSerialization(t *testing.T) {
+	tr := ToolResult{
+		Content: []ContentBlock{
+			{Type: "text", Text: `{"count": 5}`},
+		},
+	}
+
+	data, err := json.Marshal(tr)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded ToolResult
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.IsError {
+		t.Error("IsError should be false")
+	}
+	if len(decoded.Content) != 1 {
+		t.Fatalf("Content count = %d, want 1", len(decoded.Content))
+	}
+	if decoded.Content[0].Type != "text" {
+		t.Errorf("Content[0].Type = %q, want text", decoded.Content[0].Type)
+	}
+	if decoded.Content[0].Text != `{"count": 5}` {
+		t.Errorf("Content[0].Text = %q, unexpected", decoded.Content[0].Text)
+	}
+}
+
+func TestToolResult_IsError_JSONSerialization(t *testing.T) {
+	tr := ToolResult{
+		Content: []ContentBlock{{Type: "text", Text: "something failed"}},
+		IsError: true,
+	}
+
+	data, err := json.Marshal(tr)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded ToolResult
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if !decoded.IsError {
+		t.Error("IsError should be true")
+	}
+}
+
+func TestToolCallParams_JSONRoundtrip(t *testing.T) {
+	p := ToolCallParams{
+		Name: "gmail_search",
+		Arguments: map[string]interface{}{
+			"query": "from:boss",
+			"limit": float64(5),
+		},
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded ToolCallParams
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.Name != "gmail_search" {
+		t.Errorf("Name = %q, want gmail_search", decoded.Name)
+	}
+	if decoded.Arguments["query"] != "from:boss" {
+		t.Errorf("Arguments[query] = %v, want from:boss", decoded.Arguments["query"])
+	}
+}
+
+func TestNewServer_NotNil(t *testing.T) {
+	// NewServer uses os.Stdin/os.Stdout, so we just verify it doesn't panic
+	// and returns a non-nil server.
+	s := NewServer(&mockHandler{})
+	if s == nil {
+		t.Fatal("NewServer returned nil")
+	}
+}
+
+func TestProperty_EnumSerialization(t *testing.T) {
+	p := Property{
+		Type:        "string",
+		Description: "Output format",
+		Enum:        []string{"json", "text", "table"},
+		Default:     "json",
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var decoded Property
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(decoded.Enum) != 3 {
+		t.Errorf("Enum count = %d, want 3", len(decoded.Enum))
+	}
+	if decoded.Default != "json" {
+		t.Errorf("Default = %q, want json", decoded.Default)
+	}
+}
+
+func TestInitializeResult_JSONRoundtrip(t *testing.T) {
+	ir := InitializeResult{
+		ProtocolVersion: "2024-11-05",
+		Capabilities: ServerCapabilities{
+			Tools: &ToolsCapability{ListChanged: true},
+		},
+		ServerInfo: ServerInfo{Name: "gwx", Version: "0.8.0"},
+	}
+	data, err := json.Marshal(ir)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var decoded InitializeResult
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.ProtocolVersion != "2024-11-05" {
+		t.Errorf("ProtocolVersion = %q", decoded.ProtocolVersion)
+	}
+	if decoded.Capabilities.Tools == nil {
+		t.Fatal("Tools capability nil")
+	}
+	if decoded.ServerInfo.Name != "gwx" {
+		t.Errorf("ServerInfo.Name = %q", decoded.ServerInfo.Name)
+	}
+}
+
 // java_style_error is a simple error for testing.
 type java_style_error string
 

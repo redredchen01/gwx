@@ -293,3 +293,114 @@ func TestDrillField_JSONRoundtrip(t *testing.T) {
 		t.Errorf("val = %v, want %q", val, "bar")
 	}
 }
+
+// ── .item namespace tests ──────────────────────────────────────────────────
+
+func TestRenderValueWithItem_ItemField(t *testing.T) {
+	itemCtx := map[string]interface{}{
+		"email": "alice@test.com",
+		"name":  "Alice",
+	}
+	val, err := renderValueWithItem("{{.item.email}}", map[string]string{}, map[string]interface{}{}, itemCtx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if val != "alice@test.com" {
+		t.Errorf("val = %v, want %q", val, "alice@test.com")
+	}
+}
+
+func TestRenderValueWithItem_ItemInMixedTemplate(t *testing.T) {
+	itemCtx := map[string]interface{}{
+		"name": "Bob",
+	}
+	val, err := renderValueWithItem("Hello {{.item.name}}!", map[string]string{}, map[string]interface{}{}, itemCtx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	s, ok := val.(string)
+	if !ok {
+		t.Fatalf("val = %T, want string", val)
+	}
+	if s != "Hello Bob!" {
+		t.Errorf("val = %q, want %q", s, "Hello Bob!")
+	}
+}
+
+func TestRenderValueWithItem_ItemWithoutCtx(t *testing.T) {
+	// Using .item outside an each loop should error.
+	_, err := renderValueWithItem("{{.item.email}}", map[string]string{}, map[string]interface{}{}, nil)
+	if err == nil {
+		t.Fatal("expected error for .item without context")
+	}
+	if !strings.Contains(err.Error(), "each") {
+		t.Errorf("error = %q, want mention of 'each'", err)
+	}
+}
+
+func TestRenderValueWithItem_ItemPreservesNativeType(t *testing.T) {
+	itemCtx := map[string]interface{}{
+		"count": float64(42),
+	}
+	val, err := renderValueWithItem("{{.item.count}}", map[string]string{}, map[string]interface{}{}, itemCtx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	f, ok := val.(float64)
+	if !ok {
+		t.Fatalf("val = %T, want float64", val)
+	}
+	if f != 42 {
+		t.Errorf("val = %v, want 42", f)
+	}
+}
+
+func TestRenderValueWithItem_ItemAndInputMixed(t *testing.T) {
+	itemCtx := map[string]interface{}{
+		"name": "Charlie",
+	}
+	inputs := map[string]string{
+		"prefix": "Dear",
+	}
+	val, err := renderValueWithItem("{{.input.prefix}} {{.item.name}}", inputs, map[string]interface{}{}, itemCtx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if val != "Dear Charlie" {
+		t.Errorf("val = %v, want %q", val, "Dear Charlie")
+	}
+}
+
+func TestRenderArgsWithItem_AllNamespaces(t *testing.T) {
+	raw := map[string]string{
+		"to":      "{{.item.email}}",
+		"from":    "{{.input.sender}}",
+		"ref":     "{{.steps.s1.id}}",
+		"subject": "Hello {{.item.name}} from {{.input.sender}}",
+	}
+	inputs := map[string]string{"sender": "admin@test.com"}
+	store := map[string]interface{}{
+		"s1": map[string]interface{}{"id": "abc123"},
+	}
+	itemCtx := map[string]interface{}{
+		"email": "user@test.com",
+		"name":  "User",
+	}
+
+	out, err := renderArgsWithItem(raw, inputs, store, itemCtx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out["to"] != "user@test.com" {
+		t.Errorf("to = %v", out["to"])
+	}
+	if out["from"] != "admin@test.com" {
+		t.Errorf("from = %v", out["from"])
+	}
+	if out["ref"] != "abc123" {
+		t.Errorf("ref = %v", out["ref"])
+	}
+	if out["subject"] != "Hello User from admin@test.com" {
+		t.Errorf("subject = %v", out["subject"])
+	}
+}

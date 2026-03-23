@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/redredchen01/gwx/internal/exitcode"
 	"github.com/redredchen01/gwx/internal/skill"
@@ -13,6 +14,8 @@ type SkillCmd struct {
 	List     SkillListCmd     `cmd:"" help:"List all loaded skills"`
 	Inspect  SkillInspectCmd  `cmd:"" help:"Show details of a skill"`
 	Validate SkillValidateCmd `cmd:"" help:"Validate a skill YAML file"`
+	Install  SkillInstallCmd  `cmd:"" help:"Install a skill from file or URL"`
+	Remove   SkillRemoveCmd   `cmd:"" help:"Remove an installed skill"`
 }
 
 // ---- skill list ----
@@ -156,6 +159,79 @@ func (c *SkillValidateCmd) Run(rctx *RunContext) error {
 		"description": s.Description,
 		"inputs":      len(s.Inputs),
 		"steps":       len(s.Steps),
+	})
+	return nil
+}
+
+// ---- skill install ----
+
+// SkillInstallCmd installs a skill from a local file or a remote URL.
+type SkillInstallCmd struct {
+	Source string `arg:"" help:"File path or URL to install from"`
+}
+
+func (c *SkillInstallCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "skill.install"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]string{"dry_run": "skill.install", "source": c.Source})
+		return nil
+	}
+
+	var dest string
+	var err error
+
+	if strings.HasPrefix(c.Source, "http://") || strings.HasPrefix(c.Source, "https://") {
+		dest, err = skill.InstallFromURL(c.Source)
+	} else {
+		dest, err = skill.InstallFromFile(c.Source)
+	}
+	if err != nil {
+		return rctx.Printer.ErrExit(exitcode.GeneralError, fmt.Sprintf("install skill: %s", err))
+	}
+
+	// Re-load the installed file to report details.
+	s, loadErr := skill.LoadFile(dest)
+	if loadErr != nil {
+		// File was written but re-parse failed — should not happen since we validated earlier.
+		return rctx.Printer.ErrExit(exitcode.GeneralError, fmt.Sprintf("installed but failed to re-load: %s", loadErr))
+	}
+
+	rctx.Printer.Success(map[string]interface{}{
+		"installed":   true,
+		"name":        s.Name,
+		"version":     s.Version,
+		"description": s.Description,
+		"path":        dest,
+		"source":      c.Source,
+	})
+	return nil
+}
+
+// ---- skill remove ----
+
+// SkillRemoveCmd removes an installed skill by name.
+type SkillRemoveCmd struct {
+	Name string `arg:"" help:"Skill name to remove"`
+}
+
+func (c *SkillRemoveCmd) Run(rctx *RunContext) error {
+	if err := CheckAllowlist(rctx, "skill.remove"); err != nil {
+		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
+	}
+	if rctx.DryRun {
+		rctx.Printer.Success(map[string]string{"dry_run": "skill.remove", "name": c.Name})
+		return nil
+	}
+
+	if err := skill.UninstallSkill(c.Name); err != nil {
+		return rctx.Printer.ErrExit(exitcode.NotFound, fmt.Sprintf("remove skill: %s", err))
+	}
+
+	rctx.Printer.Success(map[string]interface{}{
+		"removed": true,
+		"name":    c.Name,
 	})
 	return nil
 }

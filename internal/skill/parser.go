@@ -3,6 +3,7 @@ package skill
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -49,6 +50,21 @@ func validate(s *Skill) error {
 		}
 		if st.OnFail == "" {
 			s.Steps[i].OnFail = "abort"
+		}
+
+		// Validate: parallel + each is not supported (ambiguous semantics).
+		if st.Parallel && st.Each != "" {
+			return fmt.Errorf("skill %q step %q: 'parallel' and 'each' cannot be used together", s.Name, s.Steps[i].ID)
+		}
+
+		// Validate: each expression must look like a template.
+		if st.Each != "" && !strings.Contains(st.Each, "{{") {
+			return fmt.Errorf("skill %q step %q: 'each' value must be a template expression (e.g. \"{{.steps.id}}\")", s.Name, s.Steps[i].ID)
+		}
+
+		// Validate: transform tool requires input arg.
+		if st.Tool == "transform" && st.Args["input"] == "" {
+			return fmt.Errorf("skill %q step %q: transform tool requires 'input' in args", s.Name, s.Steps[i].ID)
 		}
 	}
 	for _, inp := range s.Inputs {
