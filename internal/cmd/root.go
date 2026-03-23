@@ -56,6 +56,7 @@ type CLI struct {
 
 	Pipe      PipeCmd      `cmd:"" help:"Chain gwx commands via JSON pipeline (e.g. 'gmail search X | sheets append ID A:C')"`
 	Agent     AgentCmd     `cmd:"" help:"Agent automation helpers"`
+	Skill     SkillCmd     `cmd:"" help:"Skill DSL operations"`
 	Schema    SchemaCmd    `cmd:"" help:"Print full command schema (for agent introspection)"`
 	MCPServer MCPServerCmd `cmd:"mcp-server" help:"Start MCP server (stdio) for Claude integration"`
 	Version   VersionCmd   `cmd:"" help:"Print version"`

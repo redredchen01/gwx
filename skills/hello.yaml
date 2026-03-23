@@ -1,0 +1,26 @@
+name: hello
+version: "1.0"
+description: "Demo skill — lists recent Gmail messages and upcoming calendar events."
+
+inputs:
+  - name: limit
+    type: int
+    required: false
+    default: "5"
+    description: "Max items per service"
+
+steps:
+  - id: inbox
+    tool: gmail_list
+    args:
+      limit: "{{.input.limit}}"
+    store: inbox
+
+  - id: agenda
+    tool: calendar_agenda
+    args:
+      days: "1"
+    store: agenda
+    on_fail: skip
+
+output: "{{.steps.inbox}}"
