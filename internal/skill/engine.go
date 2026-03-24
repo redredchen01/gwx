@@ -175,6 +175,28 @@ func (e *Engine) runParallelBatch(ctx context.Context, batch []Step, inputs map[
 // provide the .item namespace.
 // Returns (reports, aborted).
 func (e *Engine) runSingleStep(ctx context.Context, step *Step, inputs map[string]string, store map[string]interface{}, itemCtx map[string]interface{}) ([]StepReport, bool) {
+	// Evaluate conditional: if the `if` field is set, render and check truthiness.
+	if step.If != "" {
+		condVal, err := renderValueWithItem(step.If, inputs, store, itemCtx)
+		if err != nil {
+			// Render error → treat as falsy, skip the step.
+			return []StepReport{{
+				ID:      step.ID,
+				Tool:    step.Tool,
+				Success: true,
+				Output:  map[string]interface{}{"skipped": true, "reason": "if condition render error: " + err.Error()},
+			}}, false
+		}
+		if !isTruthy(condVal) {
+			return []StepReport{{
+				ID:      step.ID,
+				Tool:    step.Tool,
+				Success: true,
+				Output:  map[string]interface{}{"skipped": true, "reason": "if condition evaluated to false"},
+			}}, false
+		}
+	}
+
 	// Handle Each loop: resolve the each expression to a list and iterate.
 	if step.Each != "" {
 		return e.runEachStep(ctx, step, inputs, store)
@@ -497,6 +519,32 @@ func toInt(v interface{}) (int, error) {
 		return strconv.Atoi(val)
 	default:
 		return 0, fmt.Errorf("cannot convert %T to int", v)
+	}
+}
+
+// isTruthy evaluates whether a value is considered truthy for conditional step
+// execution. Falsy values: nil, empty string, "false", "0", float64(0), bool false,
+// empty slice, empty map. Everything else is truthy.
+func isTruthy(v interface{}) bool {
+	if v == nil {
+		return false
+	}
+	switch val := v.(type) {
+	case bool:
+		return val
+	case string:
+		return val != "" && val != "false" && val != "0"
+	case float64:
+		return val != 0
+	case int:
+		return val != 0
+	case []interface{}:
+		return len(val) > 0
+	case map[string]interface{}:
+		return len(val) > 0
+	default:
+		// For any other type, consider it truthy if non-nil (already checked above).
+		return true
 	}
 }
 

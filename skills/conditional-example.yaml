@@ -1,0 +1,51 @@
+name: conditional-example
+version: "1.0"
+description: "Demonstrates conditional step execution with 'if' field"
+
+inputs:
+  - name: query
+    type: string
+    required: false
+    default: "is:unread label:urgent"
+    description: "Gmail search query to check for urgent emails"
+  - name: notify-email
+    type: string
+    required: false
+    default: "admin@example.com"
+    description: "Email address to notify when urgent emails are found"
+
+steps:
+  # Step 1: Search for urgent emails
+  - id: check
+    tool: gmail_search
+    args:
+      query: "{{.input.query}}"
+      limit: "5"
+
+  # Step 2: Count the results
+  - id: count
+    tool: transform
+    args:
+      input: "{{.steps.check.messages}}"
+      count: "true"
+
+  # Step 3: Only send notification if there are matching emails
+  - id: notify
+    tool: gmail_send
+    if: "{{.steps.check.count}}"
+    args:
+      to: "{{.input.notify-email}}"
+      subject: "Urgent emails found"
+      body: "Found {{.steps.check.count}} urgent email(s) matching query: {{.input.query}}"
+
+  # Step 4: Log to sheet only if notification was sent
+  - id: log
+    tool: sheets_append
+    if: "{{.steps.check.count}}"
+    args:
+      spreadsheet_id: "YOUR_SPREADSHEET_ID"
+      range: "Alerts!A:C"
+      values: '[["urgent-check", "{{.steps.check.count}}", "notified"]]'
+    on_fail: skip
+
+output: "{{.steps.check}}"
