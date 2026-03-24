@@ -33,7 +33,12 @@
       "Bash(go test:*)",
       "Bash(bash scripts/build-release.sh 0.11.0)",
       "Bash(gh release:*)",
-      "Bash(export:*)"
+      "Bash(export:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f\"\"{d[''''data''''][''''count'''']} skills total\"\"\\)\")",
+      "Bash(go tool:*)",
+      "Bash(sort -t: -k3 -n)",
+      "Bash(./build/gwx doctor:*)",
+      "Bash(./build/gwx completion:*)"
     ],
     "deny": []
   },
