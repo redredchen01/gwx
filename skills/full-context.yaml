@@ -1,0 +1,56 @@
+name: full-context
+version: "1.0"
+description: "全平台上下文蒐集 — Gmail + Drive + Slack + Notion + GitHub 並行搜尋"
+
+inputs:
+  - name: keyword
+    type: string
+    required: true
+    description: "搜尋關鍵字"
+  - name: limit
+    type: int
+    required: false
+    default: "5"
+    description: "每個服務最多幾筆"
+
+steps:
+  - id: emails
+    tool: gmail_search
+    args:
+      query: "{{.input.keyword}}"
+      limit: "{{.input.limit}}"
+    parallel: true
+    on_fail: skip
+
+  - id: files
+    tool: drive_search
+    args:
+      query: "name contains '{{.input.keyword}}'"
+      limit: "{{.input.limit}}"
+    parallel: true
+    on_fail: skip
+
+  - id: slack-msgs
+    tool: slack_search
+    args:
+      query: "{{.input.keyword}}"
+      limit: "{{.input.limit}}"
+    parallel: true
+    on_fail: skip
+
+  - id: notion-pages
+    tool: notion_search
+    args:
+      query: "{{.input.keyword}}"
+      limit: "{{.input.limit}}"
+    parallel: true
+    on_fail: skip
+
+  - id: github-issues
+    tool: github_notifications
+    args:
+      limit: "{{.input.limit}}"
+    parallel: true
+    on_fail: skip
+
+output: "{{.steps.emails}}"

@@ -1,0 +1,58 @@
+name: weekly-sync
+version: "1.0"
+description: "週報全自動 — GA4 + SEO + GitHub + Gmail 彙整到 Sheets"
+
+inputs:
+  - name: sheet-id
+    type: string
+    required: true
+    description: "週報 Spreadsheet ID"
+  - name: repo
+    type: string
+    required: false
+    default: ""
+    description: "GitHub repo（留空跳過）"
+  - name: ga4-property
+    type: string
+    required: false
+    default: ""
+    description: "GA4 Property ID（留空跳過）"
+
+steps:
+  - id: emails
+    tool: gmail_digest
+    args:
+      limit: "50"
+    parallel: true
+    on_fail: skip
+
+  - id: events
+    tool: calendar_agenda
+    args:
+      days: "7"
+    parallel: true
+    on_fail: skip
+
+  - id: ga4
+    tool: analytics_report
+    if: "{{.input.ga4-property}}"
+    args:
+      property: "{{.input.ga4-property}}"
+      metrics: "sessions,activeUsers"
+      dimensions: "date"
+      start_date: "7daysAgo"
+      end_date: "today"
+    parallel: true
+    on_fail: skip
+
+  - id: prs
+    tool: github_pulls
+    if: "{{.input.repo}}"
+    args:
+      owner: "{{.input.repo}}"
+      state: "all"
+      limit: "20"
+    parallel: true
+    on_fail: skip
+
+output: "{{.steps.emails}}"

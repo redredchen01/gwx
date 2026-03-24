@@ -1,0 +1,41 @@
+name: form-to-slack
+version: "1.0"
+description: "Google Forms 新回應通知到 Slack"
+
+inputs:
+  - name: form-id
+    type: string
+    required: true
+    description: "Google Form ID"
+  - name: channel
+    type: string
+    required: true
+    description: "Slack 頻道"
+  - name: limit
+    type: int
+    required: false
+    default: "5"
+    description: "檢查最近幾筆回應"
+
+steps:
+  - id: responses
+    tool: forms_responses
+    args:
+      form_id: "{{.input.form-id}}"
+      limit: "{{.input.limit}}"
+
+  - id: count
+    tool: transform
+    args:
+      input: "{{.steps.responses}}"
+      count: "true"
+
+  - id: notify
+    tool: slack_send
+    if: "{{.steps.count}}"
+    args:
+      channel: "{{.input.channel}}"
+      text: "📝 表單收到 {{.steps.count}} 筆新回應"
+    on_fail: skip
+
+output: "{{.steps.responses}}"

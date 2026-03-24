@@ -1,0 +1,59 @@
+name: onboard-checklist
+version: "1.0"
+description: "新人入職清單 — 建資料夾 + 排歡迎會 + 發通知"
+
+inputs:
+  - name: name
+    type: string
+    required: true
+    description: "新人姓名"
+  - name: email
+    type: string
+    required: true
+    description: "新人 Email"
+  - name: team-channel
+    type: string
+    required: false
+    default: ""
+    description: "團隊 Slack 頻道"
+
+steps:
+  - id: folder
+    tool: drive_mkdir
+    args:
+      name: "Onboarding - {{.input.name}}"
+    on_fail: skip
+
+  - id: welcome-doc
+    tool: docs_create
+    args:
+      title: "Welcome {{.input.name}}"
+      body: "歡迎加入團隊！請參閱以下資源開始你的旅程。"
+    on_fail: skip
+
+  - id: meeting
+    tool: calendar_create
+    args:
+      title: "Welcome {{.input.name}} — 入職介紹"
+      start: "2026-03-25T10:00:00+08:00"
+      end: "2026-03-25T11:00:00+08:00"
+      attendees: "{{.input.email}}"
+    on_fail: skip
+
+  - id: notify-slack
+    tool: slack_send
+    if: "{{.input.team-channel}}"
+    args:
+      channel: "{{.input.team-channel}}"
+      text: "👋 歡迎 {{.input.name}} 加入團隊！"
+    on_fail: skip
+
+  - id: notify-email
+    tool: gmail_send
+    args:
+      to: "{{.input.email}}"
+      subject: "歡迎加入！"
+      body: "Hi {{.input.name}}，歡迎加入團隊。已為你建立資料夾和歡迎文件。"
+    on_fail: skip
+
+output: "{{.steps.folder}}"

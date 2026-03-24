@@ -1,0 +1,37 @@
+name: pr-to-slack
+version: "1.0"
+description: "GitHub 開放 PR 摘要推送到 Slack 頻道"
+
+inputs:
+  - name: repo
+    type: string
+    required: true
+    description: "GitHub repo (owner/repo)"
+  - name: channel
+    type: string
+    required: true
+    description: "Slack 頻道 ID 或名稱"
+
+steps:
+  - id: prs
+    tool: github_pulls
+    args:
+      owner: "{{.input.repo}}"
+      state: "open"
+      limit: "20"
+
+  - id: count
+    tool: transform
+    args:
+      input: "{{.steps.prs}}"
+      count: "true"
+
+  - id: post
+    tool: slack_send
+    if: "{{.steps.count}}"
+    args:
+      channel: "{{.input.channel}}"
+      text: "📋 {{.input.repo}} 有 {{.steps.count}} 個開放 PR 等待 review"
+    on_fail: skip
+
+output: "{{.steps.prs}}"

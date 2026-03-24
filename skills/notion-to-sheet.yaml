@@ -1,0 +1,30 @@
+name: notion-to-sheet
+version: "1.0"
+description: "Notion Database 同步到 Google Sheets"
+
+inputs:
+  - name: database-id
+    type: string
+    required: true
+    description: "Notion Database ID"
+  - name: sheet-id
+    type: string
+    required: true
+    description: "目標 Google Spreadsheet ID"
+
+steps:
+  - id: query
+    tool: notion_query
+    args:
+      database_id: "{{.input.database-id}}"
+      limit: "100"
+
+  - id: write
+    tool: sheets_append
+    args:
+      spreadsheet_id: "{{.input.sheet-id}}"
+      range: "Notion!A:Z"
+      values: "{{.steps.query}}"
+    on_fail: skip
+
+output: "{{.steps.query}}"

@@ -1,0 +1,41 @@
+name: github-standup
+version: "1.0"
+description: "開發者站會 — GitHub PRs + Gmail + Calendar 一次彙整"
+
+inputs:
+  - name: repo
+    type: string
+    required: true
+    description: "GitHub repo (owner/repo)"
+  - name: days
+    type: int
+    required: false
+    default: "1"
+    description: "回顧天數"
+
+steps:
+  - id: prs
+    tool: github_pulls
+    args:
+      owner: "{{.input.repo}}"
+      state: "all"
+      limit: "10"
+    parallel: true
+    on_fail: skip
+
+  - id: inbox
+    tool: gmail_list
+    args:
+      limit: "10"
+      unread: "true"
+    parallel: true
+    on_fail: skip
+
+  - id: today
+    tool: calendar_agenda
+    args:
+      days: "{{.input.days}}"
+    parallel: true
+    on_fail: skip
+
+output: "{{.steps.prs}}"

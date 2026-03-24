@@ -1,0 +1,42 @@
+name: issue-to-sheet
+version: "1.0"
+description: "GitHub Issues 匯出到 Google Sheets — 專案追蹤同步"
+
+inputs:
+  - name: repo
+    type: string
+    required: true
+    description: "GitHub repo (owner/repo)"
+  - name: sheet-id
+    type: string
+    required: true
+    description: "目標 Google Spreadsheet ID"
+  - name: state
+    type: string
+    required: false
+    default: "open"
+    description: "Issue 狀態 (open/closed/all)"
+
+steps:
+  - id: issues
+    tool: github_issues
+    args:
+      owner: "{{.input.repo}}"
+      state: "{{.input.state}}"
+      limit: "100"
+
+  - id: extract
+    tool: transform
+    args:
+      input: "{{.steps.issues}}"
+      pick: "number,title,state,user,created_at,labels"
+
+  - id: write
+    tool: sheets_append
+    args:
+      spreadsheet_id: "{{.input.sheet-id}}"
+      range: "Issues!A:F"
+      values: "{{.steps.extract}}"
+    on_fail: skip
+
+output: "{{.steps.issues}}"

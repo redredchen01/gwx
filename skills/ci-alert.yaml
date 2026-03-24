@@ -1,0 +1,45 @@
+name: ci-alert
+version: "1.0"
+description: "GitHub Actions CI 失敗 → Gmail + Slack 雙重告警"
+
+inputs:
+  - name: repo
+    type: string
+    required: true
+    description: "GitHub repo (owner/repo)"
+  - name: channel
+    type: string
+    required: false
+    default: ""
+    description: "Slack 告警頻道（留空跳過 Slack）"
+  - name: email
+    type: string
+    required: false
+    default: ""
+    description: "告警收件人（留空跳過 Email）"
+
+steps:
+  - id: runs
+    tool: github_runs
+    args:
+      owner: "{{.input.repo}}"
+      limit: "10"
+
+  - id: slack-alert
+    tool: slack_send
+    if: "{{.input.channel}}"
+    args:
+      channel: "{{.input.channel}}"
+      text: "🚨 {{.input.repo}} CI 狀態更新 — 最近 10 次 run"
+    on_fail: skip
+
+  - id: email-alert
+    tool: gmail_send
+    if: "{{.input.email}}"
+    args:
+      to: "{{.input.email}}"
+      subject: "CI Alert: {{.input.repo}}"
+      body: "GitHub Actions 最近 10 次 workflow run 狀態已更新"
+    on_fail: skip
+
+output: "{{.steps.runs}}"

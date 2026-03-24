@@ -1,0 +1,35 @@
+name: bq-to-slides
+version: "1.0"
+description: "BigQuery 查詢結果 → Sheets 存檔 → Slides 報告"
+
+inputs:
+  - name: project
+    type: string
+    required: true
+    description: "GCP Project ID"
+  - name: sql
+    type: string
+    required: true
+    description: "SQL 查詢語句"
+  - name: sheet-id
+    type: string
+    required: true
+    description: "存檔用 Spreadsheet ID"
+
+steps:
+  - id: query
+    tool: bigquery_query
+    args:
+      project: "{{.input.project}}"
+      sql: "{{.input.sql}}"
+      limit: "100"
+
+  - id: save
+    tool: sheets_append
+    args:
+      spreadsheet_id: "{{.input.sheet-id}}"
+      range: "BQ!A:Z"
+      values: "{{.steps.query}}"
+    on_fail: skip
+
+output: "{{.steps.query}}"
