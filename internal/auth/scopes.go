@@ -41,6 +41,13 @@ var ServiceScopes = map[string][]string{
 	"slides": {
 		"https://www.googleapis.com/auth/presentations",
 	},
+	"forms": {
+		"https://www.googleapis.com/auth/forms.body.readonly",
+		"https://www.googleapis.com/auth/forms.responses.readonly",
+	},
+	"bigquery": {
+		"https://www.googleapis.com/auth/bigquery.readonly",
+	},
 }
 
 // ReadOnlyScopes returns read-only scopes for services that support it.
@@ -56,6 +63,11 @@ var ReadOnlyScopes = map[string][]string{
 	"analytics":     {"https://www.googleapis.com/auth/analytics.readonly"},
 	"searchconsole": {"https://www.googleapis.com/auth/webmasters.readonly"},
 	"slides":        {"https://www.googleapis.com/auth/presentations.readonly"},
+	"forms": {
+		"https://www.googleapis.com/auth/forms.body.readonly",
+		"https://www.googleapis.com/auth/forms.responses.readonly",
+	},
+	"bigquery": {"https://www.googleapis.com/auth/bigquery.readonly"},
 }
 
 // AllScopes returns the union of all scopes for the given services.

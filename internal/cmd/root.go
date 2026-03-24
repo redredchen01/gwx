@@ -48,6 +48,11 @@ type CLI struct {
 	Analytics     AnalyticsCmd     `cmd:"" help:"Google Analytics 4 operations"`
 	SearchConsole SearchConsoleCmd `cmd:"searchconsole" help:"Google Search Console operations"`
 	Slides        SlidesCmd        `cmd:"" help:"Google Slides operations"`
+	Forms         FormsCmd         `cmd:"" help:"Google Forms operations"`
+	BigQuery      BigQueryCmd      `cmd:"bigquery" help:"BigQuery operations"`
+	GitHub        GitHubCmd        `cmd:"" help:"GitHub operations"`
+	Slack         SlackCmd         `cmd:"" help:"Slack operations"`
+	Notion        NotionCmd        `cmd:"" help:"Notion operations"`
 	Config        ConfigCmd        `cmd:"" help:"Configuration management"`
 	// Workflow commands
 	Standup     StandupCmd     `cmd:"" help:"Daily standup report (aggregate Git + Gmail + Calendar + Tasks)"`
