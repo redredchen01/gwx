@@ -1,8 +1,8 @@
 # gwx — Google Workspace CLI for Humans and Agents
 
-A unified CLI + MCP server for Google Workspace — Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console. Designed for both human use and LLM agent integration.
+A unified CLI + MCP server for Google Workspace, GitHub, Slack, and Notion — Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console, Slides, Forms, BigQuery, GitHub, Slack, Notion. Designed for both human use and LLM agent integration.
 
-**101 CLI commands · 98 MCP tools · 11 Google services**
+**140 CLI commands · 123 MCP tools · 16 services**
 
 ## Install
 
@@ -39,7 +39,7 @@ gwx find "topic"               # → unified search (Gmail + Drive)
 gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 ```
 
-## Commands (101)
+## Commands (140)
 
 | Service | Commands |
 |---------|----------|
@@ -54,6 +54,12 @@ gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 | **Analytics** (4) | `report` `realtime` `properties` `audiences` |
 | **Search Console** (5) | `query` `sites` `inspect` `sitemaps` `index-status` |
 | **Slides** (6) | `get` `list` `create` `duplicate` `export` `from-sheet` |
+| **Forms** (3) | `get` `responses` `response` |
+| **BigQuery** (4) | `query` `datasets` `tables` `describe` |
+| **GitHub** (10) | `login` `logout` `status` `repos` `issues` `pulls` `pull` `runs` `notify` `create issue` |
+| **Slack** (7) | `login` `status` `channels` `send` `messages` `search` `users` |
+| **Notion** (7) | `login` `status` `search` `page` `create` `databases` `query` |
+| **Skill** (8) | `list` `inspect` `validate` `run` `create` `test` `install` `remove` |
 | **Config** (3) | `set` `get` `list` |
 | **Workflow** (13) | `standup` `meeting-prep` + `workflow` subgroup: `weekly-digest` `context-boost` `bug-intake` `test-matrix` `spec-health` `sprint-board` `review-notify` `email-from-doc` `sheet-to-email` `parallel-schedule` |
 | **Cross-service** (2) | `find` (unified search) · `context` (gather context) |
@@ -158,6 +164,103 @@ gwx slides duplicate PRESENTATION_ID --title "Copy of Report"
 gwx slides from-sheet --template TEMPLATE_ID --sheet-id SHEET_ID --range "A:D"
 ```
 
+### Google Forms
+```bash
+# Get form structure
+gwx forms get FORM_ID
+
+# List all responses
+gwx forms responses FORM_ID --limit 50
+
+# Get a single response
+gwx forms response FORM_ID RESPONSE_ID
+```
+
+### BigQuery
+```bash
+# Run a SQL query
+gwx bigquery query "SELECT * FROM dataset.table LIMIT 10" --project my-project
+
+# List datasets
+gwx bigquery datasets --project my-project
+
+# List tables in a dataset
+gwx bigquery tables --project my-project --dataset my_dataset
+
+# Describe a table's schema
+gwx bigquery describe my_table --project my-project --dataset my_dataset
+
+# Set default project (one-time)
+gwx config set bigquery.default-project my-project
+```
+
+### GitHub Integration
+```bash
+# Authenticate with personal access token
+gwx github login --token ghp_xxx
+
+# List your repositories
+gwx github repos --limit 10
+
+# List issues / pull requests
+gwx github issues owner/repo --state open
+gwx github pulls owner/repo
+
+# Get a specific PR with details
+gwx github pull owner/repo 42
+
+# List CI workflow runs
+gwx github runs owner/repo
+
+# List notifications
+gwx github notify
+
+# Create an issue
+gwx github create issue owner/repo --title "Bug report" --body "Details..." --labels bug,urgent
+```
+
+### Slack Integration
+```bash
+# Authenticate with bot token
+gwx slack login xoxb-xxx
+
+# List channels
+gwx slack channels
+
+# Send a message
+gwx slack send "Hello team" --channel "#general"
+
+# Read channel history
+gwx slack messages C01234567 --limit 20
+
+# Search across workspace
+gwx slack search "deploy error"
+
+# List workspace users
+gwx slack users
+```
+
+### Notion Integration
+```bash
+# Authenticate with integration token
+gwx notion login ntn_xxx
+
+# Search pages
+gwx notion search "project plan"
+
+# Get a page
+gwx notion page PAGE_ID
+
+# List databases
+gwx notion databases
+
+# Query a database with filter
+gwx notion query DATABASE_ID --filter '{"property":"Status","select":{"equals":"Done"}}'
+
+# Create a page in a database
+gwx notion create --parent DATABASE_ID --title "New item"
+```
+
 ### Built-in Workflows
 ```bash
 # Daily standup — aggregate Git + Gmail + Calendar + Tasks
@@ -243,16 +346,21 @@ steps:
 gwx skill list                           # List installed skills
 gwx skill validate skills/my-skill.yaml  # Validate YAML
 gwx skill inspect morning-brief          # Show skill details
+gwx skill run morning-brief -p email-limit=20  # Run a skill
+gwx skill create my-new-skill            # Scaffold a new skill
+gwx skill test morning-brief             # Test with mock data
+gwx skill install ./path/to/skill.yaml   # Install from file or URL
+gwx skill remove old-skill               # Remove an installed skill
 
 # Skills auto-register as MCP tools (skill_morning-brief)
 # Drop YAML files in ./skills/ or ~/.config/gwx/skills/
 ```
 
-**15 built-in skills**: morning-brief, client-360, invoice-log, seo-daily, meeting-notes, email-digest, drive-audit, sheet-compare, contact-export, task-report, chat-summary, ga4-realtime, doc-from-sheet, and more.
+**28 built-in skills**: morning-brief, client-360, invoice-log, seo-daily, meeting-notes, email-digest, drive-audit, sheet-compare, contact-export, task-report, chat-summary, ga4-realtime, doc-from-sheet, github-pr-digest, github-issue-triage, slack-standup, slack-channel-archive, notion-weekly, notion-inbox, bq-daily-report, forms-survey-summary, cross-provider-standup, multi-inbox-digest, and more.
 
-## MCP Server (98+ Tools)
+## MCP Server (123+ Tools)
 
-Native Claude integration — no Bash needed:
+Native Claude integration — no Bash needed. Multi-provider support across Google, GitHub, Slack, and Notion:
 
 ```bash
 # Start MCP server
@@ -271,7 +379,31 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-All CLI commands are available as MCP tools. Claude can directly call `sheets_describe`, `gmail_digest`, `gmail_batch_label`, `analytics_report`, `searchconsole_query`, `config_set`, `workflow_standup`, `workflow_meeting_prep`, etc.
+All CLI commands are available as MCP tools. Claude can directly call `sheets_describe`, `gmail_digest`, `gmail_batch_label`, `analytics_report`, `searchconsole_query`, `config_set`, `workflow_standup`, `workflow_meeting_prep`, `github_repos`, `github_issues`, `github_pulls`, `slack_channels`, `slack_send`, `notion_search`, `notion_query`, `bigquery_query`, `forms_get`, `skill_run`, etc.
+
+## Multi-Provider Auth
+
+gwx supports multiple providers beyond Google Workspace. Each provider stores tokens independently in the OS keyring.
+
+```bash
+# Google (existing OAuth flow)
+gwx onboard
+
+# GitHub
+gwx github login --token ghp_xxx
+
+# Slack
+gwx slack login xoxb-xxx
+
+# Notion
+gwx notion login ntn_xxx
+
+# Check status for each
+gwx auth status           # Google
+gwx github status         # GitHub
+gwx slack status          # Slack
+gwx notion status         # Notion
+```
 
 ## Claude Code Skill
 
@@ -302,7 +434,7 @@ What happens:
 4. Compiles a Context Briefing (stakeholders, timeline signals, existing decisions)
 5. Feeds it into S0 — the requirement-analyst references real data instead of guessing
 
-> All context-gathering is 🟢 read-only. Falls back to standard S0 if gwx is not connected.
+> All context-gathering is read-only. Falls back to standard S0 if gwx is not connected.
 
 #### `/test-matrix` — Google Sheets as Live Test Dashboard
 
@@ -330,7 +462,7 @@ What happens:
 | Test Case | Test description |
 | Type | unit / integration / e2e / manual |
 | Status | pending / running / passed / failed / skipped |
-| Result | ✅ / ❌ / ⏭️ |
+| Result | Pass / Fail / Skip |
 | Error Summary | First 100 chars of failure message |
 | Fixed In | Git commit hash of the fix |
 
@@ -407,7 +539,7 @@ Track spec-audit results across all features in one Google Sheet — see quality
 What happens:
 1. Creates a 3-tab Sheet: Audit Log, Feature Summary, Trend
 2. After each `/spec-audit`, appends P0/P1/P2 counts
-3. Feature Summary shows health status: ✅ Healthy / 🟡 Acceptable / 🔴 Critical
+3. Feature Summary shows health status: Healthy / Acceptable / Critical
 4. `gwx sheets stats` gives instant quality report
 5. `gwx sheets diff` compares quality across sprints
 
@@ -436,13 +568,13 @@ After S5 code review, instantly notify the team.
 
 Sample notification:
 ```
-📋 Code Review Complete: invoice-auto-send
-Result: ✅ PASS
+Code Review Complete: invoice-auto-send
+Result: PASS
 Findings: 0 P0 · 1 P1 · 2 P2
 Next: S6 testing
 ```
 
-> Always requires explicit confirmation before sending (🔴 hard gate).
+> Always requires explicit confirmation before sending (hard gate).
 
 #### `/sprint-board` — Google Sheet as Kanban Board
 
@@ -467,32 +599,32 @@ What happens:
 
 | Recipe | Trigger | Services | Tier |
 |--------|---------|----------|------|
-| meeting-prep | "meeting prep" | Calendar + Gmail + Drive | 🟢 |
-| weekly-digest | "weekly digest" | Gmail + Calendar + Tasks | 🟢 |
-| standup-report | "standup" | Gmail + Calendar + Tasks | 🟢 |
-| email-from-doc | "email from doc" | Docs + Gmail | 🟡/🔴 |
-| sheet-to-email | "mail merge" | Sheets + Gmail | 🔴 |
-| **context-boost** | "context boost" | Gmail + Drive + Calendar | 🟢 |
-| **test-matrix** | "test matrix" | Sheets | 🟢/🟡 |
-| **standup** | "standup" | Gmail + Calendar + Tasks + Git + Chat | 🟢/🔴 |
-| **bug-intake** | "bug intake" | Gmail | 🟢 |
-| **spec-health** | "spec health" | Sheets | 🟢/🟡 |
-| **parallel-schedule** | "parallel schedule" | Calendar + Docs | 🟢/🟡 |
-| **review-notify** | "review notify" | Chat + Gmail | 🔴 |
-| **sprint-board** | "sprint board" | Sheets | 🟢/🟡 |
+| meeting-prep | "meeting prep" | Calendar + Gmail + Drive | Green |
+| weekly-digest | "weekly digest" | Gmail + Calendar + Tasks | Green |
+| standup-report | "standup" | Gmail + Calendar + Tasks | Green |
+| email-from-doc | "email from doc" | Docs + Gmail | Yellow/Red |
+| sheet-to-email | "mail merge" | Sheets + Gmail | Red |
+| **context-boost** | "context boost" | Gmail + Drive + Calendar | Green |
+| **test-matrix** | "test matrix" | Sheets | Green/Yellow |
+| **standup** | "standup" | Gmail + Calendar + Tasks + Git + Chat | Green/Red |
+| **bug-intake** | "bug intake" | Gmail | Green |
+| **spec-health** | "spec health" | Sheets | Green/Yellow |
+| **parallel-schedule** | "parallel schedule" | Calendar + Docs | Green/Yellow |
+| **review-notify** | "review notify" | Chat + Gmail | Red |
+| **sprint-board** | "sprint board" | Sheets | Green/Yellow |
 
 ### Safety Tiers
 
 | Tier | Operations | Behavior |
 |------|-----------|----------|
-| 🟢 Green | Read-only (list, get, search, stats, describe) | Auto-execute |
-| 🟡 Yellow | Create/modify (create, update, draft, append, import) | Confirm before execute |
-| 🔴 Red | Destructive/external (send, delete, share, archive) | Hard gate, explicit approval |
-| ⛔ Blocked | Permanent delete, ownership transfer | Never execute |
+| Green | Read-only (list, get, search, stats, describe) | Auto-execute |
+| Yellow | Create/modify (create, update, draft, append, import) | Confirm before execute |
+| Red | Destructive/external (send, delete, share, archive) | Hard gate, explicit approval |
+| Blocked | Permanent delete, ownership transfer | Never execute |
 
 ### Agent Sandbox
 ```bash
-export GWX_ENABLE_COMMANDS="gmail.*,calendar.list,sheets.read,sheets.describe"
+export GWX_ENABLE_COMMANDS="gmail.*,calendar.list,sheets.read,sheets.describe,github.repos,slack.channels"
 ```
 
 ## Resilience
@@ -503,7 +635,8 @@ export GWX_ENABLE_COMMANDS="gmail.*,calendar.list,sheets.read,sheets.describe"
 
 ## Security
 
-- **OS Keyring** — OAuth tokens stored in macOS Keychain / Linux Secret Service / Windows Credential Manager. Never written to disk files
+- **OS Keyring** — OAuth tokens and multi-provider API tokens stored in macOS Keychain / Linux Secret Service / Windows Credential Manager. Never written to disk files
+- **Multi-Provider Token Isolation** — Google, GitHub, Slack, and Notion tokens stored under separate keyring entries. Per-account scoping prevents cross-contamination
 - **CSRF Protection** — 128-bit crypto/rand state for OAuth flow
 - **Drive Query Injection** — Folder ID validation prevents query injection
 - **Sheets Formula Protection** — Auto-escapes `=`, `+`, `-`, `@` prefixed values
@@ -512,7 +645,7 @@ export GWX_ENABLE_COMMANDS="gmail.*,calendar.list,sheets.read,sheets.describe"
 ## Authentication
 
 ```bash
-# Interactive setup (browser OAuth — requests all 10 service scopes)
+# Interactive setup (browser OAuth — requests all Google service scopes)
 gwx onboard
 # Supports file path OR paste JSON directly (auto-detects '{' prefix)
 
