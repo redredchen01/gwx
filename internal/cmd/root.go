@@ -63,8 +63,10 @@ type CLI struct {
 	Agent     AgentCmd     `cmd:"" help:"Agent automation helpers"`
 	Skill     SkillCmd     `cmd:"" help:"Skill DSL operations"`
 	Schema    SchemaCmd    `cmd:"" help:"Print full command schema (for agent introspection)"`
-	MCPServer MCPServerCmd `cmd:"mcp-server" help:"Start MCP server (stdio) for Claude integration"`
-	Version   VersionCmd   `cmd:"" help:"Print version"`
+	MCPServer  MCPServerCmd  `cmd:"mcp-server" help:"Start MCP server (stdio) for Claude integration"`
+	Completion CompletionCmd `cmd:"" help:"Generate shell completion scripts"`
+	Doctor     DoctorCmd     `cmd:"" help:"Diagnose configuration and connectivity"`
+	Version    VersionCmd    `cmd:"" help:"Print version"`
 }
 
 // RunContext holds shared state for command execution.

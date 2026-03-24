@@ -10,20 +10,37 @@ import (
 	"sync"
 )
 
+// MaxSkillDepth is the maximum recursion depth for skill composition (skill
+// steps that invoke other skills via the "skill:<name>" tool syntax).
+const MaxSkillDepth = 5
+
 // ToolCaller abstracts MCP tool invocation so the engine does not depend on the
 // mcp package directly.
 type ToolCaller interface {
 	CallTool(ctx context.Context, name string, args map[string]interface{}) (interface{}, error)
 }
 
+// SkillLoader is a function that loads all available skills. It is used by the
+// engine to resolve "skill:<name>" references without creating circular imports.
+type SkillLoader func() ([]*Skill, error)
+
 // Engine executes parsed skills against a ToolCaller.
 type Engine struct {
-	caller ToolCaller
+	caller      ToolCaller
+	depth       int
+	skillLoader SkillLoader
 }
 
 // NewEngine creates an engine that delegates tool calls to caller.
 func NewEngine(caller ToolCaller) *Engine {
-	return &Engine{caller: caller}
+	return &Engine{caller: caller, depth: 0, skillLoader: LoadAll}
+}
+
+// WithSkillLoader returns the engine configured with a custom skill loader.
+// This is mainly useful for testing.
+func (e *Engine) WithSkillLoader(loader SkillLoader) *Engine {
+	e.skillLoader = loader
+	return e
 }
 
 // Run executes a skill with the given input values and returns a structured result.
@@ -214,10 +231,12 @@ func (e *Engine) runSingleStep(ctx context.Context, step *Step, inputs map[strin
 		return []StepReport{report}, true
 	}
 
-	// Handle transform pseudo-tool.
+	// Dispatch: transform pseudo-tool, skill composition, or MCP tool call.
 	var out interface{}
 	if step.Tool == "transform" {
 		out, err = executeTransform(args)
+	} else if strings.HasPrefix(step.Tool, "skill:") {
+		out, err = e.callSubSkill(ctx, step.Tool, args)
 	} else {
 		out, err = e.caller.CallTool(ctx, step.Tool, args)
 	}
@@ -520,6 +539,66 @@ func toInt(v interface{}) (int, error) {
 	default:
 		return 0, fmt.Errorf("cannot convert %T to int", v)
 	}
+}
+
+// callSubSkill resolves a "skill:<name>" tool reference, loads the target
+// skill, and runs it as a sub-engine with incremented recursion depth.
+func (e *Engine) callSubSkill(ctx context.Context, tool string, args map[string]interface{}) (interface{}, error) {
+	skillName := strings.TrimPrefix(tool, "skill:")
+	if skillName == "" {
+		return nil, fmt.Errorf("skill: empty skill name in tool reference %q", tool)
+	}
+
+	if e.depth+1 > MaxSkillDepth {
+		return nil, fmt.Errorf("skill composition depth limit (%d) exceeded when calling %q — possible infinite recursion", MaxSkillDepth, skillName)
+	}
+
+	loader := e.skillLoader
+	if loader == nil {
+		loader = LoadAll
+	}
+
+	skills, err := loader()
+	if err != nil {
+		return nil, fmt.Errorf("load skills for composition: %w", err)
+	}
+
+	var target *Skill
+	for _, s := range skills {
+		if s.Name == skillName {
+			target = s
+			break
+		}
+	}
+	if target == nil {
+		return nil, fmt.Errorf("skill %q not found (referenced by skill:%s)", skillName, skillName)
+	}
+
+	subEngine := &Engine{
+		caller:      e.caller,
+		depth:       e.depth + 1,
+		skillLoader: e.skillLoader,
+	}
+
+	subInputs := argsToInputs(args)
+	result, err := subEngine.Run(ctx, target, subInputs)
+	if err != nil {
+		return nil, fmt.Errorf("sub-skill %q: %w", skillName, err)
+	}
+	if !result.Success {
+		return nil, fmt.Errorf("sub-skill %q failed: %s", skillName, result.Error)
+	}
+	return result.Output, nil
+}
+
+// argsToInputs converts map[string]interface{} (tool call args) to
+// map[string]string (skill inputs).
+func argsToInputs(args map[string]interface{}) map[string]string {
+	inputs := make(map[string]string, len(args))
+	for k, v := range args {
+		inputs[k] = fmt.Sprintf("%v", v)
+	}
+	return inputs
 }
 
 // isTruthy evaluates whether a value is considered truthy for conditional step

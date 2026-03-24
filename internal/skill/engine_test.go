@@ -1255,3 +1255,254 @@ func TestEngine_EachWithTransform(t *testing.T) {
 		t.Errorf("count = %v, want 2", count)
 	}
 }
+
+// ── Feature: Skill Composition ─────────────────────────────────────────────
+
+func TestEngine_SkillComposition_Basic(t *testing.T) {
+	caller := newMockCaller()
+	caller.on("gmail_list", map[string]interface{}{
+		"messages": []interface{}{"msg1", "msg2"},
+		"count":    float64(2),
+	}, nil)
+
+	// The sub-skill that will be called via skill:inner.
+	innerSkill := &Skill{
+		Name: "inner",
+		Inputs: []Input{
+			{Name: "limit", Default: "5"},
+		},
+		Steps: []Step{
+			{ID: "fetch", Tool: "gmail_list", Args: map[string]string{
+				"limit": "{{.input.limit}}",
+			}, OnFail: "abort"},
+		},
+	}
+
+	// The outer skill that references skill:inner.
+	outerSkill := &Skill{
+		Name: "outer",
+		Steps: []Step{
+			{ID: "brief", Tool: "skill:inner", Args: map[string]string{
+				"limit": "10",
+			}, OnFail: "abort"},
+		},
+	}
+
+	// Use a custom loader that returns our test skills.
+	loader := func() ([]*Skill, error) {
+		return []*Skill{innerSkill, outerSkill}, nil
+	}
+
+	engine := NewEngine(caller).WithSkillLoader(loader)
+	result, err := engine.Run(context.Background(), outerSkill, map[string]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Error)
+	}
+	// The outer skill should have one step report.
+	if len(result.Steps) != 1 {
+		t.Fatalf("steps = %d, want 1", len(result.Steps))
+	}
+	if !result.Steps[0].Success {
+		t.Errorf("step[0] failed: %s", result.Steps[0].Error)
+	}
+	// The MCP caller should have been called once (by the inner skill's step).
+	if caller.callCount() != 1 {
+		t.Errorf("calls = %d, want 1", caller.callCount())
+	}
+	calls := caller.getCalls()
+	if calls[0].Args["limit"] != "10" {
+		t.Errorf("inner skill got limit = %v, want %q", calls[0].Args["limit"], "10")
+	}
+}
+
+func TestEngine_SkillComposition_NotFound(t *testing.T) {
+	caller := newMockCaller()
+
+	outerSkill := &Skill{
+		Name: "outer",
+		Steps: []Step{
+			{ID: "call", Tool: "skill:nonexistent", Args: map[string]string{}, OnFail: "abort"},
+		},
+	}
+
+	loader := func() ([]*Skill, error) {
+		return []*Skill{outerSkill}, nil
+	}
+
+	engine := NewEngine(caller).WithSkillLoader(loader)
+	result, err := engine.Run(context.Background(), outerSkill, map[string]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Success {
+		t.Error("expected failure when sub-skill is not found")
+	}
+	if !strings.Contains(result.Error, "not found") {
+		t.Errorf("error = %q, want substring %q", result.Error, "not found")
+	}
+}
+
+func TestEngine_SkillComposition_DepthLimit(t *testing.T) {
+	caller := newMockCaller()
+
+	// A skill that calls itself — infinite recursion.
+	recursive := &Skill{
+		Name: "recursive",
+		Steps: []Step{
+			{ID: "loop", Tool: "skill:recursive", Args: map[string]string{}, OnFail: "abort"},
+		},
+	}
+
+	loader := func() ([]*Skill, error) {
+		return []*Skill{recursive}, nil
+	}
+
+	engine := NewEngine(caller).WithSkillLoader(loader)
+	result, err := engine.Run(context.Background(), recursive, map[string]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Success {
+		t.Error("expected failure due to depth limit")
+	}
+	if !strings.Contains(result.Error, "depth limit") {
+		t.Errorf("error = %q, want substring %q", result.Error, "depth limit")
+	}
+	// Should NOT have called MCP at all.
+	if caller.callCount() != 0 {
+		t.Errorf("calls = %d, want 0 (depth limit should prevent execution)", caller.callCount())
+	}
+}
+
+func TestEngine_SkillComposition_OnFailSkip(t *testing.T) {
+	caller := newMockCaller()
+	caller.on("good_tool", map[string]interface{}{"ok": true}, nil)
+
+	// Inner skill that will fail.
+	failSkill := &Skill{
+		Name: "fail-inner",
+		Steps: []Step{
+			{ID: "boom", Tool: "explode", Args: map[string]string{}, OnFail: "abort"},
+		},
+	}
+
+	outerSkill := &Skill{
+		Name: "outer",
+		Steps: []Step{
+			{ID: "try", Tool: "skill:fail-inner", Args: map[string]string{}, OnFail: "skip"},
+			{ID: "fallback", Tool: "good_tool", Args: map[string]string{}, OnFail: "abort"},
+		},
+	}
+
+	loader := func() ([]*Skill, error) {
+		return []*Skill{failSkill, outerSkill}, nil
+	}
+
+	engine := NewEngine(caller).WithSkillLoader(loader)
+	result, err := engine.Run(context.Background(), outerSkill, map[string]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should succeed overall because the failed sub-skill step is on_fail=skip.
+	if !result.Success {
+		t.Errorf("expected success (on_fail=skip), got error: %s", result.Error)
+	}
+	if len(result.Steps) != 2 {
+		t.Fatalf("steps = %d, want 2", len(result.Steps))
+	}
+	if result.Steps[0].Success {
+		t.Error("step[0] should have failed (sub-skill failed)")
+	}
+	if !result.Steps[1].Success {
+		t.Error("step[1] should have succeeded")
+	}
+}
+
+func TestEngine_SkillComposition_ChainedDepth(t *testing.T) {
+	caller := newMockCaller()
+	caller.on("leaf_tool", map[string]interface{}{"value": "leaf"}, nil)
+
+	// depth 0: A calls skill:B
+	// depth 1: B calls skill:C
+	// depth 2: C calls leaf_tool
+	// Total depth = 2, within limit of 5.
+	skillC := &Skill{
+		Name: "C",
+		Steps: []Step{
+			{ID: "leaf", Tool: "leaf_tool", Args: map[string]string{}, OnFail: "abort"},
+		},
+	}
+	skillB := &Skill{
+		Name: "B",
+		Steps: []Step{
+			{ID: "call_c", Tool: "skill:C", Args: map[string]string{}, OnFail: "abort"},
+		},
+	}
+	skillA := &Skill{
+		Name: "A",
+		Steps: []Step{
+			{ID: "call_b", Tool: "skill:B", Args: map[string]string{}, OnFail: "abort"},
+		},
+	}
+
+	loader := func() ([]*Skill, error) {
+		return []*Skill{skillA, skillB, skillC}, nil
+	}
+
+	engine := NewEngine(caller).WithSkillLoader(loader)
+	result, err := engine.Run(context.Background(), skillA, map[string]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Success {
+		t.Fatalf("expected success for chained composition, got error: %s", result.Error)
+	}
+	if caller.callCount() != 1 {
+		t.Errorf("calls = %d, want 1 (only leaf_tool)", caller.callCount())
+	}
+}
+
+func TestEngine_SkillComposition_EmptyName(t *testing.T) {
+	caller := newMockCaller()
+
+	outerSkill := &Skill{
+		Name: "outer",
+		Steps: []Step{
+			{ID: "bad", Tool: "skill:", Args: map[string]string{}, OnFail: "abort"},
+		},
+	}
+
+	engine := NewEngine(caller)
+	result, err := engine.Run(context.Background(), outerSkill, map[string]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Success {
+		t.Error("expected failure for empty skill name")
+	}
+	if !strings.Contains(result.Error, "empty skill name") {
+		t.Errorf("error = %q, want substring %q", result.Error, "empty skill name")
+	}
+}
+
+func TestArgsToInputs(t *testing.T) {
+	args := map[string]interface{}{
+		"str":  "hello",
+		"num":  float64(42),
+		"bool": true,
+	}
+	inputs := argsToInputs(args)
+
+	if inputs["str"] != "hello" {
+		t.Errorf("str = %q, want %q", inputs["str"], "hello")
+	}
+	if inputs["num"] != "42" {
+		t.Errorf("num = %q, want %q", inputs["num"], "42")
+	}
+	if inputs["bool"] != "true" {
+		t.Errorf("bool = %q, want %q", inputs["bool"], "true")
+	}
+}
