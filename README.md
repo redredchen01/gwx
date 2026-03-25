@@ -1,8 +1,31 @@
-# gwx — Google Workspace CLI for Humans and Agents
+# gwx — 17 Services, One CLI
 
-A unified CLI + MCP server for Google Workspace, GitHub, Slack, Notion, and Obsidian. One binary gives you Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console, Slides, Forms, BigQuery, GitHub, Slack, Notion, and Obsidian — from the terminal or through any LLM agent.
+把散落在各平台的資料，用一個命令列統一操作。人能用，AI 也能用。
+
+```
+Google:   Gmail · Calendar · Drive · Docs · Sheets · Tasks
+          Contacts · Chat · Analytics · Search Console · Slides
+          Forms · BigQuery
+外部:     GitHub · Slack · Notion · Obsidian
+```
 
 **150+ CLI commands · 133 MCP tools · 22 YAML skills · 17 services**
+
+### 三種用法
+
+```bash
+# 1. 人打指令
+gwx gmail list --limit 5
+gwx calendar agenda
+gwx github pulls owner/repo
+
+# 2. AI 透過 MCP 直接呼叫（133 個工具，Claude/Codex 自動可用）
+gwx mcp-server
+
+# 3. YAML Skill 自動化（不寫程式，串多個平台一鍵跑）
+gwx skill run google-morning-brief     # 收信 + 行程 + 待辦
+gwx skill run cross-full-context -p keyword=invoice  # 5 平台並行搜
+```
 
 ## Install
 
