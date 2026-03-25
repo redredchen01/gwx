@@ -1,0 +1,31 @@
+name: cross-github-to-obsidian
+version: "1.0"
+description: "Fetch open GitHub PRs for a repo and save them as an Obsidian note."
+
+meta:
+  author: gwx
+  category: cross
+  tags: github,obsidian
+
+inputs:
+  - name: repo
+    type: string
+    required: true
+    description: "GitHub repository in 'owner/repo' format"
+
+steps:
+  - id: prs
+    tool: github_pulls
+    args:
+      repo: "{{.input.repo}}"
+      state: "open"
+    on_fail: stop
+
+  - id: note
+    tool: obsidian_create
+    args:
+      path: "Dev/PR-Review.md"
+      content: "{{.steps.prs}}"
+    on_fail: stop
+
+output: "{{.steps.note}}"

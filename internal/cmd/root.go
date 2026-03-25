@@ -53,6 +53,7 @@ type CLI struct {
 	GitHub        GitHubCmd        `cmd:"" help:"GitHub operations"`
 	Slack         SlackCmd         `cmd:"" help:"Slack operations"`
 	Notion        NotionCmd        `cmd:"" help:"Notion operations"`
+	Obsidian      ObsidianCmd      `cmd:"" help:"Obsidian vault operations"`
 	Config        ConfigCmd        `cmd:"" help:"Configuration management"`
 	// Workflow commands
 	Standup     StandupCmd     `cmd:"" help:"Daily standup report (aggregate Git + Gmail + Calendar + Tasks)"`

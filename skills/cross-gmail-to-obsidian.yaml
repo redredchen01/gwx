@@ -1,0 +1,36 @@
+name: cross-gmail-to-obsidian
+version: "1.0"
+description: "Search Gmail and save matching emails as an Obsidian note."
+
+meta:
+  author: gwx
+  category: cross
+  tags: gmail,obsidian
+
+inputs:
+  - name: query
+    type: string
+    required: true
+    description: "Gmail search query (e.g. 'from:boss subject:review')"
+  - name: limit
+    type: int
+    required: false
+    default: "5"
+    description: "Max emails to include"
+
+steps:
+  - id: emails
+    tool: gmail_search
+    args:
+      query: "{{.input.query}}"
+      limit: "{{.input.limit}}"
+    on_fail: stop
+
+  - id: note
+    tool: obsidian_create
+    args:
+      path: "Inbox/{{.input.query}}.md"
+      content: "{{.steps.emails}}"
+    on_fail: stop
+
+output: "{{.steps.note}}"

@@ -9,9 +9,9 @@ func TestListTools_Count(t *testing.T) {
 	tools := h.ListTools()
 
 	// Verify total tool count matches actual registration
-	// 98 base + 3 forms + 4 bigquery + 7 github + 6 slack + 5 notion = 123
-	if len(tools) != 123 {
-		t.Errorf("expected 123 tools, got %d", len(tools))
+	// 98 base + 3 forms + 4 bigquery + 7 github + 6 slack + 5 notion + 10 obsidian = 133
+	if len(tools) != 133 {
+		t.Errorf("expected 133 tools, got %d", len(tools))
 	}
 }
 

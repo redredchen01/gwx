@@ -1,0 +1,30 @@
+name: cross-meeting-to-obsidian
+version: "1.0"
+description: "Fetch today's calendar agenda and write it to the Obsidian daily note."
+
+meta:
+  author: gwx
+  category: cross
+  tags: calendar,obsidian
+
+inputs:
+  - name: days
+    type: int
+    required: false
+    default: "1"
+    description: "Calendar look-ahead window in days"
+
+steps:
+  - id: meetings
+    tool: calendar_agenda
+    args:
+      days: "{{.input.days}}"
+    on_fail: stop
+
+  - id: daily
+    tool: obsidian_daily
+    args:
+      text: "## Meetings\n{{.steps.meetings}}"
+    on_fail: stop
+
+output: "{{.steps.daily}}"
