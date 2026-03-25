@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	cbFailureThreshold = 5
+	cbFailureThreshold = 8
 	cbResetAfter       = 30 * time.Second
 )
 

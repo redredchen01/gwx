@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/redredchen01/gwx/internal/api"
@@ -14,6 +15,7 @@ import (
 type GWXHandler struct {
 	client   *api.Client
 	registry map[string]ToolHandler // lazy-init tool dispatch map
+	once     sync.Once
 }
 
 // NewGWXHandler creates a handler with an authenticated API client.
@@ -38,10 +40,10 @@ func (h *GWXHandler) CallTool(name string, args map[string]interface{}) (*ToolRe
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// Lazy-init registry
-	if h.registry == nil {
+	// Build registry exactly once via sync.Once (thread-safe).
+	h.once.Do(func() {
 		h.registry = h.buildRegistry()
-	}
+	})
 
 	handler, ok := h.registry[name]
 	if !ok {

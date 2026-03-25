@@ -8,20 +8,30 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// serviceRate pairs a token-bucket refill rate with a burst size.
+// Burst > 1 allows short request spikes without waiting for the full interval.
+type serviceRate struct {
+	rate  rate.Limit
+	burst int
+}
+
 // Conservative per-service rate limits.
 // These are well below Google's actual quotas to avoid hitting walls.
-var defaultRates = map[string]rate.Limit{
-	"gmail":    rate.Every(250 * time.Millisecond), // 4 QPS (quota ~10)
-	"calendar": rate.Every(250 * time.Millisecond), // 4 QPS
-	"drive":    rate.Every(125 * time.Millisecond), // 8 QPS (quota ~20)
-	"sheets":   rate.Every(1200 * time.Millisecond), // ~0.8 QPS (quota ~1)
-	"docs":     rate.Every(500 * time.Millisecond),  // 2 QPS
-	"tasks":    rate.Every(250 * time.Millisecond),  // 4 QPS
-	"people":   rate.Every(250 * time.Millisecond),  // 4 QPS
-	"chat":          rate.Every(250 * time.Millisecond),  // 4 QPS
-	"analytics":     rate.Every(500 * time.Millisecond),  // 2 QPS (GA4 quota: 10 concurrent)
-	"searchconsole": rate.Every(500 * time.Millisecond),  // 2 QPS (GSC quota: ~5 QPS)
-	"slides":        rate.Every(500 * time.Millisecond),  // 2 QPS (Slides quota: ~5 QPS)
+// Burst values allow short bursts without per-request delay.
+var defaultRates = map[string]serviceRate{
+	"gmail":         {rate: rate.Every(250 * time.Millisecond), burst: 4},   // 4 QPS (quota ~10)
+	"calendar":      {rate: rate.Every(250 * time.Millisecond), burst: 4},   // 4 QPS
+	"drive":         {rate: rate.Every(125 * time.Millisecond), burst: 8},   // 8 QPS (quota ~20)
+	"sheets":        {rate: rate.Every(1200 * time.Millisecond), burst: 2},  // ~0.8 QPS (quota ~1)
+	"docs":          {rate: rate.Every(500 * time.Millisecond), burst: 3},   // 2 QPS
+	"tasks":         {rate: rate.Every(250 * time.Millisecond), burst: 4},   // 4 QPS
+	"people":        {rate: rate.Every(250 * time.Millisecond), burst: 4},   // 4 QPS
+	"chat":          {rate: rate.Every(250 * time.Millisecond), burst: 4},   // 4 QPS
+	"analytics":     {rate: rate.Every(500 * time.Millisecond), burst: 3},   // 2 QPS (GA4 quota: 10 concurrent)
+	"searchconsole": {rate: rate.Every(500 * time.Millisecond), burst: 3},   // 2 QPS (GSC quota: ~5 QPS)
+	"slides":        {rate: rate.Every(500 * time.Millisecond), burst: 3},   // 2 QPS (Slides quota: ~5 QPS)
+	"forms":         {rate: rate.Every(500 * time.Millisecond), burst: 3},   // 2 QPS
+	"bigquery":      {rate: rate.Every(500 * time.Millisecond), burst: 5},   // 2 QPS (BQ quota varies)
 }
 
 // ServiceRateLimiter manages per-service token bucket rate limiters.
@@ -35,8 +45,8 @@ func NewServiceRateLimiter() *ServiceRateLimiter {
 	rl := &ServiceRateLimiter{
 		limiters: make(map[string]*rate.Limiter),
 	}
-	for svc, r := range defaultRates {
-		rl.limiters[svc] = rate.NewLimiter(r, 1) // burst=1, strictly conservative
+	for svc, sr := range defaultRates {
+		rl.limiters[svc] = rate.NewLimiter(sr.rate, sr.burst)
 	}
 	return rl
 }

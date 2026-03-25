@@ -49,26 +49,33 @@ func renderValueWithItem(tmpl string, inputs map[string]string, store map[string
 		return val, nil
 	}
 
-	// Mixed template: interpolate all {{...}} as strings.
-	result := tmpl
+	// Mixed template: interpolate all {{...}} as strings using a builder
+	// to avoid O(n^2) string concatenation.
+	var b strings.Builder
+	b.Grow(len(tmpl))
+	pos := 0
 	for {
-		start := strings.Index(result, "{{")
+		start := strings.Index(tmpl[pos:], "{{")
 		if start == -1 {
+			b.WriteString(tmpl[pos:])
 			break
 		}
-		end := strings.Index(result[start:], "}}")
+		start += pos
+		b.WriteString(tmpl[pos:start])
+		end := strings.Index(tmpl[start:], "}}")
 		if end == -1 {
 			return nil, fmt.Errorf("unclosed template expression in %q", tmpl)
 		}
 		end += start + 2
-		expr := strings.TrimSpace(result[start+2 : end-2])
+		expr := strings.TrimSpace(tmpl[start+2 : end-2])
 		val, err := resolveExprWithItem(expr, inputs, store, itemCtx)
 		if err != nil {
 			return nil, err
 		}
-		result = result[:start] + fmt.Sprintf("%v", val) + result[end:]
+		fmt.Fprintf(&b, "%v", val)
+		pos = end
 	}
-	return result, nil
+	return b.String(), nil
 }
 
 // resolveExprWithItem resolves a template expression with optional .item namespace.

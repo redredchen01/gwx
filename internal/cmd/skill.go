@@ -41,7 +41,7 @@ func (c *SkillListCmd) Run(rctx *RunContext) error {
 		return nil
 	}
 
-	skills, err := skill.LoadAll()
+	skills, err := skill.CachedLoadAll()
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, fmt.Sprintf("load skills: %s", err))
 	}
@@ -79,7 +79,7 @@ func (c *SkillInspectCmd) Run(rctx *RunContext) error {
 		return nil
 	}
 
-	skills, err := skill.LoadAll()
+	skills, err := skill.CachedLoadAll()
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, fmt.Sprintf("load skills: %s", err))
 	}
@@ -200,6 +200,9 @@ func (c *SkillInstallCmd) Run(rctx *RunContext) error {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, fmt.Sprintf("install skill: %s", err))
 	}
 
+	// Invalidate the skill cache so subsequent commands pick up the new skill.
+	skill.InvalidateSkillCache()
+
 	// Re-load the installed file to report details.
 	s, loadErr := skill.LoadFile(dest)
 	if loadErr != nil {
@@ -238,6 +241,9 @@ func (c *SkillRemoveCmd) Run(rctx *RunContext) error {
 		return rctx.Printer.ErrExit(exitcode.NotFound, fmt.Sprintf("remove skill: %s", err))
 	}
 
+	// Invalidate the skill cache so subsequent commands reflect the removal.
+	skill.InvalidateSkillCache()
+
 	rctx.Printer.Success(map[string]interface{}{
 		"removed": true,
 		"name":    c.Name,
@@ -264,7 +270,7 @@ func (c *SkillRunCmd) Run(rctx *RunContext) error {
 		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
 	}
 
-	skills, err := skill.LoadAll()
+	skills, err := skill.CachedLoadAll()
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, fmt.Sprintf("load skills: %s", err))
 	}
@@ -458,7 +464,7 @@ func (c *SkillTestCmd) Run(rctx *RunContext) error {
 		return nil
 	}
 
-	skills, err := skill.LoadAll()
+	skills, err := skill.CachedLoadAll()
 	if err != nil {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, fmt.Sprintf("load skills: %s", err))
 	}

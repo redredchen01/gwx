@@ -31,9 +31,13 @@ type Engine struct {
 	skillLoader SkillLoader
 }
 
+// MaxParallelSteps limits concurrent goroutines in a parallel batch to avoid
+// overwhelming API rate limits.
+const MaxParallelSteps = 5
+
 // NewEngine creates an engine that delegates tool calls to caller.
 func NewEngine(caller ToolCaller) *Engine {
-	return &Engine{caller: caller, depth: 0, skillLoader: LoadAll}
+	return &Engine{caller: caller, depth: 0, skillLoader: CachedLoadAll}
 }
 
 // WithSkillLoader returns the engine configured with a custom skill loader.
@@ -140,9 +144,14 @@ func (e *Engine) runParallelBatch(ctx context.Context, batch []Step, inputs map[
 	var wg sync.WaitGroup
 	wg.Add(len(batch))
 
+	// Semaphore limits concurrent goroutines to avoid overwhelming API rate limits.
+	sem := make(chan struct{}, MaxParallelSteps)
+
 	for idx := range batch {
 		go func(i int) {
 			defer wg.Done()
+			sem <- struct{}{}        // acquire
+			defer func() { <-sem }() // release
 			step := batch[i]
 			// Each parallel step uses the snapshot for reads and writes to a
 			// local store to avoid races.

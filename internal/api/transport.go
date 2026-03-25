@@ -155,10 +155,27 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 }
 
 // NewBaseTransport creates an http.Transport with TLS 1.2+ and reasonable timeouts.
+// Deprecated: Prefer newOptimizedTransport() which tunes pool sizes for Google APIs.
+// Kept for backward compatibility with tests and external callers.
 func NewBaseTransport() *http.Transport {
+	return newOptimizedTransport()
+}
+
+// newOptimizedTransport creates an http.Transport tuned for Google API workloads.
+// Key differences from http.DefaultTransport:
+//   - MaxIdleConnsPerHost raised from 2→20 (critical: all Google calls hit *.googleapis.com)
+//   - MaxIdleConns 100→200 to handle many services concurrently
+//   - Explicit TLS 1.2+ minimum
+//   - Explicit timeouts for header, handshake, and expect-continue
+func newOptimizedTransport() *http.Transport {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	t.MaxIdleConns = 200
+	t.MaxIdleConnsPerHost = 20
+	t.IdleConnTimeout = 120 * time.Second
 	t.ResponseHeaderTimeout = 30 * time.Second
+	t.TLSHandshakeTimeout = 10 * time.Second
+	t.ExpectContinueTimeout = 1 * time.Second
 	return t
 }
 

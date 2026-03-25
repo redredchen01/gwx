@@ -497,7 +497,7 @@ func probeNotion(ctx context.Context, token string) (bool, string) {
 }
 
 func checkSkills() []checkResult {
-	skills, err := skill.LoadAll()
+	skills, err := skill.CachedLoadAll()
 	if err != nil {
 		return []checkResult{{
 			Name:    "skills",

@@ -10,15 +10,17 @@ func TestRateLimiter_KnownServiceThrottles(t *testing.T) {
 	rl := NewServiceRateLimiter()
 	ctx := context.Background()
 
-	// First call should pass immediately
-	start := time.Now()
-	if err := rl.Wait(ctx, "sheets"); err != nil {
-		t.Fatalf("first wait failed: %v", err)
+	// Sheets has burst=2. Exhaust the burst bucket first.
+	for i := 0; i < 2; i++ {
+		if err := rl.Wait(ctx, "sheets"); err != nil {
+			t.Fatalf("burst wait %d failed: %v", i, err)
+		}
 	}
 
-	// Second call should be delayed (sheets is ~1200ms interval)
+	// Next call must wait for a token refill (~1200ms interval)
+	start := time.Now()
 	if err := rl.Wait(ctx, "sheets"); err != nil {
-		t.Fatalf("second wait failed: %v", err)
+		t.Fatalf("throttled wait failed: %v", err)
 	}
 	elapsed := time.Since(start)
 
@@ -49,11 +51,13 @@ func TestRateLimiter_UnknownServicePassthrough(t *testing.T) {
 func TestRateLimiter_ContextCancellation(t *testing.T) {
 	rl := NewServiceRateLimiter()
 
-	// Exhaust the token
+	// Exhaust all burst tokens (sheets burst=2)
 	ctx := context.Background()
-	rl.Wait(ctx, "sheets") //nolint:errcheck
+	for i := 0; i < 2; i++ {
+		rl.Wait(ctx, "sheets") //nolint:errcheck
+	}
 
-	// Cancel context before second call completes
+	// Cancel context before next call completes (must wait for refill)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 

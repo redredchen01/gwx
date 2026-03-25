@@ -76,10 +76,16 @@ func TestGWXHandler_RegistryLazyInit(t *testing.T) {
 	if h.registry != nil {
 		t.Fatal("registry should be nil before first CallTool")
 	}
-	// After CallTool (even failing), registry should be initialized
+	// After CallTool (even failing), registry should be initialized via sync.Once
 	h.CallTool("nonexistent", nil)
 	if h.registry == nil {
 		t.Fatal("registry should be initialized after first CallTool")
+	}
+	// Calling again should reuse the same registry (sync.Once guarantees this)
+	sizeBefore := len(h.registry)
+	h.CallTool("nonexistent_again", nil)
+	if len(h.registry) != sizeBefore {
+		t.Fatal("registry size should remain stable across calls")
 	}
 }
 
