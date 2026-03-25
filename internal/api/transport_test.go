@@ -261,6 +261,40 @@ func TestCalculateBackoff_ExponentialFallback(t *testing.T) {
 	}
 }
 
+func TestCalculateBackoff_CapsLongRetryAfter(t *testing.T) {
+	resp := newResponse(429, map[string]string{"Retry-After": "600"})
+	d := calculateBackoff(resp, 0)
+	if d != maxRetryDelay {
+		t.Fatalf("expected capped retry delay %v, got %v", maxRetryDelay, d)
+	}
+}
+
+func TestNewBaseTransport_ConfiguresTimeoutsAndPooling(t *testing.T) {
+	transport := NewBaseTransport()
+
+	if transport.ResponseHeaderTimeout != defaultResponseHeader {
+		t.Fatalf("ResponseHeaderTimeout = %v, want %v", transport.ResponseHeaderTimeout, defaultResponseHeader)
+	}
+	if transport.TLSHandshakeTimeout != defaultTLSHandshake {
+		t.Fatalf("TLSHandshakeTimeout = %v, want %v", transport.TLSHandshakeTimeout, defaultTLSHandshake)
+	}
+	if transport.IdleConnTimeout != defaultIdleConnTTL {
+		t.Fatalf("IdleConnTimeout = %v, want %v", transport.IdleConnTimeout, defaultIdleConnTTL)
+	}
+	if transport.ExpectContinueTimeout != defaultExpectContinue {
+		t.Fatalf("ExpectContinueTimeout = %v, want %v", transport.ExpectContinueTimeout, defaultExpectContinue)
+	}
+	if transport.MaxIdleConns != 100 {
+		t.Fatalf("MaxIdleConns = %d, want 100", transport.MaxIdleConns)
+	}
+	if transport.MaxIdleConnsPerHost != 10 {
+		t.Fatalf("MaxIdleConnsPerHost = %d, want 10", transport.MaxIdleConnsPerHost)
+	}
+	if transport.DialContext == nil {
+		t.Fatal("expected DialContext to be configured")
+	}
+}
+
 func TestCircuitOpenError_Message(t *testing.T) {
 	err := &CircuitOpenError{Service: "gmail"}
 	msg := err.Error()

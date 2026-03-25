@@ -17,8 +17,8 @@ type Client struct {
 	breakers    map[string]*CircuitBreaker
 	cache       *Cache
 	NoCache     bool
-	endpoint    string         // override API endpoint for testing
-	httpClient  *http.Client   // override HTTP client for testing
+	endpoint    string       // override API endpoint for testing
+	httpClient  *http.Client // override HTTP client for testing
 	mu          sync.Mutex
 
 	// Cached HTTP clients per service — avoids recreating transports on every call.
@@ -32,8 +32,8 @@ func NewClient(ts oauth2.TokenSource) *Client {
 		tokenSource: ts,
 		rateLimiter: NewServiceRateLimiter(),
 		breakers:    make(map[string]*CircuitBreaker),
-		cache:       NewCache(CacheConfig{MaxEntries: 1024, DefaultTTL: 5 * time.Minute}),
 		httpClients: make(map[string]*http.Client),
+		cache:       NewCache(CacheConfig{MaxEntries: 1024, DefaultTTL: 5 * time.Minute}),
 	}
 }
 
@@ -71,18 +71,15 @@ func (c *Client) HTTPClient(service string) *http.Client {
 	}
 
 	cb := c.breakerLocked(service)
-
-	oauthTransport := &oauth2.Transport{
-		Source: c.tokenSource,
-		Base:   c.sharedTransport(),
+	client := &http.Client{
+		Transport: &RetryTransport{
+			Base: &oauth2.Transport{
+				Source: c.tokenSource,
+				Base:   c.sharedTransport(),
+			},
+			CB: cb,
+		},
 	}
-
-	retryTransport := &RetryTransport{
-		Base: oauthTransport,
-		CB:   cb,
-	}
-
-	client := &http.Client{Transport: retryTransport}
 	c.httpClients[service] = client
 	return client
 }
@@ -116,6 +113,7 @@ func NewTestClient(httpClient *http.Client, endpoint string) *Client {
 	return &Client{
 		rateLimiter: NewServiceRateLimiter(),
 		breakers:    make(map[string]*CircuitBreaker),
+		httpClients: make(map[string]*http.Client),
 		cache:       NewCache(CacheConfig{MaxEntries: 256, DefaultTTL: 5 * time.Minute}),
 		NoCache:     true,
 		endpoint:    endpoint,

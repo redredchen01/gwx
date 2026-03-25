@@ -7,15 +7,22 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
 )
 
 const (
-	maxRetry429 = 3
-	maxRetry5xx = 2
-	maxBodyRead = 1 << 20 // 1 MB for draining
+	maxRetry429           = 3
+	maxRetry5xx           = 2
+	maxBodyRead           = 1 << 20 // 1 MB for draining
+	maxRetryDelay         = 30 * time.Second
+	defaultDialTimeout    = 10 * time.Second
+	defaultTLSHandshake   = 10 * time.Second
+	defaultIdleConnTTL    = 120 * time.Second
+	defaultExpectContinue = 1 * time.Second
+	defaultResponseHeader = 30 * time.Second
 )
 
 // RetryTransport wraps an http.RoundTripper with automatic retry for
@@ -109,18 +116,18 @@ func (t *RetryTransport) base() http.RoundTripper {
 func calculateBackoff(resp *http.Response, attempt int) time.Duration {
 	if ra := resp.Header.Get("Retry-After"); ra != "" {
 		if secs, err := strconv.Atoi(ra); err == nil && secs > 0 {
-			return time.Duration(secs) * time.Second
+			return clampDuration(time.Duration(secs) * time.Second)
 		}
 		if t, err := http.ParseTime(ra); err == nil {
 			if d := time.Until(t); d > 0 {
-				return d
+				return clampDuration(d)
 			}
 		}
 	}
 	// Exponential backoff: 1s, 2s, 4s... + jitter up to 50%
 	base := math.Pow(2, float64(attempt)) * float64(time.Second)
 	jitter := rand.Float64() * base * 0.5 //nolint:gosec
-	return time.Duration(base + jitter)
+	return clampDuration(time.Duration(base + jitter))
 }
 
 func ensureReplayableBody(req *http.Request) ([]byte, error) {
@@ -162,21 +169,30 @@ func NewBaseTransport() *http.Transport {
 }
 
 // newOptimizedTransport creates an http.Transport tuned for Google API workloads.
-// Key differences from http.DefaultTransport:
-//   - MaxIdleConnsPerHost raised from 2→20 (critical: all Google calls hit *.googleapis.com)
-//   - MaxIdleConns 100→200 to handle many services concurrently
-//   - Explicit TLS 1.2+ minimum
-//   - Explicit timeouts for header, handshake, and expect-continue
 func newOptimizedTransport() *http.Transport {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+	t.DialContext = (&net.Dialer{
+		Timeout:   defaultDialTimeout,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+	t.TLSHandshakeTimeout = defaultTLSHandshake
+	t.ResponseHeaderTimeout = defaultResponseHeader
+	t.ExpectContinueTimeout = defaultExpectContinue
+	t.IdleConnTimeout = defaultIdleConnTTL
 	t.MaxIdleConns = 200
 	t.MaxIdleConnsPerHost = 20
-	t.IdleConnTimeout = 120 * time.Second
-	t.ResponseHeaderTimeout = 30 * time.Second
-	t.TLSHandshakeTimeout = 10 * time.Second
-	t.ExpectContinueTimeout = 1 * time.Second
 	return t
+}
+
+func clampDuration(d time.Duration) time.Duration {
+	if d <= 0 {
+		return 0
+	}
+	if d > maxRetryDelay {
+		return maxRetryDelay
+	}
+	return d
 }
 
 // CircuitOpenError is returned when the circuit breaker is open.
