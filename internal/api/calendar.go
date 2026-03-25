@@ -8,6 +8,20 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
+func (cs *CalendarService) service(ctx context.Context) (*calendar.Service, error) {
+	svc, err := cs.client.GetOrCreateService("calendar:v3", func() (any, error) {
+		opts, err := cs.client.ClientOptions(ctx, "calendar")
+		if err != nil {
+			return nil, err
+		}
+		return calendar.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create calendar service: %w", err)
+	}
+	return svc.(*calendar.Service), nil
+}
+
 // CalendarService wraps Calendar API operations.
 type CalendarService struct {
 	client *Client
@@ -58,14 +72,9 @@ func (cs *CalendarService) ListEvents(ctx context.Context, calendarID string, ti
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "calendar")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := calendar.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create calendar service: %w", err)
 	}
 
 	if calendarID == "" {
@@ -175,14 +184,9 @@ func (cs *CalendarService) CreateEvent(ctx context.Context, calendarID string, i
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "calendar")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := calendar.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create calendar service: %w", err)
 	}
 
 	if calendarID == "" {
@@ -219,14 +223,9 @@ func (cs *CalendarService) UpdateEvent(ctx context.Context, calendarID, eventID 
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "calendar")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := calendar.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create calendar service: %w", err)
 	}
 
 	if calendarID == "" {
@@ -308,14 +307,9 @@ func (cs *CalendarService) FindSlot(ctx context.Context, attendees []string, dur
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "calendar")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := calendar.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create calendar service: %w", err)
 	}
 
 	now := time.Now()

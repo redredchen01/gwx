@@ -10,6 +10,20 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
+func (ss *SheetsService) service(ctx context.Context) (*sheets.Service, error) {
+	svc, err := ss.client.GetOrCreateService("sheets:v4", func() (any, error) {
+		opts, err := ss.client.ClientOptions(ctx, "sheets")
+		if err != nil {
+			return nil, err
+		}
+		return sheets.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create sheets service: %w", err)
+	}
+	return svc.(*sheets.Service), nil
+}
+
 // SheetsService wraps Sheets API operations.
 type SheetsService struct {
 	client *Client
@@ -40,14 +54,9 @@ func (ss *SheetsService) ReadRange(ctx context.Context, spreadsheetID, readRange
 		return nil, err
 	}
 
-	opts, err := ss.client.ClientOptions(ctx, "sheets")
+	svc, err := ss.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := sheets.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create sheets service: %w", err)
 	}
 
 	resp, err := svc.Spreadsheets.Values.Get(spreadsheetID, readRange).Do()
@@ -73,14 +82,9 @@ func (ss *SheetsService) AppendValues(ctx context.Context, spreadsheetID, append
 		return nil, err
 	}
 
-	opts, err := ss.client.ClientOptions(ctx, "sheets")
+	svc, err := ss.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := sheets.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create sheets service: %w", err)
 	}
 
 	vr := &sheets.ValueRange{Values: values}
@@ -110,14 +114,9 @@ func (ss *SheetsService) UpdateValues(ctx context.Context, spreadsheetID, update
 		return nil, err
 	}
 
-	opts, err := ss.client.ClientOptions(ctx, "sheets")
+	svc, err := ss.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := sheets.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create sheets service: %w", err)
 	}
 
 	vr := &sheets.ValueRange{Values: values}
@@ -146,14 +145,9 @@ func (ss *SheetsService) CreateSpreadsheet(ctx context.Context, title string) (*
 		return nil, err
 	}
 
-	opts, err := ss.client.ClientOptions(ctx, "sheets")
+	svc, err := ss.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := sheets.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create sheets service: %w", err)
 	}
 
 	spreadsheet := &sheets.Spreadsheet{
@@ -203,14 +197,9 @@ func (ss *SheetsService) GetInfo(ctx context.Context, spreadsheetID string) (*Sh
 		return nil, err
 	}
 
-	opts, err := ss.client.ClientOptions(ctx, "sheets")
+	svc, err := ss.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := sheets.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create sheets service: %w", err)
 	}
 
 	spreadsheet, err := svc.Spreadsheets.Get(spreadsheetID).Do()
