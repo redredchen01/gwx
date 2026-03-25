@@ -7,6 +7,20 @@ import (
 	forms "google.golang.org/api/forms/v1"
 )
 
+func (fs *FormsService) service(ctx context.Context) (*forms.Service, error) {
+	svc, err := fs.client.GetOrCreateService("forms:v1", func() (any, error) {
+		opts, err := fs.client.ClientOptions(ctx, "forms")
+		if err != nil {
+			return nil, err
+		}
+		return forms.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create forms service: %w", err)
+	}
+	return svc.(*forms.Service), nil
+}
+
 // FormsService wraps Google Forms API operations.
 type FormsService struct {
 	client *Client
@@ -19,14 +33,13 @@ func NewFormsService(client *Client) *FormsService {
 
 // GetForm retrieves the structure of a Google Form by its ID.
 func (fs *FormsService) GetForm(ctx context.Context, formID string) (map[string]interface{}, error) {
-	opts, err := fs.client.ServiceInit(ctx, "forms")
-	if err != nil {
+	if err := fs.client.WaitRate(ctx, "forms"); err != nil {
 		return nil, err
 	}
 
-	svc, err := forms.NewService(ctx, opts...)
+	svc, err := fs.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create forms service: %w", err)
+		return nil, err
 	}
 
 	form, err := svc.Forms.Get(formID).Do()
@@ -136,14 +149,13 @@ func (fs *FormsService) GetForm(ctx context.Context, formID string) (map[string]
 
 // ListResponses lists responses for a Google Form.
 func (fs *FormsService) ListResponses(ctx context.Context, formID string, limit int) ([]map[string]interface{}, error) {
-	opts, err := fs.client.ServiceInit(ctx, "forms")
-	if err != nil {
+	if err := fs.client.WaitRate(ctx, "forms"); err != nil {
 		return nil, err
 	}
 
-	svc, err := forms.NewService(ctx, opts...)
+	svc, err := fs.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create forms service: %w", err)
+		return nil, err
 	}
 
 	if limit <= 0 {
@@ -190,14 +202,13 @@ func (fs *FormsService) ListResponses(ctx context.Context, formID string, limit 
 
 // GetResponse retrieves a single form response by ID.
 func (fs *FormsService) GetResponse(ctx context.Context, formID, responseID string) (map[string]interface{}, error) {
-	opts, err := fs.client.ServiceInit(ctx, "forms")
-	if err != nil {
+	if err := fs.client.WaitRate(ctx, "forms"); err != nil {
 		return nil, err
 	}
 
-	svc, err := forms.NewService(ctx, opts...)
+	svc, err := fs.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create forms service: %w", err)
+		return nil, err
 	}
 
 	r, err := svc.Forms.Responses.Get(formID, responseID).Do()

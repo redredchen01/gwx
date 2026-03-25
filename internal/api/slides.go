@@ -10,6 +10,34 @@ import (
 	"google.golang.org/api/slides/v1"
 )
 
+func (ss *SlidesService) service(ctx context.Context) (*slides.Service, error) {
+	svc, err := ss.client.GetOrCreateService("slides:v1", func() (any, error) {
+		opts, err := ss.client.ClientOptions(ctx, "slides")
+		if err != nil {
+			return nil, err
+		}
+		return slides.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create slides service: %w", err)
+	}
+	return svc.(*slides.Service), nil
+}
+
+func (ss *SlidesService) driveService(ctx context.Context) (*drive.Service, error) {
+	svc, err := ss.client.GetOrCreateService("drive:v3", func() (any, error) {
+		opts, err := ss.client.ClientOptions(ctx, "drive")
+		if err != nil {
+			return nil, err
+		}
+		return drive.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create drive service: %w", err)
+	}
+	return svc.(*drive.Service), nil
+}
+
 // SlidesService wraps Google Slides API operations.
 type SlidesService struct {
 	client *Client
@@ -39,14 +67,13 @@ type SlideSummary struct {
 
 // GetPresentation retrieves a presentation's structure.
 func (ss *SlidesService) GetPresentation(ctx context.Context, presentationID string) (*PresentationSummary, error) {
-	opts, err := ss.client.ServiceInit(ctx, "slides")
-	if err != nil {
+	if err := ss.client.WaitRate(ctx, "slides"); err != nil {
 		return nil, err
 	}
 
-	svc, err := slides.NewService(ctx, opts...)
+	svc, err := ss.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create slides service: %w", err)
+		return nil, err
 	}
 
 	pres, err := svc.Presentations.Get(presentationID).Do()
@@ -80,14 +107,13 @@ func (ss *SlidesService) GetPresentation(ctx context.Context, presentationID str
 
 // ListPresentations lists presentations in Drive.
 func (ss *SlidesService) ListPresentations(ctx context.Context, limit int64) ([]FileSummary, error) {
-	opts, err := ss.client.ServiceInit(ctx, "drive")
-	if err != nil {
+	if err := ss.client.WaitRate(ctx, "drive"); err != nil {
 		return nil, err
 	}
 
-	svc, err := drive.NewService(ctx, opts...)
+	svc, err := ss.driveService(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create drive service: %w", err)
+		return nil, err
 	}
 
 	if limit <= 0 {
@@ -119,14 +145,13 @@ func (ss *SlidesService) ListPresentations(ctx context.Context, limit int64) ([]
 
 // CreatePresentation creates a new empty presentation.
 func (ss *SlidesService) CreatePresentation(ctx context.Context, title string) (*PresentationSummary, error) {
-	opts, err := ss.client.ServiceInit(ctx, "slides")
-	if err != nil {
+	if err := ss.client.WaitRate(ctx, "slides"); err != nil {
 		return nil, err
 	}
 
-	svc, err := slides.NewService(ctx, opts...)
+	svc, err := ss.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create slides service: %w", err)
+		return nil, err
 	}
 
 	pres, err := svc.Presentations.Create(&slides.Presentation{
@@ -145,14 +170,13 @@ func (ss *SlidesService) CreatePresentation(ctx context.Context, title string) (
 
 // DuplicatePresentation copies a presentation via Drive API.
 func (ss *SlidesService) DuplicatePresentation(ctx context.Context, presentationID, newTitle string) (*FileSummary, error) {
-	opts, err := ss.client.ServiceInit(ctx, "drive")
-	if err != nil {
+	if err := ss.client.WaitRate(ctx, "drive"); err != nil {
 		return nil, err
 	}
 
-	svc, err := drive.NewService(ctx, opts...)
+	svc, err := ss.driveService(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create drive service: %w", err)
+		return nil, err
 	}
 
 	copied, err := svc.Files.Copy(presentationID, &drive.File{
@@ -171,14 +195,13 @@ func (ss *SlidesService) DuplicatePresentation(ctx context.Context, presentation
 
 // ExportPresentation exports a presentation to PDF or PPTX.
 func (ss *SlidesService) ExportPresentation(ctx context.Context, presentationID, format, outputPath string) (string, error) {
-	opts, err := ss.client.ServiceInit(ctx, "drive")
-	if err != nil {
+	if err := ss.client.WaitRate(ctx, "drive"); err != nil {
 		return "", err
 	}
 
-	svc, err := drive.NewService(ctx, opts...)
+	svc, err := ss.driveService(ctx)
 	if err != nil {
-		return "", fmt.Errorf("create drive service: %w", err)
+		return "", err
 	}
 
 	var mimeType string
@@ -241,14 +264,13 @@ func (ss *SlidesService) FromSheet(ctx context.Context, templateID, sheetID, she
 	headers := data.Values[0]
 	firstRow := data.Values[1] // Use first data row for replacement
 
-	opts, err := ss.client.ServiceInit(ctx, "slides")
-	if err != nil {
+	if err := ss.client.WaitRate(ctx, "slides"); err != nil {
 		return nil, err
 	}
 
-	svc, err := slides.NewService(ctx, opts...)
+	svc, err := ss.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create slides service: %w", err)
+		return nil, err
 	}
 
 	var requests []*slides.Request
