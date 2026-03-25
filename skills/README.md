@@ -1,103 +1,48 @@
 # gwx Skills
 
-Skills are YAML pipelines that chain gwx tools into reusable workflows.
+19 curated YAML skills. Each composes 2+ MCP tools into a reusable workflow.
 
-## Skill Catalog
+**Principle**: Single-tool wrappers belong in CLI, not skills. A skill must combine multiple tools.
 
-### Google Workspace (`google-*`)
+## Google Workspace (9)
 
-| Skill | Services | Description |
-|-------|----------|-------------|
-| `google-morning-brief` | Gmail, Calendar, Tasks | Morning standup brief — unread emails, today's calendar, and pending tasks in one view. |
-| `google-email-digest` | Gmail | Smart email digest — categorizes recent emails by sender and type with a summary. |
-| `google-meeting-notes` | Calendar, Docs | Generate meeting note templates from upcoming calendar events. |
-| `google-task-report` | Tasks | Task productivity report — lists all task lists and items. |
-| `google-drive-audit` | Drive | Drive file audit — lists files sorted by modification time. |
-| `google-doc-from-sheet` | Sheets, Docs | Generate a Google Doc from spreadsheet data. |
-| `google-sheet-compare` | Sheets | Compare two spreadsheet tabs with cell-level diffs. |
-| `google-contact-export` | Contacts, Sheets | Export contacts to a Google Sheet. |
-| `google-invoice-log` | Gmail, Sheets | Search Gmail for invoices/receipts and log them to a Sheet. |
-| `google-chat-summary` | Chat | Read recent messages from a Google Chat space. |
-| `google-ga4-realtime` | Analytics | GA4 realtime snapshot — active users by country and device. |
-| `google-seo-daily` | Search Console, Analytics, Sheets | Daily SEO snapshot — Search Console + GA4 traffic, saved to Sheets. |
-| `google-bq-to-sheet` | BigQuery, Sheets | Run a BigQuery SQL query and archive results to a Sheet. |
+| Skill | Steps | What it does |
+|-------|-------|-------------|
+| `google-morning-brief` | 3 | Unread emails + today's calendar + pending tasks |
+| `google-invoice-log` | 2 | Search Gmail for invoices → append to Sheets |
+| `google-meeting-notes` | 2 | Today's meetings → create Google Doc |
+| `google-doc-from-sheet` | 2 | Read spreadsheet → generate Google Doc |
+| `google-contact-export` | 2 | List contacts → append to Sheets |
+| `google-bq-to-sheet` | 2 | BigQuery SQL → save to Sheets |
+| `google-seo-daily` | 3 | Search Console + GA4 → save to Sheets |
+| `google-task-report` | 2 | List task lists + fetch tasks |
+| `cross-daily-report` | 2 | Chains morning-brief + seo-daily (sub-skill) |
 
-### GitHub (`github-*`)
+## GitHub Integration (3)
 
-| Skill | Services | Description |
-|-------|----------|-------------|
-| `github-issue-to-sheet` | GitHub, Sheets | Export GitHub Issues to a Google Sheet for project tracking. |
-| `github-pr-to-slack` | GitHub, Slack | Post open PR count to a Slack channel. |
-| `github-ci-alert` | GitHub, Slack, Gmail | CI failure alerts via Slack and/or email. |
+| Skill | Steps | What it does |
+|-------|-------|-------------|
+| `github-issue-to-sheet` | 3 | Issues → transform → Google Sheets |
+| `github-pr-to-slack` | 3 | Open PRs → transform → Slack notification |
+| `github-ci-alert` | 3 | CI runs → conditional Slack + Gmail alert |
 
-### Cross-Provider (`cross-*`)
+## Cross-Provider (7)
 
-| Skill | Services | Description |
-|-------|----------|-------------|
-| `cross-client-360` | Gmail, Drive, Contacts | Client 360 view — aggregates emails, files, and contacts for a client keyword. |
-| `cross-full-context` | Gmail, Drive, Slack, Notion, GitHub | Cross-platform keyword search across 5 services in parallel. |
-| `cross-github-standup` | GitHub, Gmail, Calendar | Developer standup — PRs + unread email + calendar in parallel. |
-| `cross-daily-report` | Gmail, Calendar, Tasks, Search Console, Analytics, Sheets | Combined daily report — morning brief + SEO snapshot. |
-| `cross-weekly-sync` | Gmail, Calendar, Analytics, GitHub | Automated weekly report aggregating email, events, GA4, and PRs. |
-| `cross-onboard-checklist` | Drive, Docs, Calendar, Slack, Gmail | New hire onboarding — folder, welcome doc, meeting, and notifications. |
-| `cross-form-to-slack` | Forms, Slack | Google Forms response notifications to Slack. |
-| `cross-notion-to-sheet` | Notion, Sheets | Sync a Notion database to a Google Sheet. |
+| Skill | Steps | What it does |
+|-------|-------|-------------|
+| `cross-client-360` | 3 | Gmail + Drive + Contacts parallel search |
+| `cross-github-standup` | 3 | GitHub PRs + Gmail + Calendar parallel standup |
+| `cross-full-context` | 5 | Gmail + Drive + Slack + Notion + GitHub parallel search |
+| `cross-weekly-sync` | 4 | GA4 + GitHub + Gmail + Calendar weekly digest |
+| `cross-onboard-checklist` | 5 | Drive + Docs + Calendar + Slack + Gmail onboarding |
+| `cross-form-to-slack` | 3 | Forms responses → transform → Slack |
+| `cross-notion-to-sheet` | 2 | Notion DB → Google Sheets sync |
 
-## Structure
-
-```yaml
-name: my-skill
-version: "1.0"
-description: "What the skill does"
-
-meta:
-  author: gwx
-  category: google
-  tags: gmail,sheets
-
-inputs:
-  - name: query
-    type: string
-    required: true
-    description: "Search term"
-
-steps:
-  - id: search
-    tool: gmail_search
-    args:
-      query: "{{.input.query}}"
-
-  - id: save
-    tool: sheets_append
-    args:
-      spreadsheet_id: "{{.input.sheet-id}}"
-      values: "{{.steps.search}}"
-    on_fail: skip
-
-output: "{{.steps.search}}"
-```
-
-## Managing Skills
+## Quick Start
 
 ```bash
-# List all installed skills
-gwx skill list
-
-# Validate a skill file
-gwx skill validate ./my-skill.yaml
-
-# Install from file or URL
-gwx skill install ./my-skill.yaml
-gwx skill install https://raw.githubusercontent.com/user/repo/main/skills/foo.yaml
-
-# Inspect or remove
-gwx skill inspect my-skill
-gwx skill remove my-skill
+gwx skill list                         # List all
+gwx skill run google-morning-brief     # Run
+gwx skill test google-morning-brief    # Test with mock data
+gwx skill create my-skill              # Scaffold
 ```
-
-## Skill Locations
-
-- **User skills**: `~/.config/gwx/skills/` (installed via `gwx skill install`)
-- **Project skills**: `./skills/` in your project root (committed to git)
-
-Project skills override user skills with the same name.

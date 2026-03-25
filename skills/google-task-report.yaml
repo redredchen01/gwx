@@ -1,6 +1,6 @@
 name: google-task-report
-version: "1.0"
-description: "Task productivity report — lists all task lists and their items, optionally including completed tasks."
+version: "1.1"
+description: "Task productivity report — lists all task lists, then fetches tasks from the default list."
 
 meta:
   author: gwx
@@ -11,8 +11,13 @@ inputs:
   - name: show-completed
     type: bool
     required: false
-    default: "true"
-    description: "Include completed tasks in the report"
+    default: "false"
+    description: "Include completed tasks"
+  - name: list-id
+    type: string
+    required: false
+    default: "@default"
+    description: "Task list ID (use @default for primary list, or get IDs from step 1)"
 
 steps:
   - id: lists
@@ -22,6 +27,7 @@ steps:
   - id: tasks
     tool: tasks_list
     args:
+      list_id: "{{.input.list-id}}"
       show_completed: "{{.input.show-completed}}"
 
 output: "{{.steps.tasks}}"

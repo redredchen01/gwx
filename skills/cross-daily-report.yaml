@@ -1,34 +1,23 @@
 name: cross-daily-report
-version: "1.0"
-description: "Combined daily report — runs morning-brief (email + calendar + tasks) and seo-daily (SEO snapshot) together."
+version: "1.1"
+description: "Combined daily report — morning-brief + seo-daily. SEO params use config fallback."
 
 meta:
   author: gwx
   category: cross
   tags: gmail,calendar,tasks,seo,sheets
+  config_hint: |
+    Pre-configure SEO params once:
+    gwx config set skill.google-seo-daily.site https://example.com
+    gwx config set skill.google-seo-daily.property-id properties/123456
+    gwx config set skill.google-seo-daily.sheet-id YOUR_SHEET_ID
 
 inputs:
   - name: email-limit
     type: int
     required: false
     default: "20"
-    description: "Max unread emails for the morning brief"
-  - name: site
-    type: string
-    required: true
-    description: "Website URL (e.g. https://example.com) for SEO report"
-  - name: property-id
-    type: string
-    required: true
-    description: "GA4 Property ID (e.g. properties/123456) for SEO report"
-  - name: sheet-id
-    type: string
-    required: true
-    description: "Target Spreadsheet ID for SEO archiving"
-  - name: start-date
-    type: string
-    required: true
-    description: "SEO report start date in YYYY-MM-DD format (e.g. 2026-03-18)"
+    description: "Max unread emails for morning brief"
 
 steps:
   - id: standup
@@ -39,11 +28,7 @@ steps:
 
   - id: seo
     tool: skill:google-seo-daily
-    args:
-      site: "{{.input.site}}"
-      property-id: "{{.input.property-id}}"
-      sheet-id: "{{.input.sheet-id}}"
-      start-date: "{{.input.start-date}}"
+    args: {}
     on_fail: skip
 
 output: "{{.steps.standup}}"

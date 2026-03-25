@@ -1,29 +1,37 @@
 name: google-seo-daily
-version: "1.0"
-description: "Daily SEO snapshot — Search Console performance + GA4 traffic for the past 7 days, saved to Sheets."
+version: "1.1"
+description: "Daily SEO snapshot — Search Console + GA4 traffic, saved to Sheets. Set recurring config with gwx config set."
 
 meta:
   author: gwx
   category: google
   tags: searchconsole,analytics,sheets,seo
+  config_hint: |
+    gwx config set skill.google-seo-daily.site https://example.com
+    gwx config set skill.google-seo-daily.property-id properties/123456
+    gwx config set skill.google-seo-daily.sheet-id YOUR_SHEET_ID
 
 inputs:
   - name: site
     type: string
-    required: true
-    description: "Website URL (e.g. https://example.com)"
+    required: false
+    default: ""
+    description: "Website URL — falls back to config skill.google-seo-daily.site"
   - name: property-id
     type: string
-    required: true
-    description: "GA4 Property ID (e.g. properties/123456)"
+    required: false
+    default: ""
+    description: "GA4 Property ID — falls back to config"
   - name: sheet-id
     type: string
-    required: true
-    description: "Target Spreadsheet ID for archiving results"
+    required: false
+    default: ""
+    description: "Target Spreadsheet ID — falls back to config"
   - name: start-date
     type: string
-    required: true
-    description: "Start date in YYYY-MM-DD format (e.g. 2026-03-18)"
+    required: false
+    default: "2026-03-18"
+    description: "Start date YYYY-MM-DD (SC requires absolute date)"
 
 steps:
   - id: search-perf
@@ -46,6 +54,7 @@ steps:
 
   - id: save
     tool: sheets_append
+    if: "{{.input.sheet-id}}"
     args:
       spreadsheet_id: "{{.input.sheet-id}}"
       range: "SEO!A:E"
