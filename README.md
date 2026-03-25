@@ -7,11 +7,17 @@ A unified CLI + MCP server for Google Workspace, GitHub, Slack, and Notion — G
 ## Install
 
 ```bash
-# npm (recommended — auto-downloads pre-built binary)
+# One-liner (macOS/Linux — downloads pre-built binary to /usr/local/bin)
+curl -fsSL https://raw.githubusercontent.com/redredchen01/gwx/main/install-bin.sh | sudo bash
+
+# npm (auto-downloads pre-built binary)
 npm install -g gwx-cli
 
 # Go
 go install github.com/redredchen01/gwx/cmd/gwx@latest
+
+# Homebrew
+brew install redredchen01/tap/gwx
 
 # From source
 git clone https://github.com/redredchen01/gwx.git

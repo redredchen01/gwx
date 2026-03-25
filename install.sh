@@ -72,7 +72,20 @@ for recipe in "$SCRIPT_DIR"/skill/recipes/*.md; do
     echo "  ✓ Recipe: gwx-${name}"
 done
 
-# --- Step 3: Verify ---
+# --- Step 3: Install YAML skills ---
+echo ""
+echo "→ Installing YAML skills..."
+GWX_SKILLS_DIR="$HOME/.config/gwx/skills"
+mkdir -p "$GWX_SKILLS_DIR"
+
+for skill_file in "$SCRIPT_DIR"/skills/*.yaml "$SCRIPT_DIR"/skills/*.yml; do
+    [ -f "$skill_file" ] || continue
+    name="$(basename "$skill_file")"
+    cp "$skill_file" "$GWX_SKILLS_DIR/$name"
+    echo "  ✓ Skill: $name"
+done
+
+# --- Step 4: Verify ---
 echo ""
 echo "→ Verifying..."
 
