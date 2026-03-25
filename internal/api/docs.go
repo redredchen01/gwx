@@ -11,6 +11,34 @@ import (
 	"google.golang.org/api/drive/v3"
 )
 
+func (ds *DocsService) service(ctx context.Context) (*docs.Service, error) {
+	svc, err := ds.client.GetOrCreateService("docs:v1", func() (any, error) {
+		opts, err := ds.client.ClientOptions(ctx, "docs")
+		if err != nil {
+			return nil, err
+		}
+		return docs.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create docs service: %w", err)
+	}
+	return svc.(*docs.Service), nil
+}
+
+func (ds *DocsService) driveService(ctx context.Context) (*drive.Service, error) {
+	svc, err := ds.client.GetOrCreateService("drive:v3", func() (any, error) {
+		opts, err := ds.client.ClientOptions(ctx, "drive")
+		if err != nil {
+			return nil, err
+		}
+		return drive.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create drive service: %w", err)
+	}
+	return svc.(*drive.Service), nil
+}
+
 // DocsService wraps Google Docs API operations.
 type DocsService struct {
 	client *Client
@@ -35,14 +63,9 @@ func (ds *DocsService) GetDocument(ctx context.Context, docID string) (*DocSumma
 		return nil, err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "docs")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := docs.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create docs service: %w", err)
 	}
 
 	doc, err := svc.Documents.Get(docID).Do()
@@ -66,14 +89,9 @@ func (ds *DocsService) CreateDocument(ctx context.Context, title string, body st
 		return nil, err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "docs")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := docs.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create docs service: %w", err)
 	}
 
 	doc := &docs.Document{Title: title}
@@ -118,14 +136,9 @@ func (ds *DocsService) AppendText(ctx context.Context, docID string, text string
 		return err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "docs")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return err
-	}
-
-	svc, err := docs.NewService(ctx, opts...)
-	if err != nil {
-		return fmt.Errorf("create docs service: %w", err)
 	}
 
 	// Get document to find end index
@@ -210,14 +223,9 @@ func (ds *DocsService) ReplaceText(ctx context.Context, docID, findText, replace
 		return 0, err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "docs")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return 0, err
-	}
-
-	svc, err := docs.NewService(ctx, opts...)
-	if err != nil {
-		return 0, fmt.Errorf("create docs service: %w", err)
 	}
 
 	req := &docs.BatchUpdateDocumentRequest{
@@ -309,14 +317,9 @@ func (ds *DocsService) ExportDocument(ctx context.Context, docID string, format 
 		return "", err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "drive")
+	drvSvc, err := ds.driveService(ctx)
 	if err != nil {
 		return "", err
-	}
-
-	drvSvc, err := drive.NewService(ctx, opts...)
-	if err != nil {
-		return "", fmt.Errorf("create drive service: %w", err)
 	}
 
 	mimeType := exportMimeType(format)
