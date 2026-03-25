@@ -1,7 +1,7 @@
 # gwx 使用指南
 
 gwx 是一個統一的 CLI + MCP Server 工具，支援兩種使用方式：
-- **人類** — 在終端機直接下指令操作 Gmail、Calendar、Drive、Docs、Sheets、Tasks、Contacts、Chat、Analytics、Search Console、Slides、Forms、BigQuery、GitHub、Slack、Notion 共 16 個服務
+- **人類** — 在終端機直接下指令操作 Gmail、Calendar、Drive、Docs、Sheets、Tasks、Contacts、Chat、Analytics、Search Console、Slides、Forms、BigQuery、GitHub、Slack、Notion、Obsidian 共 17 個服務
 - **AI Agent** — 作為 MCP Server 或 Bash 工具，讓 Claude Code / Codex 等 LLM 代理程式直接操作
 
 ---
@@ -77,6 +77,14 @@ gwx onboard
 驗證認證狀態：
 ```bash
 gwx auth status
+```
+
+### Step 3（選用）：設定 Obsidian Vault
+
+如果你要使用 Obsidian 相關功能，需要指定 Vault 路徑：
+
+```bash
+gwx obsidian setup /path/to/your/vault
 ```
 
 ---
@@ -313,6 +321,23 @@ gwx notion databases                                         # 列出資料庫
 gwx notion query DATABASE_ID --filter '{"property":"Status","select":{"equals":"Done"}}'  # 查詢
 ```
 
+#### Obsidian（10 個指令）
+
+```bash
+gwx obsidian setup /path/to/vault                           # 設定 Vault 路徑
+gwx obsidian list [--folder FOLDER] [--limit N]              # 列出筆記
+gwx obsidian search "keyword" [--limit N]                    # 搜尋筆記內容（不區分大小寫）
+gwx obsidian read "note-name"                                # 讀取筆記（含 frontmatter、tags、links）
+gwx obsidian create "note-name" --content "# Title\n..."     # 建立筆記（自動加 .md）
+gwx obsidian append "note-name" --text "追加內容"            # 追加內容到現有筆記
+gwx obsidian daily --content "今天做了什麼"                  # 建立/追加每日筆記（YYYY-MM-DD.md）
+gwx obsidian tags                                            # 列出所有 #tag 及出現次數
+gwx obsidian recent [--limit N]                              # 最近修改的筆記（依時間排序）
+gwx obsidian folders                                         # 列出 Vault 中的資料夾
+```
+
+> Obsidian 操作為純本地檔案系統操作，不需要網路連線。使用前需先用 `gwx obsidian setup` 設定 Vault 路徑。
+
 #### Workflow（13 個指令）
 
 ```bash
@@ -419,7 +444,7 @@ MCP（Model Context Protocol）讓 Claude 直接呼叫 gwx 的工具，不需要
 
 #### 運作方式
 
-啟動後，Claude 可以直接呼叫 123 個 MCP tool。Agent 直接傳 JSON 參數呼叫，不需要組裝 CLI 指令字串。
+啟動後，Claude 可以直接呼叫 133 個 MCP tool。Agent 直接傳 JSON 參數呼叫，不需要組裝 CLI 指令字串。
 
 #### MCP Tool 命名規則
 
@@ -454,12 +479,17 @@ CLI 指令對應到 MCP tool 的命名：`<service>_<command>`
 | `gwx slack send` | `slack_send` |
 | `gwx notion search` | `notion_search` |
 | `gwx notion query` | `notion_query` |
+| `gwx obsidian list` | `obsidian_list` |
+| `gwx obsidian search` | `obsidian_search` |
+| `gwx obsidian read` | `obsidian_read` |
+| `gwx obsidian daily` | `obsidian_daily` |
+| `gwx obsidian tags` | `obsidian_tags` |
 | `gwx find` | `unified_search` |
 | `gwx context` | `context_gather` |
 | `gwx standup` | `workflow_standup` |
 | `gwx config set` | `config_set` |
 
-#### 完整 MCP 工具參考（123 tools）
+#### 完整 MCP 工具參考（133 tools）
 
 ##### Gmail（11 tools）
 
@@ -639,6 +669,21 @@ CLI 指令對應到 MCP tool 的命名：`<service>_<command>`
 | `notion_create_page` | 建立頁面 |
 | `notion_databases` | 列出資料庫 |
 | `notion_query` | 查詢資料庫 |
+
+##### Obsidian（10 tools）
+
+| 工具 | 說明 |
+|------|------|
+| `obsidian_setup` | 設定 Vault 路徑 |
+| `obsidian_list` | 列出筆記 |
+| `obsidian_search` | 搜尋筆記內容 |
+| `obsidian_read` | 讀取筆記 |
+| `obsidian_create` | 建立筆記 |
+| `obsidian_append` | 追加內容 |
+| `obsidian_daily` | 每日筆記 |
+| `obsidian_tags` | 列出 #tag |
+| `obsidian_recent` | 最近修改 |
+| `obsidian_folders` | 列出資料夾 |
 
 ##### Config（3 tools）
 
@@ -1005,7 +1050,7 @@ gwx skill install <url|path>        # 從本地檔案或 URL 安裝到 ~/.config
 gwx skill remove <name>             # 從 ~/.config/gwx/skills/ 移除
 ```
 
-### 內建 Skills（19 個）
+### 內建 Skills（22 個）
 
 #### Google 系列（8 個）
 

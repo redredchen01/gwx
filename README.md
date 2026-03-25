@@ -1,8 +1,8 @@
 # gwx — Google Workspace CLI for Humans and Agents
 
-A unified CLI + MCP server for Google Workspace, GitHub, Slack, and Notion. One binary gives you Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console, Slides, Forms, BigQuery, GitHub, Slack, and Notion — from the terminal or through any LLM agent.
+A unified CLI + MCP server for Google Workspace, GitHub, Slack, Notion, and Obsidian. One binary gives you Gmail, Calendar, Drive, Docs, Sheets, Tasks, Contacts, Chat, Analytics, Search Console, Slides, Forms, BigQuery, GitHub, Slack, Notion, and Obsidian — from the terminal or through any LLM agent.
 
-**140+ CLI commands · 123 MCP tools · 19 YAML skills · 16 services**
+**150+ CLI commands · 133 MCP tools · 22 YAML skills · 17 services**
 
 ## Install
 
@@ -65,6 +65,7 @@ gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 | **GitHub** | 10 | `login` `logout` `status` `repos` `issues` `pulls` `pull` `runs` `notify` `create issue` |
 | **Slack** | 7 | `login` `status` `channels` `send` `messages` `search` `users` |
 | **Notion** | 7 | `login` `status` `search` `page` `create` `databases` `query` |
+| **Obsidian** | 10 | `setup` `list` `search` `read` `create` `append` `daily` `tags` `recent` `folders` |
 | **Skill** | 8 | `list` `inspect` `validate` `run` `create` `test` `install` `remove` |
 | **Config** | 3 | `set` `get` `list` |
 | **Workflow** | 13 | `standup` `meeting-prep` + `workflow` subgroup: `weekly-digest` `context-boost` `bug-intake` `test-matrix` `spec-health` `sprint-board` `review-notify` `email-from-doc` `sheet-to-email` `parallel-schedule` |
@@ -150,7 +151,7 @@ gwx slides from-sheet --template TEMPLATE_ID --sheet-id SHEET_ID --range "A:D"
 
 ## Skill DSL — YAML-Defined Workflows
 
-Define multi-step workflows in YAML — no Go code, no recompilation. 19 built-in skills covering Google, GitHub, Slack, and Notion cross-service workflows:
+Define multi-step workflows in YAML — no Go code, no recompilation. 22 built-in skills covering Google, GitHub, Slack, Notion, and Obsidian cross-service workflows:
 
 ```yaml
 # skills/google-morning-brief.yaml
@@ -179,7 +180,7 @@ gwx skill create my-new-skill            # Scaffold a new skill
 
 Skills support **parallel execution**, **each loops**, **transform pipes**, **conditional steps** (`if:`), and **skill composition** (`tool: skill:<name>`). Skills auto-register as MCP tools (`skill_google-morning-brief`). See [USAGE.md](USAGE.md) for the full DSL reference and complete skill list.
 
-## MCP Server (123 Tools)
+## MCP Server (133 Tools)
 
 Native Claude integration — no Bash needed:
 
