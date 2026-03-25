@@ -23,14 +23,9 @@ func (gs *GmailService) SendMessage(ctx context.Context, input *SendInput) (*Sen
 		return nil, err
 	}
 
-	opts, err := gs.client.ClientOptions(ctx, "gmail")
+	svc, err := gs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := gmail.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create gmail service: %w", err)
 	}
 
 	raw, err := buildRawMessage(input)
@@ -61,14 +56,9 @@ func (gs *GmailService) CreateDraft(ctx context.Context, input *SendInput) (*Sen
 		return nil, err
 	}
 
-	opts, err := gs.client.ClientOptions(ctx, "gmail")
+	svc, err := gs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := gmail.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create gmail service: %w", err)
 	}
 
 	raw, err := buildRawMessage(input)
@@ -165,14 +155,9 @@ func (gs *GmailService) ArchiveMessages(ctx context.Context, query string, maxMe
 		return 0, err
 	}
 
-	opts, err := gs.client.ClientOptions(ctx, "gmail")
+	svc, err := gs.service(ctx)
 	if err != nil {
 		return 0, err
-	}
-
-	svc, err := gmail.NewService(ctx, opts...)
-	if err != nil {
-		return 0, fmt.Errorf("create gmail service: %w", err)
 	}
 
 	// List matching messages
@@ -209,14 +194,9 @@ func (gs *GmailService) MarkRead(ctx context.Context, query string, maxMessages 
 		return 0, err
 	}
 
-	opts, err := gs.client.ClientOptions(ctx, "gmail")
+	svc, err := gs.service(ctx)
 	if err != nil {
 		return 0, err
-	}
-
-	svc, err := gmail.NewService(ctx, opts...)
-	if err != nil {
-		return 0, fmt.Errorf("create gmail service: %w", err)
 	}
 
 	call := svc.Users.Messages.List("me").Q(query)
@@ -253,14 +233,9 @@ func (gs *GmailService) BatchModifyLabels(ctx context.Context, query string, add
 		return 0, err
 	}
 
-	opts, err := gs.client.ClientOptions(ctx, "gmail")
+	svc, err := gs.service(ctx)
 	if err != nil {
 		return 0, err
-	}
-
-	svc, err := gmail.NewService(ctx, opts...)
-	if err != nil {
-		return 0, fmt.Errorf("create gmail service: %w", err)
 	}
 
 	// Resolve label names to IDs

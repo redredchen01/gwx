@@ -7,20 +7,29 @@ import (
 	"google.golang.org/api/gmail/v1"
 )
 
+func (gs *GmailService) service(ctx context.Context) (*gmail.Service, error) {
+	svc, err := gs.client.GetOrCreateService("gmail:v1", func() (any, error) {
+		opts, err := gs.client.ClientOptions(ctx, "gmail")
+		if err != nil {
+			return nil, err
+		}
+		return gmail.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create gmail service: %w", err)
+	}
+	return svc.(*gmail.Service), nil
+}
+
 // ListMessages lists messages with optional filters.
 func (gs *GmailService) ListMessages(ctx context.Context, query string, labelIDs []string, maxResults int64, unreadOnly bool) ([]MessageSummary, int64, error) {
 	if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
 		return nil, 0, err
 	}
 
-	opts, err := gs.client.ClientOptions(ctx, "gmail")
+	svc, err := gs.service(ctx)
 	if err != nil {
 		return nil, 0, err
-	}
-
-	svc, err := gmail.NewService(ctx, opts...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("create gmail service: %w", err)
 	}
 
 	call := svc.Users.Messages.List("me")
@@ -71,14 +80,9 @@ func (gs *GmailService) GetMessage(ctx context.Context, messageID string) (*Mess
 		return nil, err
 	}
 
-	opts, err := gs.client.ClientOptions(ctx, "gmail")
+	svc, err := gs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := gmail.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create gmail service: %w", err)
 	}
 
 	msg, err := svc.Users.Messages.Get("me", messageID).Format("full").Do()
@@ -101,14 +105,9 @@ func (gs *GmailService) ListLabels(ctx context.Context) ([]map[string]string, er
 		return nil, err
 	}
 
-	opts, err := gs.client.ClientOptions(ctx, "gmail")
+	svc, err := gs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := gmail.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create gmail service: %w", err)
 	}
 
 	resp, err := svc.Users.Labels.List("me").Do()

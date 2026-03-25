@@ -12,6 +12,20 @@ import (
 	"google.golang.org/api/drive/v3"
 )
 
+func (ds *DriveService) service(ctx context.Context) (*drive.Service, error) {
+	svc, err := ds.client.GetOrCreateService("drive:v3", func() (any, error) {
+		opts, err := ds.client.ClientOptions(ctx, "drive")
+		if err != nil {
+			return nil, err
+		}
+		return drive.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create drive service: %w", err)
+	}
+	return svc.(*drive.Service), nil
+}
+
 // DriveService wraps Drive API operations.
 type DriveService struct {
 	client *Client
@@ -49,14 +63,9 @@ func (ds *DriveService) ListFiles(ctx context.Context, folderID string, maxResul
 		return nil, err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "drive")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := drive.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create drive service: %w", err)
 	}
 
 	query := "trashed = false"
@@ -106,14 +115,9 @@ func (ds *DriveService) SearchFiles(ctx context.Context, query string, maxResult
 		return nil, err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "drive")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := drive.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create drive service: %w", err)
 	}
 
 	// Wrap user query with trashed filter
@@ -151,14 +155,9 @@ func (ds *DriveService) UploadFile(ctx context.Context, localPath string, folder
 		return nil, err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "drive")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := drive.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create drive service: %w", err)
 	}
 
 	f, err := os.Open(localPath)
@@ -195,14 +194,9 @@ func (ds *DriveService) DownloadFile(ctx context.Context, fileID string, outputP
 		return "", err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "drive")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return "", err
-	}
-
-	svc, err := drive.NewService(ctx, opts...)
-	if err != nil {
-		return "", fmt.Errorf("create drive service: %w", err)
 	}
 
 	// Get file metadata for name and size
@@ -268,14 +262,9 @@ func (ds *DriveService) CreateFolder(ctx context.Context, name string, parentID 
 		return nil, err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "drive")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := drive.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create drive service: %w", err)
 	}
 
 	meta := &drive.File{
