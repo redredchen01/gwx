@@ -15,6 +15,7 @@ type Client struct {
 	tokenSource oauth2.TokenSource
 	rateLimiter *ServiceRateLimiter
 	breakers    map[string]*CircuitBreaker
+	services    map[string]any
 	cache       *Cache
 	NoCache     bool
 	endpoint    string       // override API endpoint for testing
@@ -32,6 +33,7 @@ func NewClient(ts oauth2.TokenSource) *Client {
 		tokenSource: ts,
 		rateLimiter: NewServiceRateLimiter(),
 		breakers:    make(map[string]*CircuitBreaker),
+		services:    make(map[string]any),
 		httpClients: make(map[string]*http.Client),
 		cache:       NewCache(CacheConfig{MaxEntries: 1024, DefaultTTL: 5 * time.Minute}),
 	}
@@ -113,6 +115,7 @@ func NewTestClient(httpClient *http.Client, endpoint string) *Client {
 	return &Client{
 		rateLimiter: NewServiceRateLimiter(),
 		breakers:    make(map[string]*CircuitBreaker),
+		services:    make(map[string]any),
 		httpClients: make(map[string]*http.Client),
 		cache:       NewCache(CacheConfig{MaxEntries: 256, DefaultTTL: 5 * time.Minute}),
 		NoCache:     true,
@@ -146,4 +149,28 @@ func (c *Client) ServiceInit(ctx context.Context, service string) ([]option.Clie
 		return nil, err
 	}
 	return c.ClientOptions(ctx, service)
+}
+
+// GetOrCreateService caches expensive Google API service objects per Client instance.
+// It is safe for repeated sequential command use within the same process.
+func (c *Client) GetOrCreateService(key string, factory func() (any, error)) (any, error) {
+	c.mu.Lock()
+	cached := c.services[key]
+	c.mu.Unlock()
+	if cached != nil {
+		return cached, nil
+	}
+
+	created, err := factory()
+	if err != nil {
+		return nil, err
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if cached = c.services[key]; cached != nil {
+		return cached, nil
+	}
+	c.services[key] = created
+	return created, nil
 }
