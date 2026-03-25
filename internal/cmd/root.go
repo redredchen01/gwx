@@ -67,6 +67,7 @@ type CLI struct {
 	Completion CompletionCmd `cmd:"" help:"Generate shell completion scripts"`
 	Doctor     DoctorCmd     `cmd:"" help:"Diagnose configuration and connectivity"`
 	Version    VersionCmd    `cmd:"" help:"Print version"`
+	Update     UpdateCmd     `cmd:"" help:"Check for and install updates"`
 }
 
 // RunContext holds shared state for command execution.

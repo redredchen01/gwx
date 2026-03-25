@@ -3,15 +3,19 @@ VERSION := 0.1.0
 BUILD_DIR := ./build
 MAIN := ./cmd/gwx
 
-.PHONY: build install test vet clean help
+.PHONY: build install release test vet clean help
 
-## build: Build the binary
+## build: Build the binary (stripped, trimpath)
 build:
-	go build -ldflags "-s -w" -o $(BUILD_DIR)/$(APP_NAME) $(MAIN)
+	go build -ldflags "-s -w" -trimpath -o $(BUILD_DIR)/$(APP_NAME) $(MAIN)
 
 ## install: Install to $GOPATH/bin
 install:
-	go install -ldflags "-s -w" $(MAIN)
+	go install -ldflags "-s -w" -trimpath $(MAIN)
+
+## release: Cross-compile release binaries
+release:
+	bash scripts/build-release.sh
 
 ## test: Run all tests with race detector
 test:

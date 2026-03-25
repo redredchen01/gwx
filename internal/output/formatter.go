@@ -338,20 +338,38 @@ func (p *Printer) Err(code int, msg string) int {
 
 // suggestedAction returns a user-friendly fix suggestion based on error code and message.
 func suggestedAction(code int, msg string) string {
+	lower := strings.ToLower(msg)
+
 	switch code {
 	case exitcode.AuthRequired:
+		// Detect specific provider from the error message.
+		if strings.Contains(lower, "github") {
+			return "Run 'gwx github login --token <GITHUB_TOKEN>' to configure GitHub access."
+		}
+		if strings.Contains(lower, "slack") {
+			return "Run 'gwx slack login --token <SLACK_TOKEN>' to configure Slack access."
+		}
+		if strings.Contains(lower, "notion") {
+			return "Run 'gwx notion login --token <NOTION_TOKEN>' to configure Notion access."
+		}
 		return "Run 'gwx onboard' to set up credentials, or 'gwx auth login' to sign in."
 	case exitcode.AuthExpired:
+		if strings.Contains(lower, "invalid_grant") || strings.Contains(lower, "revoked") {
+			return "Your token was revoked. Run 'gwx auth login' to re-authenticate."
+		}
 		return "Run 'gwx auth login' to refresh your token."
 	case exitcode.PermissionDenied:
 		if strings.Contains(msg, "allowlist") {
 			return "Add this command to GWX_ENABLE_COMMANDS or remove the restriction."
 		}
+		if strings.Contains(lower, "insufficientpermissions") || strings.Contains(lower, "scope") {
+			return "You may need to re-authorize with required scopes: 'gwx auth login --services gmail,calendar,drive,docs,sheets,tasks,people,chat'"
+		}
 		return "You may need to re-authorize with additional scopes: 'gwx auth login'"
 	case exitcode.NotFound:
 		return "Check the ID/path and try again. Use 'gwx <service> list' to find valid IDs."
 	case exitcode.RateLimited:
-		return "Wait 30 seconds and retry. Google API quota may be exhausted."
+		return "Wait 30 seconds and retry. If persistent, check quota at https://console.cloud.google.com/apis/dashboard"
 	case exitcode.CircuitOpen:
 		return "Google API is unstable. Wait 30 seconds for the circuit breaker to recover."
 	case exitcode.Conflict:

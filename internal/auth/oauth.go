@@ -359,6 +359,12 @@ func (m *Manager) HasToken(account string) bool {
 	return err == nil
 }
 
+// LoadToken retrieves the raw OAuth2 token for the account.
+// This is useful for inspecting token metadata (e.g. expiry time).
+func (m *Manager) LoadToken(account string) (*oauth2.Token, error) {
+	return m.store.LoadToken(account)
+}
+
 // openBrowser tries to open a URL in the default browser.
 func openBrowser(url string) {
 	var cmd string

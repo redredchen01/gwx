@@ -38,7 +38,11 @@
       "Bash(go tool:*)",
       "Bash(sort -t: -k3 -n)",
       "Bash(./build/gwx doctor:*)",
-      "Bash(./build/gwx completion:*)"
+      "Bash(./build/gwx completion:*)",
+      "Bash(chmod:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f\"\"{d[''''data''''][''''count'''']} skills\"\"\\)\")",
+      "Bash(grep -c Name:.*\"\"[a-z_]*\"\" '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_core.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_extended.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_new.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_batch.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_analytics.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_searchconsole.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_slides.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_config.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_workflow.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_forms.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_github.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_slack.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_notion.go' '/Users/dex/YD 2026/0323/gwx 2603/internal/mcp/tools_bigquery.go')",
+      "Bash(find '/Users/dex/YD 2026/0323/gwx 2603/skills' -name *.yaml -type f)"
     ],
     "deny": []
   },
