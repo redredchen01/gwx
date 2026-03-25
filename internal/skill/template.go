@@ -71,11 +71,7 @@ func renderValueWithItem(tmpl string, inputs map[string]string, store map[string
 	return result, nil
 }
 
-func resolveExpr(expr string, inputs map[string]string, store map[string]interface{}) (interface{}, error) {
-	return resolveExprWithItem(expr, inputs, store, nil)
-}
-
-// resolveExprWithItem extends resolveExpr with optional .item namespace.
+// resolveExprWithItem resolves a template expression with optional .item namespace.
 func resolveExprWithItem(expr string, inputs map[string]string, store map[string]interface{}, itemCtx map[string]interface{}) (interface{}, error) {
 	// Strip leading dot: ".input.name" → "input.name"
 	expr = strings.TrimPrefix(expr, ".")

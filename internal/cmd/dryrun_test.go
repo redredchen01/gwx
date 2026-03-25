@@ -25,23 +25,6 @@ func assertDryRun(t *testing.T, cmd interface{ Run(*RunContext) error }, name st
 	}
 }
 
-// assertDryRunJSON verifies the dry_run response is valid JSON with status=ok.
-func assertDryRunJSON(t *testing.T, cmd interface{ Run(*RunContext) error }, name string) {
-	t.Helper()
-	rctx, buf := newDryRunContext(t)
-	err := cmd.Run(rctx)
-	if err != nil {
-		t.Fatalf("[%s] DryRun unexpected error: %v", name, err)
-	}
-	var resp output.Response
-	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
-		t.Fatalf("[%s] DryRun invalid JSON: %v\nraw: %s", name, err, buf.String())
-	}
-	if resp.Status != "ok" {
-		t.Fatalf("[%s] DryRun status = %q, want ok", name, resp.Status)
-	}
-}
-
 // assertAllowlistDenied verifies a command is denied by an unrelated allowlist.
 func assertAllowlistDenied(t *testing.T, cmd interface{ Run(*RunContext) error }, name string) {
 	t.Helper()

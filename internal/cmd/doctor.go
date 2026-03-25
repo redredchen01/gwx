@@ -246,7 +246,7 @@ func checkGoogleAuth(rctx *RunContext) checkResult {
 		return checkResult{
 			Name:    "google",
 			Status:  "warning",
-			Message: fmt.Sprintf("not authenticated (run 'gwx auth login')"),
+			Message: "not authenticated (run 'gwx auth login')",
 			Detail:  fmt.Sprintf("account=%s token=missing", account),
 		}
 	}

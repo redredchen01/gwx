@@ -75,7 +75,7 @@ func (n *NotionClient) QueryDatabase(ctx context.Context, databaseID string, fil
 	body := map[string]interface{}{
 		"page_size": limit,
 	}
-	if filter != nil && len(filter) > 0 {
+	if len(filter) > 0 {
 		body["filter"] = filter
 	}
 

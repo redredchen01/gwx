@@ -399,7 +399,7 @@ func TestAllProviders_ToolNamePrefix(t *testing.T) {
 	tools := h.ListTools()
 
 	for _, tool := range tools {
-		if tool.Name != tool.Name {
+		if tool.Name == "" {
 			t.Errorf("tool name sanity check failed for %q", tool.Name)
 		}
 		// Tool names should not contain spaces

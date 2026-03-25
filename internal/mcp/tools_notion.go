@@ -97,7 +97,7 @@ func resolveNotionClient() (*api.NotionClient, error) {
 	// Fall back to keyring.
 	token, err := auth.LoadProviderToken("notion", "default")
 	if err != nil {
-		return nil, fmt.Errorf("Notion not authenticated. Run 'gwx notion login <token>' or set GWX_NOTION_TOKEN")
+		return nil, fmt.Errorf("notion not authenticated — run 'gwx notion login <token>' or set GWX_NOTION_TOKEN")
 	}
 	return api.NewNotionClient(token), nil
 }

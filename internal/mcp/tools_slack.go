@@ -106,7 +106,7 @@ func resolveSlackClient() (*api.SlackClient, error) {
 	// Fall back to keyring.
 	token, err := auth.LoadProviderToken("slack", "default")
 	if err != nil {
-		return nil, fmt.Errorf("Slack not authenticated. Run 'gwx slack login <token>' or set GWX_SLACK_TOKEN")
+		return nil, fmt.Errorf("slack not authenticated — run 'gwx slack login <token>' or set GWX_SLACK_TOKEN")
 	}
 	return api.NewSlackClient(token), nil
 }
