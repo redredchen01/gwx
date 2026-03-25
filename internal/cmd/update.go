@@ -188,7 +188,7 @@ func downloadBinary(url string, dst *os.File) error {
 func verifyBinary(path string) error {
 	out, err := exec.Command(path, "version").CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("binary failed verification (exit: %v, output: %s)", err, string(out))
+		return fmt.Errorf("binary failed verification (output: %s): %w", string(out), err)
 	}
 	return nil
 }

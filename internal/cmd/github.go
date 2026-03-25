@@ -32,7 +32,7 @@ type GitHubCreateCmd struct {
 // loadGitHubClient loads the GitHub token from keyring and creates a client.
 // Does NOT use Google auth (EnsureAuth) — GitHub auth is independent.
 func loadGitHubClient(rctx *RunContext) (*api.GitHubClient, error) {
-	token, err := auth.LoadProviderToken("github", "default")
+	token, err := auth.LoadProviderToken("github", rctx.Account)
 	if err != nil {
 		return nil, fmt.Errorf("not authenticated with GitHub. Run 'gwx github login --token <PAT>' first")
 	}
@@ -60,7 +60,7 @@ func (c *GitHubLoginCmd) Run(rctx *RunContext) error {
 		return rctx.Printer.ErrExit(exitcode.PermissionDenied, err.Error())
 	}
 
-	if err := auth.SaveProviderToken("github", "default", c.Token); err != nil {
+	if err := auth.SaveProviderToken("github", rctx.Account, c.Token); err != nil {
 		return rctx.Printer.ErrExit(exitcode.GeneralError, fmt.Sprintf("save token: %s", err))
 	}
 
@@ -77,7 +77,7 @@ func (c *GitHubLoginCmd) Run(rctx *RunContext) error {
 type GitHubLogoutCmd struct{}
 
 func (c *GitHubLogoutCmd) Run(rctx *RunContext) error {
-	if err := auth.DeleteProviderToken("github", "default"); err != nil {
+	if err := auth.DeleteProviderToken("github", rctx.Account); err != nil {
 		return rctx.Printer.ErrExit(exitcode.NotFound, "no saved GitHub token")
 	}
 	rctx.Printer.Success(map[string]string{
@@ -93,7 +93,7 @@ func (c *GitHubLogoutCmd) Run(rctx *RunContext) error {
 type GitHubStatusCmd struct{}
 
 func (c *GitHubStatusCmd) Run(rctx *RunContext) error {
-	if auth.HasProviderToken("github", "default") {
+	if auth.HasProviderToken("github", rctx.Account) {
 		rctx.Printer.Success(map[string]string{
 			"provider": "github",
 			"status":   "authenticated",

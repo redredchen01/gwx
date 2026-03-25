@@ -2,6 +2,7 @@ package skill
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,15 +25,13 @@ func LoadAll() ([]*Skill, error) {
 	if err == nil {
 		userDir := filepath.Join(configDir, skillsDirName)
 		if err := loadDir(userDir, seen); err != nil {
-			// Non-fatal: dir may not exist.
-			_ = err
+			slog.Warn("failed to load user skills dir", "dir", userDir, "error", err)
 		}
 	}
 
 	// 2. Project-local skills (./skills/)
 	if err := loadDir(skillsDirName, seen); err != nil {
-		// Non-fatal: dir may not exist.
-		_ = err
+		slog.Warn("failed to load project skills dir", "dir", skillsDirName, "error", err)
 	}
 
 	skills := make([]*Skill, 0, len(seen))

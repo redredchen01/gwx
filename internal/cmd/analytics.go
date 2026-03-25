@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/redredchen01/gwx/internal/api"
 	"github.com/redredchen01/gwx/internal/config"
 	"github.com/redredchen01/gwx/internal/exitcode"
@@ -144,6 +142,3 @@ func (c *AnalyticsAudiencesCmd) Run(rctx *RunContext) error {
 	})
 	return nil
 }
-
-// ensure fmt is used.
-var _ = fmt.Sprintf
