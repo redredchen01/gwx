@@ -1,6 +1,11 @@
-name: ga4-realtime
+name: google-ga4-realtime
 version: "1.0"
-description: "Quick GA4 realtime check — active users right now, broken down by country and device."
+description: "GA4 realtime snapshot — active users right now, broken down by country and device category."
+
+meta:
+  author: gwx
+  category: google
+  tags: analytics,ga4
 
 inputs:
   - name: property
@@ -20,6 +25,5 @@ steps:
       property: "{{.input.property}}"
       metrics: "activeUsers,screenPageViews"
       dimensions: "{{.input.dimensions}}"
-    store: realtime
 
 output: "{{.steps.realtime}}"

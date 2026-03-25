@@ -1,12 +1,17 @@
-name: contact-export
+name: google-contact-export
 version: "1.0"
-description: "Export contacts to a Google Sheet — lists contacts then appends them as rows to a spreadsheet."
+description: "Export contacts to a Google Sheet — lists contacts and appends them as rows to a spreadsheet."
+
+meta:
+  author: gwx
+  category: google
+  tags: contacts,sheets
 
 inputs:
   - name: spreadsheet-id
     type: string
     required: true
-    description: "Target spreadsheet ID to export contacts into"
+    description: "Target spreadsheet ID"
   - name: range
     type: string
     required: false
@@ -23,7 +28,6 @@ steps:
     tool: contacts_list
     args:
       limit: "{{.input.limit}}"
-    store: contacts
 
   - id: append
     tool: sheets_append
@@ -31,6 +35,5 @@ steps:
       spreadsheet_id: "{{.input.spreadsheet-id}}"
       range: "{{.input.range}}"
       values: "{{.steps.contacts}}"
-    store: append
 
 output: "{{.steps.append}}"

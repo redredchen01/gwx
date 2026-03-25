@@ -1,27 +1,30 @@
-name: meeting-notes
+name: google-meeting-notes
 version: "1.0"
-description: "會議筆記生成 — 查今日會議，為每個會議建立 Google Doc 筆記範本"
+description: "Generate meeting note templates — fetches upcoming meetings and creates a Google Doc with agenda placeholders."
+
+meta:
+  author: gwx
+  category: google
+  tags: calendar,docs
 
 inputs:
   - name: days
     type: int
     required: false
     default: "1"
-    description: "查詢未來幾天的會議"
+    description: "Look-ahead window in days"
 
 steps:
   - id: meetings
     tool: calendar_agenda
     args:
       days: "{{.input.days}}"
-    store: meetings
 
   - id: create-doc
     tool: docs_create
     args:
       title: "Meeting Notes — {{.input.days}}d lookahead"
       body: "{{.steps.meetings}}"
-    store: create-doc
     on_fail: skip
 
 output: "{{.steps.meetings}}"

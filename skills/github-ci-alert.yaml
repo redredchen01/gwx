@@ -1,6 +1,11 @@
-name: ci-alert
+name: github-ci-alert
 version: "1.0"
-description: "GitHub Actions CI 失敗 → Gmail + Slack 雙重告警"
+description: "CI failure alert — checks recent GitHub Actions runs and sends alerts via Slack and/or email."
+
+meta:
+  author: gwx
+  category: github
+  tags: github,slack,gmail
 
 inputs:
   - name: repo
@@ -11,12 +16,12 @@ inputs:
     type: string
     required: false
     default: ""
-    description: "Slack 告警頻道（留空跳過 Slack）"
+    description: "Slack channel for alerts (leave empty to skip Slack)"
   - name: email
     type: string
     required: false
     default: ""
-    description: "告警收件人（留空跳過 Email）"
+    description: "Email recipient for alerts (leave empty to skip email)"
 
 steps:
   - id: runs
@@ -30,7 +35,7 @@ steps:
     if: "{{.input.channel}}"
     args:
       channel: "{{.input.channel}}"
-      text: "🚨 {{.input.repo}} CI 狀態更新 — 最近 10 次 run"
+      text: "CI status update for {{.input.repo}} — last 10 workflow runs"
     on_fail: skip
 
   - id: email-alert
@@ -39,7 +44,7 @@ steps:
     args:
       to: "{{.input.email}}"
       subject: "CI Alert: {{.input.repo}}"
-      body: "GitHub Actions 最近 10 次 workflow run 狀態已更新"
+      body: "GitHub Actions status update — last 10 workflow runs for {{.input.repo}}"
     on_fail: skip
 
 output: "{{.steps.runs}}"

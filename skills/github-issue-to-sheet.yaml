@@ -1,6 +1,11 @@
-name: issue-to-sheet
+name: github-issue-to-sheet
 version: "1.0"
-description: "GitHub Issues 匯出到 Google Sheets — 專案追蹤同步"
+description: "Export GitHub Issues to a Google Sheet — syncs issue metadata (number, title, state, author, date, labels) for project tracking."
+
+meta:
+  author: gwx
+  category: github
+  tags: github,sheets
 
 inputs:
   - name: repo
@@ -10,12 +15,12 @@ inputs:
   - name: sheet-id
     type: string
     required: true
-    description: "目標 Google Spreadsheet ID"
+    description: "Target Google Spreadsheet ID"
   - name: state
     type: string
     required: false
     default: "open"
-    description: "Issue 狀態 (open/closed/all)"
+    description: "Issue state filter (open/closed/all)"
 
 steps:
   - id: issues

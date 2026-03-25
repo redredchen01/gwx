@@ -1,22 +1,27 @@
-name: weekly-sync
+name: cross-weekly-sync
 version: "1.0"
-description: "週報全自動 — GA4 + SEO + GitHub + Gmail 彙整到 Sheets"
+description: "Automated weekly report — aggregates GA4 analytics, email digest, calendar events, and GitHub PRs."
+
+meta:
+  author: gwx
+  category: cross
+  tags: analytics,gmail,calendar,github
 
 inputs:
   - name: sheet-id
     type: string
     required: true
-    description: "週報 Spreadsheet ID"
+    description: "Weekly report Spreadsheet ID"
   - name: repo
     type: string
     required: false
     default: ""
-    description: "GitHub repo（留空跳過）"
+    description: "GitHub repo (leave empty to skip)"
   - name: ga4-property
     type: string
     required: false
     default: ""
-    description: "GA4 Property ID（留空跳過）"
+    description: "GA4 Property ID (leave empty to skip)"
 
 steps:
   - id: emails

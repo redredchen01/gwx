@@ -1,6 +1,11 @@
-name: task-report
+name: google-task-report
 version: "1.0"
-description: "Productivity report — lists all task lists and their tasks, including completed items."
+description: "Task productivity report — lists all task lists and their items, optionally including completed tasks."
+
+meta:
+  author: gwx
+  category: google
+  tags: tasks
 
 inputs:
   - name: show-completed
@@ -13,12 +18,10 @@ steps:
   - id: lists
     tool: tasks_lists
     args: {}
-    store: lists
 
   - id: tasks
     tool: tasks_list
     args:
       show_completed: "{{.input.show-completed}}"
-    store: tasks
 
 output: "{{.steps.tasks}}"

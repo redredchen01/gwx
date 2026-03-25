@@ -1,6 +1,11 @@
-name: pr-to-slack
+name: github-pr-to-slack
 version: "1.0"
-description: "GitHub 開放 PR 摘要推送到 Slack 頻道"
+description: "Open PR summary to Slack — posts a count of open pull requests awaiting review to a Slack channel."
+
+meta:
+  author: gwx
+  category: github
+  tags: github,slack
 
 inputs:
   - name: repo
@@ -10,7 +15,7 @@ inputs:
   - name: channel
     type: string
     required: true
-    description: "Slack 頻道 ID 或名稱"
+    description: "Slack channel ID or name"
 
 steps:
   - id: prs
@@ -31,7 +36,7 @@ steps:
     if: "{{.steps.count}}"
     args:
       channel: "{{.input.channel}}"
-      text: "📋 {{.input.repo}} 有 {{.steps.count}} 個開放 PR 等待 review"
+      text: "{{.input.repo}} has {{.steps.count}} open PR(s) awaiting review"
     on_fail: skip
 
 output: "{{.steps.prs}}"

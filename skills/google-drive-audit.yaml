@@ -1,6 +1,11 @@
-name: drive-audit
+name: google-drive-audit
 version: "1.0"
-description: "List Drive files sorted by modification time — useful for auditing recent changes across your Drive."
+description: "Drive file audit — lists files sorted by modification time to review recent changes."
+
+meta:
+  author: gwx
+  category: google
+  tags: drive
 
 inputs:
   - name: limit
@@ -19,6 +24,5 @@ steps:
     args:
       limit: "{{.input.limit}}"
       folder: "{{.input.folder}}"
-    store: files
 
 output: "{{.steps.files}}"

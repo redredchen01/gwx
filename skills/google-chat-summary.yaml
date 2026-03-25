@@ -1,6 +1,11 @@
-name: chat-summary
+name: google-chat-summary
 version: "1.0"
-description: "Read recent Google Chat messages from a space — useful for catching up on conversations."
+description: "Google Chat catchup — reads recent messages from a Chat space for quick context."
+
+meta:
+  author: gwx
+  category: google
+  tags: chat
 
 inputs:
   - name: space
@@ -19,6 +24,5 @@ steps:
     args:
       space: "{{.input.space}}"
       limit: "{{.input.limit}}"
-    store: messages
 
 output: "{{.steps.messages}}"

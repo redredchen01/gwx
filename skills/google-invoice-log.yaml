@@ -1,30 +1,34 @@
-name: invoice-log
+name: google-invoice-log
 version: "1.0"
-description: "發票追蹤 — 搜尋 Gmail 中的發票信件，記錄到 Google Sheets"
+description: "Invoice tracker — searches Gmail for invoice/receipt emails and logs them to a Google Sheet."
+
+meta:
+  author: gwx
+  category: google
+  tags: gmail,sheets,finance
 
 inputs:
   - name: sheet-id
     type: string
     required: true
-    description: "目標 Spreadsheet ID"
+    description: "Target Spreadsheet ID"
   - name: days
     type: int
     required: false
     default: "30"
-    description: "搜尋過去幾天的信件"
+    description: "Search emails from the last N days"
   - name: limit
     type: int
     required: false
     default: "50"
-    description: "最多處理幾封"
+    description: "Max emails to process"
 
 steps:
   - id: find
     tool: gmail_search
     args:
-      query: "subject:(invoice OR 發票 OR 帳單 OR receipt) newer_than:{{.input.days}}d"
+      query: "subject:(invoice OR receipt OR billing) newer_than:{{.input.days}}d"
       limit: "{{.input.limit}}"
-    store: find
 
   - id: log
     tool: sheets_append
@@ -32,7 +36,6 @@ steps:
       spreadsheet_id: "{{.input.sheet-id}}"
       range: "Invoices!A:D"
       values: "{{.steps.find}}"
-    store: log
     on_fail: skip
 
 output: "{{.steps.find}}"

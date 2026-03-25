@@ -1,6 +1,11 @@
-name: bq-to-slides
+name: google-bq-to-sheet
 version: "1.0"
-description: "BigQuery 查詢結果 → Sheets 存檔 → Slides 報告"
+description: "BigQuery to Sheets — runs a SQL query and archives results to a Google Sheet."
+
+meta:
+  author: gwx
+  category: google
+  tags: bigquery,sheets
 
 inputs:
   - name: project
@@ -10,11 +15,11 @@ inputs:
   - name: sql
     type: string
     required: true
-    description: "SQL 查詢語句"
+    description: "SQL query to execute"
   - name: sheet-id
     type: string
     required: true
-    description: "存檔用 Spreadsheet ID"
+    description: "Spreadsheet ID for archiving query results"
 
 steps:
   - id: query

@@ -1,6 +1,11 @@
-name: doc-from-sheet
+name: google-doc-from-sheet
 version: "1.0"
-description: "Generate a Google Doc from spreadsheet data — reads a sheet range then creates a formatted document."
+description: "Generate a Google Doc from spreadsheet data — reads a sheet range and creates a formatted document."
+
+meta:
+  author: gwx
+  category: google
+  tags: sheets,docs
 
 inputs:
   - name: spreadsheet-id
@@ -22,13 +27,11 @@ steps:
     args:
       spreadsheet_id: "{{.input.spreadsheet-id}}"
       range: "{{.input.range}}"
-    store: data
 
   - id: doc
     tool: docs_create
     args:
       title: "{{.input.title}}"
       body: "{{.steps.data}}"
-    store: doc
 
 output: "{{.steps.doc}}"

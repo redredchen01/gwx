@@ -1,6 +1,11 @@
-name: github-standup
+name: cross-github-standup
 version: "1.0"
-description: "開發者站會 — GitHub PRs + Gmail + Calendar 一次彙整"
+description: "Developer standup — GitHub PRs + unread Gmail + today's calendar aggregated in parallel."
+
+meta:
+  author: gwx
+  category: cross
+  tags: github,gmail,calendar
 
 inputs:
   - name: repo
@@ -11,7 +16,7 @@ inputs:
     type: int
     required: false
     default: "1"
-    description: "回顧天數"
+    description: "Calendar look-back window in days"
 
 steps:
   - id: prs

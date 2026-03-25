@@ -1,6 +1,11 @@
-name: sheet-compare
+name: google-sheet-compare
 version: "1.0"
-description: "Compare two tabs in a spreadsheet — shows added, removed, and modified rows with cell-level changes."
+description: "Compare two spreadsheet tabs — shows added, removed, and modified rows with cell-level diffs."
+
+meta:
+  author: gwx
+  category: google
+  tags: sheets
 
 inputs:
   - name: spreadsheet-id
@@ -23,6 +28,5 @@ steps:
       spreadsheet_id: "{{.input.spreadsheet-id}}"
       range_a: "{{.input.from}}"
       range_b: "{{.input.to}}"
-    store: diff
 
 output: "{{.steps.diff}}"

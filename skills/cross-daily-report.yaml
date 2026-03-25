@@ -1,0 +1,49 @@
+name: cross-daily-report
+version: "1.0"
+description: "Combined daily report — runs morning-brief (email + calendar + tasks) and seo-daily (SEO snapshot) together."
+
+meta:
+  author: gwx
+  category: cross
+  tags: gmail,calendar,tasks,seo,sheets
+
+inputs:
+  - name: email-limit
+    type: int
+    required: false
+    default: "20"
+    description: "Max unread emails for the morning brief"
+  - name: site
+    type: string
+    required: true
+    description: "Website URL (e.g. https://example.com) for SEO report"
+  - name: property-id
+    type: string
+    required: true
+    description: "GA4 Property ID (e.g. properties/123456) for SEO report"
+  - name: sheet-id
+    type: string
+    required: true
+    description: "Target Spreadsheet ID for SEO archiving"
+  - name: start-date
+    type: string
+    required: true
+    description: "SEO report start date in YYYY-MM-DD format (e.g. 2026-03-18)"
+
+steps:
+  - id: standup
+    tool: skill:google-morning-brief
+    args:
+      email-limit: "{{.input.email-limit}}"
+    on_fail: skip
+
+  - id: seo
+    tool: skill:google-seo-daily
+    args:
+      site: "{{.input.site}}"
+      property-id: "{{.input.property-id}}"
+      sheet-id: "{{.input.sheet-id}}"
+      start-date: "{{.input.start-date}}"
+    on_fail: skip
+
+output: "{{.steps.standup}}"

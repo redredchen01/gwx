@@ -1,17 +1,22 @@
-name: full-context
+name: cross-full-context
 version: "1.0"
-description: "全平台上下文蒐集 — Gmail + Drive + Slack + Notion + GitHub 並行搜尋"
+description: "Cross-platform context search — searches Gmail, Drive, Slack, Notion, and GitHub in parallel for a keyword."
+
+meta:
+  author: gwx
+  category: cross
+  tags: gmail,drive,slack,notion,github
 
 inputs:
   - name: keyword
     type: string
     required: true
-    description: "搜尋關鍵字"
+    description: "Search keyword"
   - name: limit
     type: int
     required: false
     default: "5"
-    description: "每個服務最多幾筆"
+    description: "Max results per service"
 
 steps:
   - id: emails
@@ -46,7 +51,7 @@ steps:
     parallel: true
     on_fail: skip
 
-  - id: github-issues
+  - id: github-notifs
     tool: github_notifications
     args:
       limit: "{{.input.limit}}"

@@ -1,6 +1,11 @@
-name: notion-to-sheet
+name: cross-notion-to-sheet
 version: "1.0"
-description: "Notion Database 同步到 Google Sheets"
+description: "Notion to Sheets sync — queries a Notion database and appends rows to a Google Sheet."
+
+meta:
+  author: gwx
+  category: cross
+  tags: notion,sheets
 
 inputs:
   - name: database-id
@@ -10,7 +15,7 @@ inputs:
   - name: sheet-id
     type: string
     required: true
-    description: "目標 Google Spreadsheet ID"
+    description: "Target Google Spreadsheet ID"
 
 steps:
   - id: query

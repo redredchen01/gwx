@@ -1,6 +1,11 @@
-name: form-to-slack
+name: cross-form-to-slack
 version: "1.0"
-description: "Google Forms 新回應通知到 Slack"
+description: "Google Forms to Slack — checks recent form responses and posts a notification to a Slack channel."
+
+meta:
+  author: gwx
+  category: cross
+  tags: forms,slack
 
 inputs:
   - name: form-id
@@ -10,12 +15,12 @@ inputs:
   - name: channel
     type: string
     required: true
-    description: "Slack 頻道"
+    description: "Slack channel for notifications"
   - name: limit
     type: int
     required: false
     default: "5"
-    description: "檢查最近幾筆回應"
+    description: "Number of recent responses to check"
 
 steps:
   - id: responses
@@ -35,7 +40,7 @@ steps:
     if: "{{.steps.count}}"
     args:
       channel: "{{.input.channel}}"
-      text: "📝 表單收到 {{.steps.count}} 筆新回應"
+      text: "Form received {{.steps.count}} new response(s)"
     on_fail: skip
 
 output: "{{.steps.responses}}"

@@ -1,30 +1,38 @@
-name: seo-daily
+name: google-seo-daily
 version: "1.0"
-description: "SEO 每日快照 — Search Console 成效 + GA4 流量，存進 Sheets"
+description: "Daily SEO snapshot — Search Console performance + GA4 traffic for the past 7 days, saved to Sheets."
+
+meta:
+  author: gwx
+  category: google
+  tags: searchconsole,analytics,sheets,seo
 
 inputs:
   - name: site
     type: string
     required: true
-    description: "網站 URL（如 https://example.com）"
+    description: "Website URL (e.g. https://example.com)"
   - name: property-id
     type: string
     required: true
-    description: "GA4 Property ID（如 properties/123456）"
+    description: "GA4 Property ID (e.g. properties/123456)"
   - name: sheet-id
     type: string
     required: true
-    description: "目標 Spreadsheet ID，用來存檔"
+    description: "Target Spreadsheet ID for archiving results"
+  - name: start-date
+    type: string
+    required: true
+    description: "Start date in YYYY-MM-DD format (e.g. 2026-03-18)"
 
 steps:
   - id: search-perf
     tool: searchconsole_query
     args:
       site: "{{.input.site}}"
-      start_date: "2026-03-16"
+      start_date: "{{.input.start-date}}"
       dimensions: "query,page"
       limit: "20"
-    store: search-perf
 
   - id: traffic
     tool: analytics_report
@@ -34,7 +42,6 @@ steps:
       dimensions: "date"
       start_date: "7daysAgo"
       end_date: "today"
-    store: traffic
     on_fail: skip
 
   - id: save
@@ -43,7 +50,6 @@ steps:
       spreadsheet_id: "{{.input.sheet-id}}"
       range: "SEO!A:E"
       values: "{{.steps.search-perf}}"
-    store: save
     on_fail: skip
 
 output: "{{.steps.search-perf}}"

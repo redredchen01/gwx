@@ -1,6 +1,11 @@
-name: email-digest
+name: google-email-digest
 version: "1.0"
-description: "Smart email digest — categorizes recent emails by sender, type (CI/transactional/personal), and generates a summary."
+description: "Smart email digest — categorizes recent emails by sender and type (CI, transactional, personal) with a summary."
+
+meta:
+  author: gwx
+  category: google
+  tags: gmail
 
 inputs:
   - name: limit
@@ -20,6 +25,5 @@ steps:
     args:
       limit: "{{.input.limit}}"
       unread: "{{.input.unread}}"
-    store: digest
 
 output: "{{.steps.digest}}"
