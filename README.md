@@ -70,7 +70,7 @@ gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 | **Workflow** (13) | `standup` `meeting-prep` + `workflow` subgroup: `weekly-digest` `context-boost` `bug-intake` `test-matrix` `spec-health` `sprint-board` `review-notify` `email-from-doc` `sheet-to-email` `parallel-schedule` |
 | **Cross-service** (2) | `find` (unified search) · `context` (gather context) |
 | **Pipeline** (1) | `pipe` (chain commands via JSON stdin/stdout) |
-| **System** (9) | `auth login/logout/status` `onboard` `agent exit-codes` `schema` `mcp-server` `version` |
+| **System** (12) | `auth login/logout/status` `onboard` `agent exit-codes` `schema` `mcp-server` `version` `doctor` `completion bash/zsh/fish` |
 
 ## Highlights
 
@@ -362,7 +362,29 @@ gwx skill remove old-skill               # Remove an installed skill
 # Drop YAML files in ./skills/ or ~/.config/gwx/skills/
 ```
 
-**28 built-in skills**: morning-brief, client-360, invoice-log, seo-daily, meeting-notes, email-digest, drive-audit, sheet-compare, contact-export, task-report, chat-summary, ga4-realtime, doc-from-sheet, github-pr-digest, github-issue-triage, slack-standup, slack-channel-archive, notion-weekly, notion-inbox, bq-daily-report, forms-survey-summary, cross-provider-standup, multi-inbox-digest, and more.
+**29 built-in skills** covering Google, GitHub, Slack, Notion cross-service workflows. Skills support **parallel execution**, **each loops**, **transform pipes**, **conditional steps** (`if:`), and **skill composition** (`tool: skill:<name>` calls another skill as a step, max depth 5).
+
+### Shell Completion
+
+```bash
+# Bash
+eval "$(gwx completion bash)"
+
+# Zsh (add to ~/.zshrc)
+eval "$(gwx completion zsh)"
+
+# Fish
+gwx completion fish | source
+```
+
+### Health Check
+
+```bash
+# Diagnose all providers, config, and skills in one command
+gwx doctor
+```
+
+Output: version, OS, Go version, config dir status, auth status for each provider (Google/GitHub/Slack/Notion), loaded skills count.
 
 ## MCP Server (123+ Tools)
 
@@ -684,6 +706,29 @@ gwx auth status
     --dry-run    Validate without executing
     --no-input   Disable interactive prompts
 ```
+
+## Development
+
+```bash
+make build          # Build binary
+make test           # Run all tests (668 tests)
+make check          # Vet + test
+go test -cover ./...  # Coverage report
+```
+
+| Package | Tests | Coverage |
+|---------|-------|----------|
+| exitcode | ✓ | 100% |
+| output | ✓ | 87% |
+| log | ✓ | 82% |
+| testutil | ✓ | 74% |
+| config | ✓ | 61% |
+| skill | ✓ | 58% |
+| api | ✓ | 24% |
+| auth | ✓ | 16% |
+| workflow | ✓ | 14% |
+| mcp | ✓ | 13% |
+| cmd | ✓ | 11% |
 
 ## License
 
