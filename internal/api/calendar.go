@@ -51,8 +51,8 @@ type EventSummary struct {
 // EventInput holds parameters for creating/updating events.
 type EventInput struct {
 	Title       string   `json:"title"`
-	Start       string   `json:"start"`       // RFC3339 or date
-	End         string   `json:"end"`         // RFC3339 or date
+	Start       string   `json:"start"` // RFC3339 or date
+	End         string   `json:"end"`   // RFC3339 or date
 	Location    string   `json:"location,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Attendees   []string `json:"attendees,omitempty"`
@@ -278,14 +278,9 @@ func (cs *CalendarService) DeleteEvent(ctx context.Context, calendarID, eventID 
 		return err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "calendar")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return err
-	}
-
-	svc, err := calendar.NewService(ctx, opts...)
-	if err != nil {
-		return fmt.Errorf("create calendar service: %w", err)
 	}
 
 	if calendarID == "" {

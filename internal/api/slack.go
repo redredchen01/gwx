@@ -22,7 +22,7 @@ type SlackClient struct {
 func NewSlackClient(token string) *SlackClient {
 	return &SlackClient{
 		token: token,
-		http:  &http.Client{},
+		http:  &http.Client{Transport: NewBaseTransport()},
 	}
 }
 

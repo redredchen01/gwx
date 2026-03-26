@@ -38,16 +38,16 @@ func NewDriveService(client *Client) *DriveService {
 
 // FileSummary is a simplified file representation.
 type FileSummary struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	MimeType     string `json:"mime_type"`
-	Size         int64  `json:"size"`
-	ModifiedTime string `json:"modified_time"`
-	CreatedTime  string `json:"created_time,omitempty"`
-	WebViewLink  string `json:"web_view_link,omitempty"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	MimeType     string   `json:"mime_type"`
+	Size         int64    `json:"size"`
+	ModifiedTime string   `json:"modified_time"`
+	CreatedTime  string   `json:"created_time,omitempty"`
+	WebViewLink  string   `json:"web_view_link,omitempty"`
 	Parents      []string `json:"parents,omitempty"`
-	Shared       bool   `json:"shared"`
-	Trashed      bool   `json:"trashed"`
+	Shared       bool     `json:"shared"`
+	Trashed      bool     `json:"trashed"`
 }
 
 // ListFiles lists files in a folder or root.
@@ -234,14 +234,9 @@ func (ds *DriveService) ShareFile(ctx context.Context, fileID string, email stri
 		return err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "drive")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return err
-	}
-
-	svc, err := drive.NewService(ctx, opts...)
-	if err != nil {
-		return fmt.Errorf("create drive service: %w", err)
 	}
 
 	perm := &drive.Permission{
@@ -301,14 +296,9 @@ func (ds *DriveService) CheckDownloadSize(ctx context.Context, fileID string, ma
 		return err
 	}
 
-	opts, err := ds.client.ClientOptions(ctx, "drive")
+	svc, err := ds.service(ctx)
 	if err != nil {
 		return err
-	}
-
-	svc, err := drive.NewService(ctx, opts...)
-	if err != nil {
-		return fmt.Errorf("create drive service: %w", err)
 	}
 
 	meta, err := svc.Files.Get(fileID).Fields("name,size").Do()

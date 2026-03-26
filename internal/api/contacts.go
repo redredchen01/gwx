@@ -19,6 +19,20 @@ func NewContactsService(client *Client) *ContactsService {
 	return &ContactsService{client: client}
 }
 
+func (cs *ContactsService) service(ctx context.Context) (*people.Service, error) {
+	svc, err := cs.client.GetOrCreateService("people:v1", func() (any, error) {
+		opts, err := cs.client.ClientOptions(ctx, "people")
+		if err != nil {
+			return nil, err
+		}
+		return people.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create people service: %w", err)
+	}
+	return svc.(*people.Service), nil
+}
+
 // ContactSummary is a simplified contact.
 type ContactSummary struct {
 	ResourceName string   `json:"resource_name"`
@@ -45,14 +59,9 @@ func (cs *ContactsService) ListContacts(ctx context.Context, maxResults int) ([]
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "people")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := people.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create people service: %w", err)
 	}
 
 	if maxResults <= 0 {
@@ -93,14 +102,9 @@ func (cs *ContactsService) SearchContacts(ctx context.Context, query string, max
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "people")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := people.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create people service: %w", err)
 	}
 
 	if maxResults <= 0 {
@@ -135,14 +139,9 @@ func (cs *ContactsService) GetContact(ctx context.Context, resourceName string) 
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "people")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := people.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create people service: %w", err)
 	}
 
 	if !strings.HasPrefix(resourceName, "people/") {

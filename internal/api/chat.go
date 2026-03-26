@@ -17,6 +17,20 @@ func NewChatService(client *Client) *ChatService {
 	return &ChatService{client: client}
 }
 
+func (cs *ChatService) service(ctx context.Context) (*chat.Service, error) {
+	svc, err := cs.client.GetOrCreateService("chat:v1", func() (any, error) {
+		opts, err := cs.client.ClientOptions(ctx, "chat")
+		if err != nil {
+			return nil, err
+		}
+		return chat.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create chat service: %w", err)
+	}
+	return svc.(*chat.Service), nil
+}
+
 // SpaceSummary is a simplified space representation.
 type SpaceSummary struct {
 	Name        string `json:"name"`
@@ -39,14 +53,9 @@ func (cs *ChatService) ListSpaces(ctx context.Context, maxResults int) ([]SpaceS
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "chat")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := chat.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create chat service: %w", err)
 	}
 
 	call := svc.Spaces.List()
@@ -77,14 +86,9 @@ func (cs *ChatService) SendMessage(ctx context.Context, spaceName string, text s
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "chat")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := chat.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create chat service: %w", err)
 	}
 
 	msg := &chat.Message{Text: text}
@@ -108,14 +112,9 @@ func (cs *ChatService) ListMessages(ctx context.Context, spaceName string, maxRe
 		return nil, err
 	}
 
-	opts, err := cs.client.ClientOptions(ctx, "chat")
+	svc, err := cs.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := chat.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create chat service: %w", err)
 	}
 
 	call := svc.Spaces.Messages.List(spaceName)

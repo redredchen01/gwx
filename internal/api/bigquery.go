@@ -17,16 +17,29 @@ func NewBigQueryService(client *Client) *BigQueryService {
 	return &BigQueryService{client: client}
 }
 
+func (bq *BigQueryService) service(ctx context.Context) (*bigquery.Service, error) {
+	svc, err := bq.client.GetOrCreateService("bigquery:v2", func() (any, error) {
+		opts, err := bq.client.ClientOptions(ctx, "bigquery")
+		if err != nil {
+			return nil, err
+		}
+		return bigquery.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create bigquery service: %w", err)
+	}
+	return svc.(*bigquery.Service), nil
+}
+
 // Query executes a synchronous SQL query using jobs.query and returns parsed results.
 func (bq *BigQueryService) Query(ctx context.Context, projectID, sql string, limit int) (map[string]interface{}, error) {
-	opts, err := bq.client.ServiceInit(ctx, "bigquery")
-	if err != nil {
+	if err := bq.client.WaitRate(ctx, "bigquery"); err != nil {
 		return nil, err
 	}
 
-	svc, err := bigquery.NewService(ctx, opts...)
+	svc, err := bq.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create bigquery service: %w", err)
+		return nil, err
 	}
 
 	if limit <= 0 {
@@ -64,13 +77,13 @@ func (bq *BigQueryService) Query(ctx context.Context, projectID, sql string, lim
 	}
 
 	result := map[string]interface{}{
-		"project":       projectID,
-		"columns":       columns,
-		"rows":          rows,
-		"row_count":     len(rows),
-		"total_rows":    resp.TotalRows,
-		"job_complete":  resp.JobComplete,
-		"cache_hit":     resp.CacheHit,
+		"project":      projectID,
+		"columns":      columns,
+		"rows":         rows,
+		"row_count":    len(rows),
+		"total_rows":   resp.TotalRows,
+		"job_complete": resp.JobComplete,
+		"cache_hit":    resp.CacheHit,
 	}
 
 	if resp.TotalBytesProcessed > 0 {
@@ -82,14 +95,13 @@ func (bq *BigQueryService) Query(ctx context.Context, projectID, sql string, lim
 
 // ListDatasets lists all datasets in a BigQuery project.
 func (bq *BigQueryService) ListDatasets(ctx context.Context, projectID string) ([]map[string]interface{}, error) {
-	opts, err := bq.client.ServiceInit(ctx, "bigquery")
-	if err != nil {
+	if err := bq.client.WaitRate(ctx, "bigquery"); err != nil {
 		return nil, err
 	}
 
-	svc, err := bigquery.NewService(ctx, opts...)
+	svc, err := bq.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create bigquery service: %w", err)
+		return nil, err
 	}
 
 	var datasets []map[string]interface{}
@@ -130,14 +142,13 @@ func (bq *BigQueryService) ListDatasets(ctx context.Context, projectID string) (
 
 // ListTables lists all tables in a BigQuery dataset.
 func (bq *BigQueryService) ListTables(ctx context.Context, projectID, datasetID string) ([]map[string]interface{}, error) {
-	opts, err := bq.client.ServiceInit(ctx, "bigquery")
-	if err != nil {
+	if err := bq.client.WaitRate(ctx, "bigquery"); err != nil {
 		return nil, err
 	}
 
-	svc, err := bigquery.NewService(ctx, opts...)
+	svc, err := bq.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create bigquery service: %w", err)
+		return nil, err
 	}
 
 	var tables []map[string]interface{}
@@ -187,14 +198,13 @@ func (bq *BigQueryService) ListTables(ctx context.Context, projectID, datasetID 
 
 // GetTable retrieves metadata for a specific BigQuery table.
 func (bq *BigQueryService) GetTable(ctx context.Context, projectID, datasetID, tableID string) (map[string]interface{}, error) {
-	opts, err := bq.client.ServiceInit(ctx, "bigquery")
-	if err != nil {
+	if err := bq.client.WaitRate(ctx, "bigquery"); err != nil {
 		return nil, err
 	}
 
-	svc, err := bigquery.NewService(ctx, opts...)
+	svc, err := bq.service(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create bigquery service: %w", err)
+		return nil, err
 	}
 
 	table, err := svc.Tables.Get(projectID, datasetID, tableID).Do()

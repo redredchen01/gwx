@@ -24,7 +24,7 @@ type NotionClient struct {
 func NewNotionClient(token string) *NotionClient {
 	return &NotionClient{
 		token: token,
-		http:  &http.Client{},
+		http:  &http.Client{Transport: NewBaseTransport()},
 	}
 }
 

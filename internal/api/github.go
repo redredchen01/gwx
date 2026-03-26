@@ -1,13 +1,13 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 const githubAPIBase = "https://api.github.com"
@@ -25,7 +25,7 @@ func NewGitHubClient(token string) *GitHubClient {
 	return &GitHubClient{
 		token:   token,
 		baseURL: githubAPIBase,
-		http:    &http.Client{},
+		http:    &http.Client{Transport: NewBaseTransport()},
 	}
 }
 
@@ -182,7 +182,7 @@ func (g *GitHubClient) CreateIssue(ctx context.Context, owner, repo, title, body
 
 	path := "/repos/" + owner + "/" + repo + "/issues"
 	var result map[string]interface{}
-	if err := g.do(ctx, "POST", path, strings.NewReader(string(jsonBody)), &result); err != nil {
+	if err := g.do(ctx, "POST", path, bytes.NewReader(jsonBody), &result); err != nil {
 		return nil, err
 	}
 
@@ -268,16 +268,16 @@ func (g *GitHubClient) ListWorkflowRuns(ctx context.Context, owner, repo string,
 			continue
 		}
 		entry := map[string]interface{}{
-			"id":           run["id"],
-			"name":         run["name"],
-			"status":       run["status"],
-			"conclusion":   run["conclusion"],
-			"head_branch":  run["head_branch"],
-			"event":        run["event"],
-			"created_at":   run["created_at"],
-			"updated_at":   run["updated_at"],
-			"html_url":     run["html_url"],
-			"run_number":   run["run_number"],
+			"id":          run["id"],
+			"name":        run["name"],
+			"status":      run["status"],
+			"conclusion":  run["conclusion"],
+			"head_branch": run["head_branch"],
+			"event":       run["event"],
+			"created_at":  run["created_at"],
+			"updated_at":  run["updated_at"],
+			"html_url":    run["html_url"],
+			"run_number":  run["run_number"],
 		}
 		result = append(result, entry)
 	}

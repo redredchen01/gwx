@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"google.golang.org/api/gmail/v1"
 )
@@ -346,19 +347,51 @@ func (gs *GmailService) BatchModifyLabels(ctx context.Context, query string, add
 		return 0, fmt.Errorf("list messages: %w", err)
 	}
 
-	modified := 0
+	// Collect message IDs for batch processing
+	var messageIds []string
 	for _, msg := range resp.Messages {
-		if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
-			return modified, err
+		messageIds = append(messageIds, msg.Id)
+	}
+
+	// Process in batches of 100 (Gmail API batch limit)
+	const batchSize = 100
+	var modified int
+	for i := 0; i < len(messageIds); i += batchSize {
+		end := i + batchSize
+		if end > len(messageIds) {
+			end = len(messageIds)
 		}
-		modReq := &gmail.ModifyMessageRequest{
+
+		batch := messageIds[i:end]
+
+		batchReq := &gmail.BatchModifyMessagesRequest{
+			Ids:            batch,
 			AddLabelIds:    addIDs,
 			RemoveLabelIds: removeIDs,
 		}
-		if _, err := svc.Users.Messages.Modify("me", msg.Id, modReq).Do(); err != nil {
+
+		if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
+			return modified, err
+		}
+
+		if err := svc.Users.Messages.BatchModify("me", batchReq).Do(); err != nil {
+			// Fallback to individual processing if batch fails
+			for _, msgId := range batch {
+				if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
+					return modified, err
+				}
+				modReq := &gmail.ModifyMessageRequest{
+					AddLabelIds:    addIDs,
+					RemoveLabelIds: removeIDs,
+				}
+				if _, err := svc.Users.Messages.Modify("me", msgId, modReq).Do(); err == nil {
+					modified++
+				}
+			}
 			continue
 		}
-		modified++
+
+		modified += len(batch)
 	}
 	return modified, nil
 }
@@ -513,6 +546,14 @@ func needsMIMEEncoding(s string) bool {
 }
 
 func (gs *GmailService) labelNameToID(ctx context.Context, svc *gmail.Service) (map[string]string, error) {
+	gs.labelMu.Lock()
+	if gs.labelCache != nil && time.Now().Before(gs.labelExpiry) {
+		m := gs.labelCache
+		gs.labelMu.Unlock()
+		return m, nil
+	}
+	gs.labelMu.Unlock()
+
 	resp, err := svc.Users.Labels.List("me").Do()
 	if err != nil {
 		return nil, fmt.Errorf("list labels: %w", err)
@@ -522,5 +563,11 @@ func (gs *GmailService) labelNameToID(ctx context.Context, svc *gmail.Service) (
 		m[l.Name] = l.Id
 		m[strings.ToUpper(l.Name)] = l.Id // also index uppercase for system labels
 	}
+
+	gs.labelMu.Lock()
+	gs.labelCache = m
+	gs.labelExpiry = time.Now().Add(10 * time.Minute)
+	gs.labelMu.Unlock()
+
 	return m, nil
 }

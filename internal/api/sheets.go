@@ -168,11 +168,11 @@ func (ss *SheetsService) CreateSpreadsheet(ctx context.Context, title string) (*
 
 // SheetInfo holds spreadsheet metadata.
 type SheetInfo struct {
-	SpreadsheetID  string      `json:"spreadsheet_id"`
-	Title          string      `json:"title"`
-	SpreadsheetURL string      `json:"spreadsheet_url"`
-	Sheets         []SheetTab  `json:"sheets"`
-	SheetCount     int         `json:"sheet_count"`
+	SpreadsheetID  string     `json:"spreadsheet_id"`
+	Title          string     `json:"title"`
+	SpreadsheetURL string     `json:"spreadsheet_url"`
+	Sheets         []SheetTab `json:"sheets"`
+	SheetCount     int        `json:"sheet_count"`
 }
 
 // SheetTab holds individual sheet/tab metadata.
@@ -250,10 +250,10 @@ func (ss *SheetsService) SearchValues(ctx context.Context, spreadsheetID, search
 			cellStr := fmt.Sprintf("%v", cell)
 			if strings.Contains(strings.ToLower(cellStr), queryLower) {
 				matchedRows = append(matchedRows, SheetMatchedRow{
-					RowIndex:   rowIdx,
-					ColIndex:   colIdx,
+					RowIndex:    rowIdx,
+					ColIndex:    colIdx,
 					MatchedCell: cellStr,
-					FullRow:    row,
+					FullRow:     row,
 				})
 				break // one match per row is enough
 			}
@@ -308,14 +308,9 @@ func (ss *SheetsService) ClearRange(ctx context.Context, spreadsheetID, clearRan
 		return err
 	}
 
-	opts, err := ss.client.ClientOptions(ctx, "sheets")
+	svc, err := ss.service(ctx)
 	if err != nil {
 		return err
-	}
-
-	svc, err := sheets.NewService(ctx, opts...)
-	if err != nil {
-		return fmt.Errorf("create sheets service: %w", err)
 	}
 
 	req := &sheets.ClearValuesRequest{}
@@ -339,10 +334,10 @@ type SheetSearchResult struct {
 
 // SheetMatchedRow is a row that matched a search.
 type SheetMatchedRow struct {
-	RowIndex    int             `json:"row_index"`
-	ColIndex    int             `json:"col_index"`
-	MatchedCell string          `json:"matched_cell"`
-	FullRow     []interface{}   `json:"full_row"`
+	RowIndex    int           `json:"row_index"`
+	ColIndex    int           `json:"col_index"`
+	MatchedCell string        `json:"matched_cell"`
+	FullRow     []interface{} `json:"full_row"`
 }
 
 // SheetFilterResult holds filter results.

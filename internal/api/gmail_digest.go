@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -120,17 +121,15 @@ func categorizeGroup(sender string, subjects []string) string {
 }
 
 func sortGroups(groups []DigestGroup) {
-	// Personal first, then by count descending
 	categoryOrder := map[string]int{"personal": 0, "transactional": 1, "dev_notification": 2, "ci_notification": 3, "newsletter": 4}
-	for i := 0; i < len(groups); i++ {
-		for j := i + 1; j < len(groups); j++ {
-			oi := categoryOrder[groups[i].Category]
-			oj := categoryOrder[groups[j].Category]
-			if oi > oj || (oi == oj && groups[i].Count < groups[j].Count) {
-				groups[i], groups[j] = groups[j], groups[i]
-			}
+	sort.Slice(groups, func(i, j int) bool {
+		oi := categoryOrder[groups[i].Category]
+		oj := categoryOrder[groups[j].Category]
+		if oi != oj {
+			return oi < oj
 		}
-	}
+		return groups[i].Count > groups[j].Count
+	})
 }
 
 func generateDigestSummary(groups []DigestGroup, total, unread int) string {

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"google.golang.org/api/sheets/v4"
 )
@@ -16,21 +17,21 @@ import (
 
 // ColumnStat holds stats for one column.
 type ColumnStat struct {
-	Header     string            `json:"header"`
-	Index      int               `json:"index"`
-	Filled     int               `json:"filled"`
-	Empty      int               `json:"empty"`
-	FillRate   string            `json:"fill_rate"`
-	ValueCounts map[string]int   `json:"value_counts,omitempty"` // for enum-like columns
+	Header      string         `json:"header"`
+	Index       int            `json:"index"`
+	Filled      int            `json:"filled"`
+	Empty       int            `json:"empty"`
+	FillRate    string         `json:"fill_rate"`
+	ValueCounts map[string]int `json:"value_counts,omitempty"` // for enum-like columns
 }
 
 // SheetStats holds overall sheet statistics.
 type SheetStats struct {
-	SheetName   string       `json:"sheet_name"`
-	TotalRows   int          `json:"total_rows"`
-	TotalCols   int          `json:"total_cols"`
-	Columns     []ColumnStat `json:"columns"`
-	Summary     string       `json:"summary"`
+	SheetName string       `json:"sheet_name"`
+	TotalRows int          `json:"total_rows"`
+	TotalCols int          `json:"total_cols"`
+	Columns   []ColumnStat `json:"columns"`
+	Summary   string       `json:"summary"`
 }
 
 // StatsRange computes statistics for a sheet range.
@@ -144,13 +145,26 @@ type SheetDiff struct {
 
 // DiffRanges compares two ranges (e.g., two week tabs) using the first column as key.
 func (ss *SheetsService) DiffRanges(ctx context.Context, spreadsheetID, rangeA, rangeB string) (*SheetDiff, error) {
-	dataA, err := ss.ReadRange(ctx, spreadsheetID, rangeA)
-	if err != nil {
-		return nil, fmt.Errorf("read range A: %w", err)
+	// Parallel read both ranges
+	var dataA, dataB *SheetData
+	var errA, errB error
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		dataA, errA = ss.ReadRange(ctx, spreadsheetID, rangeA)
+	}()
+	go func() {
+		defer wg.Done()
+		dataB, errB = ss.ReadRange(ctx, spreadsheetID, rangeB)
+	}()
+	wg.Wait()
+
+	if errA != nil {
+		return nil, fmt.Errorf("read range A: %w", errA)
 	}
-	dataB, err := ss.ReadRange(ctx, spreadsheetID, rangeB)
-	if err != nil {
-		return nil, fmt.Errorf("read range B: %w", err)
+	if errB != nil {
+		return nil, fmt.Errorf("read range B: %w", errB)
 	}
 
 	if len(dataA.Values) < 1 || len(dataB.Values) < 1 {

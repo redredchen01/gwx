@@ -18,6 +18,20 @@ func NewSearchConsoleService(client *Client) *SearchConsoleService {
 	return &SearchConsoleService{client: client}
 }
 
+func (sc *SearchConsoleService) service(ctx context.Context) (*searchconsole.Service, error) {
+	svc, err := sc.client.GetOrCreateService("searchconsole:v1", func() (any, error) {
+		opts, err := sc.client.ClientOptions(ctx, "searchconsole")
+		if err != nil {
+			return nil, err
+		}
+		return searchconsole.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create searchconsole service: %w", err)
+	}
+	return svc.(*searchconsole.Service), nil
+}
+
 // SearchQueryRequest specifies parameters for a Search Analytics query.
 type SearchQueryRequest struct {
 	SiteURL    string
@@ -88,14 +102,9 @@ func (sc *SearchConsoleService) Query(ctx context.Context, req SearchQueryReques
 		return nil, err
 	}
 
-	opts, err := sc.client.ClientOptions(ctx, "searchconsole")
+	svc, err := sc.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := searchconsole.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create searchconsole service: %w", err)
 	}
 
 	limit := int64(req.Limit)
@@ -163,14 +172,9 @@ func (sc *SearchConsoleService) ListSites(ctx context.Context) ([]SiteSummary, e
 		return nil, err
 	}
 
-	opts, err := sc.client.ClientOptions(ctx, "searchconsole")
+	svc, err := sc.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := searchconsole.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create searchconsole service: %w", err)
 	}
 
 	resp, err := svc.Sites.List().Do()
@@ -196,14 +200,9 @@ func (sc *SearchConsoleService) InspectURL(ctx context.Context, siteURL, inspect
 		return nil, err
 	}
 
-	opts, err := sc.client.ClientOptions(ctx, "searchconsole")
+	svc, err := sc.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := searchconsole.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create searchconsole service: %w", err)
 	}
 
 	apiReq := &searchconsole.InspectUrlIndexRequest{
@@ -239,14 +238,9 @@ func (sc *SearchConsoleService) ListSitemaps(ctx context.Context, siteURL string
 		return nil, err
 	}
 
-	opts, err := sc.client.ClientOptions(ctx, "searchconsole")
+	svc, err := sc.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := searchconsole.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create searchconsole service: %w", err)
 	}
 
 	resp, err := svc.Sitemaps.List(siteURL).Do()
@@ -278,14 +272,9 @@ func (sc *SearchConsoleService) GetIndexStatus(ctx context.Context, siteURL, sta
 		return nil, err
 	}
 
-	opts, err := sc.client.ClientOptions(ctx, "searchconsole")
+	svc, err := sc.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := searchconsole.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create searchconsole service: %w", err)
 	}
 
 	apiReq := &searchconsole.SearchAnalyticsQueryRequest{

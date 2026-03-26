@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/base64"
+	"sync"
+	"time"
 
 	"google.golang.org/api/gmail/v1"
 )
@@ -9,6 +11,10 @@ import (
 // GmailService wraps Gmail API operations.
 type GmailService struct {
 	client *Client
+
+	labelMu     sync.Mutex
+	labelCache  map[string]string
+	labelExpiry time.Time
 }
 
 // NewGmailService creates a Gmail service wrapper.

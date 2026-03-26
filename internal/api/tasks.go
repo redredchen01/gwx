@@ -17,6 +17,20 @@ func NewTasksService(client *Client) *TasksService {
 	return &TasksService{client: client}
 }
 
+func (ts *TasksService) service(ctx context.Context) (*tasks.Service, error) {
+	svc, err := ts.client.GetOrCreateService("tasks:v1", func() (any, error) {
+		opts, err := ts.client.ClientOptions(ctx, "tasks")
+		if err != nil {
+			return nil, err
+		}
+		return tasks.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create tasks service: %w", err)
+	}
+	return svc.(*tasks.Service), nil
+}
+
 // TaskItem is a simplified task representation.
 type TaskItem struct {
 	ID        string `json:"id"`
@@ -42,14 +56,9 @@ func (ts *TasksService) ListTaskLists(ctx context.Context) ([]TaskListInfo, erro
 		return nil, err
 	}
 
-	opts, err := ts.client.ClientOptions(ctx, "tasks")
+	svc, err := ts.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := tasks.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create tasks service: %w", err)
 	}
 
 	resp, err := svc.Tasklists.List().Do()
@@ -70,14 +79,9 @@ func (ts *TasksService) ListTasks(ctx context.Context, taskListID string, showCo
 		return nil, err
 	}
 
-	opts, err := ts.client.ClientOptions(ctx, "tasks")
+	svc, err := ts.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := tasks.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create tasks service: %w", err)
 	}
 
 	if taskListID == "" {
@@ -104,14 +108,9 @@ func (ts *TasksService) CreateTask(ctx context.Context, taskListID string, title
 		return nil, err
 	}
 
-	opts, err := ts.client.ClientOptions(ctx, "tasks")
+	svc, err := ts.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := tasks.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create tasks service: %w", err)
 	}
 
 	if taskListID == "" {
@@ -141,14 +140,9 @@ func (ts *TasksService) CompleteTask(ctx context.Context, taskListID, taskID str
 		return nil, err
 	}
 
-	opts, err := ts.client.ClientOptions(ctx, "tasks")
+	svc, err := ts.service(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := tasks.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create tasks service: %w", err)
 	}
 
 	if taskListID == "" {
@@ -176,14 +170,9 @@ func (ts *TasksService) DeleteTask(ctx context.Context, taskListID, taskID strin
 		return err
 	}
 
-	opts, err := ts.client.ClientOptions(ctx, "tasks")
+	svc, err := ts.service(ctx)
 	if err != nil {
 		return err
-	}
-
-	svc, err := tasks.NewService(ctx, opts...)
-	if err != nil {
-		return fmt.Errorf("create tasks service: %w", err)
 	}
 
 	if taskListID == "" {

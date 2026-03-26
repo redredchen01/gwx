@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"google.golang.org/api/gmail/v1"
 )
@@ -51,25 +52,41 @@ func (gs *GmailService) ListMessages(ctx context.Context, query string, labelIDs
 		return nil, 0, fmt.Errorf("list messages: %w", err)
 	}
 
-	var summaries []MessageSummary
-	for _, msg := range resp.Messages {
-		if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
-			return summaries, resp.ResultSizeEstimate, err
-		}
-		detail, err := svc.Users.Messages.Get("me", msg.Id).
-			Format("metadata").
-			MetadataHeaders("From", "To", "Subject", "Date").
-			Do()
-		if err != nil {
-			// Include a stub with just the ID so the caller knows it was skipped
-			summaries = append(summaries, MessageSummary{
-				ID:      msg.Id,
-				Snippet: fmt.Sprintf("[error: %v]", err),
-			})
-			continue
-		}
-		summaries = append(summaries, messageToSummary(detail))
+	// Parallel fetch with semaphore to respect rate limits
+	const concurrency = 10
+	sem := make(chan struct{}, concurrency)
+	summaries := make([]MessageSummary, len(resp.Messages))
+	var wg sync.WaitGroup
+
+	for i, msg := range resp.Messages {
+		wg.Add(1)
+		go func(idx int, id string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
+				summaries[idx] = MessageSummary{
+					ID:      id,
+					Snippet: fmt.Sprintf("[error: rate limit: %v]", err),
+				}
+				return
+			}
+			detail, err := svc.Users.Messages.Get("me", id).
+				Format("metadata").
+				MetadataHeaders("From", "To", "Subject", "Date").
+				Do()
+			if err != nil {
+				summaries[idx] = MessageSummary{
+					ID:      id,
+					Snippet: fmt.Sprintf("[error: %v]", err),
+				}
+				return
+			}
+			summaries[idx] = messageToSummary(detail)
+		}(i, msg.Id)
 	}
+	wg.Wait()
 
 	return summaries, resp.ResultSizeEstimate, nil
 }

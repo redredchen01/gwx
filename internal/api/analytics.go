@@ -18,6 +18,34 @@ func NewAnalyticsService(client *Client) *AnalyticsService {
 	return &AnalyticsService{client: client}
 }
 
+func (as *AnalyticsService) dataService(ctx context.Context) (*analyticsdata.Service, error) {
+	svc, err := as.client.GetOrCreateService("analyticsdata:v1beta", func() (any, error) {
+		opts, err := as.client.ClientOptions(ctx, "analytics")
+		if err != nil {
+			return nil, err
+		}
+		return analyticsdata.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create analyticsdata service: %w", err)
+	}
+	return svc.(*analyticsdata.Service), nil
+}
+
+func (as *AnalyticsService) adminService(ctx context.Context) (*analyticsadmin.Service, error) {
+	svc, err := as.client.GetOrCreateService("analyticsadmin:v1alpha", func() (any, error) {
+		opts, err := as.client.ClientOptions(ctx, "analytics")
+		if err != nil {
+			return nil, err
+		}
+		return analyticsadmin.NewService(ctx, opts...)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create analyticsadmin service: %w", err)
+	}
+	return svc.(*analyticsadmin.Service), nil
+}
+
 // ReportRequest holds parameters for a GA4 report request.
 type ReportRequest struct {
 	Property   string
@@ -71,14 +99,9 @@ func (as *AnalyticsService) RunReport(ctx context.Context, req ReportRequest) (*
 		return nil, err
 	}
 
-	opts, err := as.client.ClientOptions(ctx, "analytics")
+	svc, err := as.dataService(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := analyticsdata.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("RunReport: create analyticsdata service: %w", err)
 	}
 
 	limit := req.Limit
@@ -148,14 +171,9 @@ func (as *AnalyticsService) RunRealtimeReport(ctx context.Context, property stri
 		return nil, err
 	}
 
-	opts, err := as.client.ClientOptions(ctx, "analytics")
+	svc, err := as.dataService(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := analyticsdata.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("RunRealtimeReport: create analyticsdata service: %w", err)
 	}
 
 	if limit <= 0 {
@@ -219,14 +237,9 @@ func (as *AnalyticsService) ListProperties(ctx context.Context) ([]PropertySumma
 		return nil, err
 	}
 
-	opts, err := as.client.ClientOptions(ctx, "analytics")
+	svc, err := as.adminService(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := analyticsadmin.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("ListProperties: create analyticsadmin service: %w", err)
 	}
 
 	var properties []PropertySummary
@@ -270,14 +283,9 @@ func (as *AnalyticsService) ListAudiences(ctx context.Context, property string) 
 		return nil, err
 	}
 
-	opts, err := as.client.ClientOptions(ctx, "analytics")
+	svc, err := as.adminService(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	svc, err := analyticsadmin.NewService(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("ListAudiences: property %q: create analyticsadmin service: %w", property, err)
 	}
 
 	var audiences []AudienceSummary
