@@ -528,7 +528,7 @@ func generateBoundary() string {
 func writeHeader(buf *bytes.Buffer, key, value string) {
 	buf.WriteString(key)
 	buf.WriteString(": ")
-	if key == "Subject" && needsMIMEEncoding(value) {
+	if key == "Subject" && needsEncoding(value) {
 		buf.WriteString(mime.BEncoding.Encode("utf-8", value))
 	} else {
 		buf.WriteString(value)
@@ -536,7 +536,7 @@ func writeHeader(buf *bytes.Buffer, key, value string) {
 	buf.WriteString("\r\n")
 }
 
-func needsMIMEEncoding(s string) bool {
+func needsEncoding(s string) bool {
 	for _, r := range s {
 		if r > 127 {
 			return true
