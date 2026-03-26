@@ -245,18 +245,54 @@ func (gs *GmailService) MarkRead(ctx context.Context, query string, maxMessages 
 		return 0, fmt.Errorf("list messages for mark-read: %w", err)
 	}
 
-	marked := 0
+	if len(resp.Messages) == 0 {
+		return 0, nil
+	}
+
+	// Collect message IDs for batch processing
+	var messageIds []string
 	for _, msg := range resp.Messages {
+		messageIds = append(messageIds, msg.Id)
+	}
+
+	// Process in batches of 100 (Gmail API batch limit)
+	const batchSize = 100
+	var marked int
+	for i := 0; i < len(messageIds); i += batchSize {
+		end := i + batchSize
+		if end > len(messageIds) {
+			end = len(messageIds)
+		}
+
+		batch := messageIds[i:end]
+
+		// Create batch modify request
+		batchReq := &gmail.BatchModifyMessagesRequest{
+			Ids:            batch,
+			RemoveLabelIds: []string{"UNREAD"},
+		}
+
 		if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
 			return marked, err
 		}
-		modReq := &gmail.ModifyMessageRequest{
-			RemoveLabelIds: []string{"UNREAD"},
-		}
-		if _, err := svc.Users.Messages.Modify("me", msg.Id, modReq).Do(); err != nil {
+
+		if err := svc.Users.Messages.BatchModify("me", batchReq).Do(); err != nil {
+			// Fallback to individual processing if batch fails
+			for _, msgId := range batch {
+				if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
+					return marked, err
+				}
+				modReq := &gmail.ModifyMessageRequest{
+					RemoveLabelIds: []string{"UNREAD"},
+				}
+				if _, err := svc.Users.Messages.Modify("me", msgId, modReq).Do(); err == nil {
+					marked++
+				}
+			}
 			continue
 		}
-		marked++
+
+		marked += len(batch)
 	}
 
 	return marked, nil
