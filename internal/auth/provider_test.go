@@ -9,6 +9,8 @@ import (
 func init() {
 	// Use the in-memory mock backend so tests don't touch the real OS keyring.
 	keyring.MockInit()
+	// Initialize defaultStore so package-level provider functions work.
+	NewManagerWithStore(&KeyringStore{})
 }
 
 func TestSaveProviderToken_KeyFormat(t *testing.T) {
@@ -123,4 +125,69 @@ func TestSaveProviderToken_Overwrite(t *testing.T) {
 	if tok != "new-token" {
 		t.Fatalf("expected new-token after overwrite, got %q", tok)
 	}
+}
+
+func TestProviderToken_NotInitialized(t *testing.T) {
+	// Reset the singleton so we can test the nil-store path.
+	resetDefaultStoreForTest()
+	defer func() {
+		// Restore so subsequent tests are not broken.
+		keyring.MockInit()
+		NewManagerWithStore(&KeyringStore{})
+	}()
+
+	if err := SaveProviderToken("x", "y", "z"); err == nil {
+		t.Fatal("expected error when defaultStore is nil")
+	}
+	if _, err := LoadProviderToken("x", "y"); err == nil {
+		t.Fatal("expected error when defaultStore is nil")
+	}
+	if err := DeleteProviderToken("x", "y"); err == nil {
+		t.Fatal("expected error when defaultStore is nil")
+	}
+	if HasProviderToken("x", "y") {
+		t.Fatal("expected false when defaultStore is nil")
+	}
+}
+
+func TestDefaultStore_SyncOnce(t *testing.T) {
+	// Reset so we start from a clean state.
+	resetDefaultStoreForTest()
+	defer func() {
+		keyring.MockInit()
+		NewManagerWithStore(&KeyringStore{})
+	}()
+
+	first := &KeyringStore{}
+	second := &KeyringStore{}
+
+	setDefaultStore(first)
+	setDefaultStore(second) // should be ignored by sync.Once
+
+	if getDefaultStore() != first {
+		t.Fatal("setDefaultStore: second call should not override the first (sync.Once)")
+	}
+}
+
+func TestNewManagerWithStore_UsesProvidedStore(t *testing.T) {
+	resetDefaultStoreForTest()
+	defer func() {
+		keyring.MockInit()
+		NewManagerWithStore(&KeyringStore{})
+	}()
+
+	mock := &mockTokenStore{}
+	m := NewManagerWithStore(mock)
+
+	if m.store != mock {
+		t.Fatal("manager should use the provided store")
+	}
+	if getDefaultStore() != mock {
+		t.Fatal("defaultStore should be set to the provided store")
+	}
+}
+
+// mockTokenStore is a minimal TokenStore for injection tests.
+type mockTokenStore struct {
+	KeyringStore // embed to satisfy interface without implementing all methods
 }

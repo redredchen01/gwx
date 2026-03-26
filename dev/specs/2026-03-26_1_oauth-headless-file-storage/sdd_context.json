@@ -1,0 +1,609 @@
+{
+  "version": "2.2.1",
+  "feature": "oauth-headless-file-storage",
+  "spec_mode": "full",
+  "work_type": "completion",
+  "spec_folder": "dev/specs/2026-03-26_1_oauth-headless-file-storage",
+  "status": "in_progress",
+  "current_stage": "S7",
+  "execution_mode": "autopilot",
+  "started_at": "2026-03-26T00:00:00+08:00",
+  "last_updated": "2026-03-26T14:30:00+08:00",
+  "last_updated_by": "architect",
+  "stages": {
+    "s0": {
+      "status": "completed",
+      "agent": "requirement-analyst",
+      "output": {
+        "brief_spec_path": "dev/specs/2026-03-26_1_oauth-headless-file-storage/s0_brief_spec.md",
+        "work_type": "completion",
+        "requirement": "OAuth 憑證存儲新增 headless 環境自動偵測，在無 keyring 的 VPS/SSH 環境自動降級為加密檔案存儲",
+        "goal": "讓 gwx 在所有環境（桌面/headless/Docker）都能正常存取 OAuth 憑證，並引入 TokenStore interface 使 backend 切換成為架構能力",
+        "pain_points": [
+          "Manager.store 硬編碼為 *KeyringStore，無介面抽象，無法切換 backend（HS-1）",
+          "provider.go 的 provider token 操作直接呼叫 go-keyring，完全繞過 Manager 層（HS-2）",
+          "無環境偵測邏輯，headless 環境直接 panic 或 error（HS-3）",
+          "無 fallback 機制，keyring 失敗即終止（HS-4）"
+        ],
+        "success_criteria": [
+          "headless 環境自動偵測並使用 file-based storage",
+          "keyring 環境行為不變（向後相容）",
+          "keyring 故障時自動 fallback 到 file-based",
+          "支援 GWX_CREDENTIAL_BACKEND env var 手動覆蓋 backend",
+          "credential 檔案權限自動設為 600"
+        ],
+        "scope_in": [
+          "FA-A: 定義 TokenStore interface + 重構 KeyringStore + 新增 FileStore",
+          "FA-B: 環境偵測 Detector + Manager 依賴注入重構",
+          "FA-C: provider.go 遷移到 TokenStore interface"
+        ],
+        "scope_out": [
+          "跨 backend token 遷移工具",
+          "GUI 設定介面",
+          "現有 keyring 加密方式變更"
+        ],
+        "functional_areas": [
+          {
+            "id": "FA-A",
+            "name": "Storage Backend 抽象",
+            "description": "定義 TokenStore interface，重構 KeyringStore 實作 interface，新增 FileStore 實作（AES-GCM + atomic write）",
+            "independence": "medium"
+          },
+          {
+            "id": "FA-B",
+            "name": "環境偵測與 Backend 選擇",
+            "description": "自動偵測 headless 環境（keyring probe / DISPLAY / SSH_TTY），選擇 backend，支援 env var 手動覆蓋",
+            "independence": "medium"
+          },
+          {
+            "id": "FA-C",
+            "name": "Provider Token 遷移",
+            "description": "provider.go package-level keyring 函數遷移到 TokenStore interface，統一 token 存儲路徑",
+            "independence": "low"
+          }
+        ],
+        "decomposition_strategy": "single_sop_fa_labeled",
+        "child_sops": []
+      }
+    },
+    "s1": {
+      "status": "completed",
+      "agents": ["codebase-explorer", "architect"],
+      "started_at": "2026-03-26T10:00:00+08:00",
+      "completed_at": "2026-03-26T12:00:00+08:00",
+      "output": {
+        "completed_phases": [1, 2, 3, 4, 5],
+        "dev_spec_path": "dev/specs/2026-03-26_1_oauth-headless-file-storage/s1_dev_spec.md",
+        "solution_summary": "引入 TokenStore interface（9 方法：OAuth2 token + credentials + provider raw string），KeyringStore 重構實作 interface（含 provider token 方法），FileStore（AES-GCM + flock + atomic write + ensurePermissions），Detector 負責環境偵測，Manager 保留 NewManager() + sync.Once 保護 defaultStore，provider.go 委派 defaultStore.SaveProviderToken/LoadProviderToken，macOS machineID 改用 syscall.Sysctl",
+        "validation_summary": {
+          "critical": 2,
+          "high": 1,
+          "fixed": true
+        },
+        "tasks": [
+          {
+            "id": "T1",
+            "fa": "FA-A",
+            "name": "定義 TokenStore interface（9 方法）+ sentinel errors",
+            "complexity": "S",
+            "agent": "backend-developer",
+            "depends_on": []
+          },
+          {
+            "id": "T2",
+            "fa": "FA-A",
+            "name": "重構 KeyringStore 實作 TokenStore（含 provider token 方法）",
+            "complexity": "S",
+            "agent": "backend-developer",
+            "depends_on": ["T1"]
+          },
+          {
+            "id": "T3",
+            "fa": "FA-A",
+            "name": "實作 FileStore（AES-GCM + atomic write + flock + ensurePermissions）",
+            "complexity": "L",
+            "agent": "backend-developer",
+            "depends_on": ["T1"]
+          },
+          {
+            "id": "T4",
+            "fa": "FA-B",
+            "name": "實作 Detector（環境偵測 + env var override）",
+            "complexity": "M",
+            "agent": "backend-developer",
+            "depends_on": ["T1"]
+          },
+          {
+            "id": "T5",
+            "fa": "FA-B",
+            "name": "重構 Manager 依賴注入 + sync.Once 保護 defaultStore",
+            "complexity": "M",
+            "agent": "backend-developer",
+            "depends_on": ["T2", "T3", "T4"]
+          },
+          {
+            "id": "T6",
+            "fa": "FA-C",
+            "name": "遷移 provider.go（委派 defaultStore.SaveProviderToken 等）",
+            "complexity": "S",
+            "agent": "backend-developer",
+            "depends_on": ["T5"]
+          },
+          {
+            "id": "T7",
+            "fa": "ALL",
+            "name": "FileStore + Detector 單元測試",
+            "complexity": "M",
+            "agent": "backend-developer",
+            "depends_on": ["T3", "T4"]
+          },
+          {
+            "id": "T8",
+            "fa": "ALL",
+            "name": "整合測試 + oauth_test.go MockInit 修復",
+            "complexity": "M",
+            "agent": "backend-developer",
+            "depends_on": ["T5", "T6", "T7"]
+          }
+        ],
+        "acceptance_criteria": [
+          "AC-1: headless 環境（無 DISPLAY/SSH/keyring）自動選 FileStore",
+          "AC-2: 桌面環境 keyring 行為不變，向後相容",
+          "AC-3: GWX_CREDENTIAL_BACKEND=file 強制 FileStore",
+          "AC-4: GWX_CREDENTIAL_BACKEND=keyring 強制 KeyringStore",
+          "AC-5: keyring daemon crash 自動 fallback FileStore",
+          "AC-6: credentials.enc 權限 0600，ensurePermissions 修正既有 644",
+          "AC-7: 多進程 flock 超時回傳 ErrLockTimeout",
+          "AC-8: 檔案損毀自動清除並引導重授權",
+          "AC-9: 跨機器金鑰不匹配自動清除並引導重授權",
+          "AC-10: 10 個 caller 零修改編譯通過",
+          "AC-11: SSH session 自動偵測選 FileStore",
+          "AC-12: NewManager() 無參數簽名，8+ caller 不變",
+          "AC-13: defaultStore 並發安全，go test -race 無 race condition"
+        ],
+        "risks": [
+          {
+            "risk": "machineID() 在特定 Linux 發行版讀取失敗",
+            "level": "medium",
+            "mitigation": "fallback 到 os.Hostname()，T3 覆蓋測試案例"
+          },
+          {
+            "risk": "defaultStore 在 Manager 初始化前被呼叫（init ordering）",
+            "level": "medium",
+            "mitigation": "sync.Once 保護；HasProviderToken 在 defaultStore==nil 時安全回傳 false"
+          },
+          {
+            "risk": "flock 在 NFS/網路磁碟上行為不一致",
+            "level": "low",
+            "mitigation": "文件說明 XDG_CONFIG_HOME 應指向本地磁碟"
+          },
+          {
+            "risk": "TokenSource() 繞過 TokenStore 直接讀 keyring",
+            "level": "medium",
+            "mitigation": "T5 DoD 新增驗證點，T8 整合測試確認底層呼叫路徑"
+          },
+          {
+            "risk": "macOS syscall.Sysctl(kern.uuid) 在舊版 macOS 不可用",
+            "level": "low",
+            "mitigation": "fallback 到 os.Hostname()；macOS 10.12+ 均支援"
+          }
+        ],
+        "tech_debt": [
+          "oauth_test.go 缺少 keyring.MockInit()，測試在 headless 環境不穩定（T8 修復）",
+          "LoadConfigFromKeyring 命名語意與 FileStore 不符（保留 + deprecation comment）"
+        ],
+        "regression_risks": [
+          "桌面環境 keyring 行為不一致（AC-2 強制覆蓋）",
+          "NewManager() 簽名被意外修改（AC-12 強制驗收）",
+          "defaultStore 在 Manager 初始化前被呼叫（T5 確認 init ordering + sync.Once）",
+          "oauth_test.go 在 headless CI 環境因使用真實 keyring 失敗（T8 修復）",
+          "TokenSource() 繞過 TokenStore 直接讀 keyring（T5 DoD + T8 整合測試驗證）"
+        ],
+        "assumptions": [
+          "現有 provider token keyring key 格式為 provider:{provider}:{account}（無 gwx: 前綴），T2 實作前確認",
+          "go-keyring.Get 回傳的非 ErrNotFound 錯誤可可靠偵測 keyring 不可用",
+          "macOS syscall.Sysctl(kern.uuid) 在目標支援版本（macOS 10.12+）均可用"
+        ],
+        "impact_scope": {
+          "direct_files": [
+            {
+              "file": "internal/auth/keyring.go",
+              "change_type": "refactor",
+              "description": "新增 var _ TokenStore = (*KeyringStore)(nil) 編譯期驗證；現有 5 個方法簽名不變；新增 4 個 provider token 方法（將 provider.go keyring 邏輯搬入）"
+            },
+            {
+              "file": "internal/auth/oauth.go",
+              "change_type": "refactor",
+              "description": "Manager.store 從 *KeyringStore 改為 TokenStore interface；NewManager() 保留無參數簽名；新增 NewManagerWithStore() 供測試注入；sync.Once 保護 defaultStore 設定；LoadConfigFromKeyring 保留 + deprecation comment；TokenSource() 底層走 TokenStore 驗證"
+            },
+            {
+              "file": "internal/auth/provider.go",
+              "change_type": "refactor",
+              "description": "package-level 函數委派 defaultStore.SaveProviderToken/LoadProviderToken/DeleteProviderToken/HasProviderToken；移除 go-keyring import"
+            }
+          ],
+          "new_files": [
+            "internal/auth/store.go（TokenStore interface 9 方法定義，sentinel errors）",
+            "internal/auth/filestore.go（FileStore 實作：AES-GCM + atomic write + ensurePermissions；macOS 用 syscall.Sysctl）",
+            "internal/auth/detector.go（環境偵測 Detector，SelectBackend() 不回傳 error）",
+            "internal/auth/filestore_test.go",
+            "internal/auth/detector_test.go"
+          ],
+          "indirect_files": [
+            "internal/cmd/root.go",
+            "internal/cmd/onboard.go",
+            "internal/cmd/auth.go",
+            "internal/cmd/doctor.go",
+            "internal/cmd/github.go",
+            "internal/cmd/slack.go",
+            "internal/cmd/notion.go",
+            "internal/mcp/tools_github.go",
+            "internal/mcp/tools_slack.go",
+            "internal/mcp/tools_notion.go"
+          ]
+        },
+        "dependencies": {
+          "go_keyring": "v0.2.6（已有，保留）",
+          "golang_x_crypto": "v0.49.0（從 indirect 提升為 direct，HKDF 用途）",
+          "new_packages_needed": []
+        }
+      }
+    },
+    "s2": {
+      "status": "completed",
+      "agent": "architect",
+      "started_at": "2026-03-26T13:00:00+08:00",
+      "completed_at": "2026-03-26T14:00:00+08:00",
+      "output": {
+        "review_findings": [
+          {
+            "id": "SR-001",
+            "priority": "P0",
+            "decision": "accepted",
+            "summary": "TokenStore interface 擴展加入 provider token 方法（SaveProviderToken/LoadProviderToken/DeleteProviderToken/HasProviderToken，raw string）",
+            "spec_change": "T1 interface 從 5 方法擴展到 9 方法；T2 KeyringStore 新增 4 個 provider token 方法；T3 FileStore 新增 4 個 provider token 方法；T6 provider.go 委派改為 defaultStore.SaveProviderToken 等"
+          },
+          {
+            "id": "SR-002",
+            "priority": "P1",
+            "decision": "accepted",
+            "summary": "T5 新增 TokenSource() 底層路徑驗證點，確認 LoadConfigFromKeyring 底層走 m.store.LoadCredentials 而非繞過 TokenStore",
+            "spec_change": "T5 DoD 新增驗證項；T8 整合測試新增 TokenSource 驗證"
+          },
+          {
+            "id": "SR-003",
+            "priority": "P1",
+            "decision": "accepted",
+            "summary": "defaultStore 用 sync.Once 保護初始化，防止並發 race condition",
+            "spec_change": "T5 描述與 DoD 加入 sync.Once；AC-13 新增；go test -race 加入驗收指令"
+          },
+          {
+            "id": "SR-004",
+            "priority": "P1",
+            "decision": "accepted",
+            "summary": "macOS machineID() 改用 syscall.Sysctl(kern.uuid) 取代 ioreg exec 呼叫",
+            "spec_change": "T3 描述修正 machineID() macOS 實作；4.2 資料模型更新；新增決策 D7"
+          },
+          {
+            "id": "SR-005",
+            "priority": "P2",
+            "decision": "accepted",
+            "summary": "統一 credentials key prefix 為 cred:（不用 creds:）",
+            "spec_change": "T3 DoD 新增 key prefix 一致性驗證；4.2 資料模型更新"
+          },
+          {
+            "id": "SR-006",
+            "priority": "P2",
+            "decision": "accepted",
+            "summary": "T3 新增 ensurePermissions() 步驟，在 Load/Save 入口修正既有 644 檔案",
+            "spec_change": "T3 描述新增 ensurePermissions() 方法；T3 DoD 新增驗證項；T7 測試場景新增 ensurePermissions 驗證；AC-6 描述更新"
+          }
+        ],
+        "spec_version": "s2-r2",
+        "all_findings_resolved": true
+      }
+    },
+    "s3": {
+      "status": "pending_confirmation",
+      "agent": "architect",
+      "completed_at": "2026-03-26T14:30:00+08:00",
+      "output": {
+        "implementation_plan_path": "dev/specs/2026-03-26_1_oauth-headless-file-storage/s3_implementation_plan.md",
+        "total_tasks": 8,
+        "estimated_waves": 4,
+        "waves": [
+          {
+            "wave": 1,
+            "name": "FA-A Storage Backend 抽象（串行）",
+            "parallel": false,
+            "tasks": [
+              {
+                "id": "T1",
+                "name": "定義 TokenStore interface（9 方法）+ sentinel errors",
+                "agent": "frontend-developer",
+                "dependencies": [],
+                "complexity": "S",
+                "dod": [
+                  "store.go 存在並包含完整 TokenStore interface 定義（9 個方法）",
+                  "4 個 sentinel errors 定義完整，errors.Is() 可比對",
+                  "go build ./internal/auth/... 通過"
+                ],
+                "parallel": false,
+                "affected_files": ["internal/auth/store.go"],
+                "tdd_plan": null,
+                "tdd_skip_justification": "純 interface 定義 + sentinel errors，無可測試的執行邏輯；下游任務透過編譯期驗證 var _ TokenStore = (...) 間接驗證"
+              },
+              {
+                "id": "T2",
+                "name": "重構 KeyringStore 實作 TokenStore（含 provider token 方法）",
+                "agent": "frontend-developer",
+                "dependencies": ["T1"],
+                "complexity": "S",
+                "dod": [
+                  "var _ TokenStore = (*KeyringStore)(nil) 編譯通過",
+                  "KeyringStore 現有 5 個方法簽名完全不變",
+                  "新增 4 個 provider token 方法，key 格式為 provider:{provider}:{account}",
+                  "go build ./internal/auth/... 通過"
+                ],
+                "parallel": false,
+                "affected_files": ["internal/auth/keyring.go"],
+                "tdd_plan": {
+                  "test_file": "internal/auth/keyring_test.go",
+                  "test_cases": [
+                    "TestKeyringStore_SaveProviderToken",
+                    "TestKeyringStore_LoadProviderToken",
+                    "TestKeyringStore_DeleteProviderToken",
+                    "TestKeyringStore_HasProviderToken"
+                  ],
+                  "test_command": "go test ./internal/auth/ -run TestKeyring -v"
+                }
+              },
+              {
+                "id": "T3",
+                "name": "實作 FileStore（AES-GCM + atomic write + flock + ensurePermissions）",
+                "agent": "frontend-developer",
+                "dependencies": ["T1"],
+                "complexity": "L",
+                "dod": [
+                  "var _ TokenStore = (*FileStore)(nil) 編譯通過",
+                  "machineID() macOS 用 syscall.Sysctl(\"kern.uuid\")",
+                  "key prefix 統一：token:、cred:、provider:",
+                  "ensurePermissions() 在 Load/Save 入口呼叫",
+                  "ErrLockTimeout / ErrCredentialCorrupted / ErrKeyMismatch 正確回傳",
+                  "golang.org/x/crypto 提升為 direct dependency",
+                  "go build ./internal/auth/... 通過"
+                ],
+                "parallel": true,
+                "affected_files": [
+                  "internal/auth/filestore.go",
+                  "go.mod",
+                  "go.sum"
+                ],
+                "tdd_plan": {
+                  "test_file": "internal/auth/filestore_test.go",
+                  "test_cases": [
+                    "TestFileStore_SaveLoadToken_Roundtrip",
+                    "TestFileStore_SaveLoadCredentials_Roundtrip",
+                    "TestFileStore_SaveLoadProviderToken_Roundtrip",
+                    "TestFileStore_LockTimeout",
+                    "TestFileStore_CorruptedFile",
+                    "TestFileStore_KeyMismatch",
+                    "TestFileStore_ChmodPermissions",
+                    "TestFileStore_EnsurePermissions_Fix644",
+                    "TestFileStore_AtomicWrite"
+                  ],
+                  "test_command": "go test ./internal/auth/ -run TestFileStore -v"
+                }
+              }
+            ]
+          },
+          {
+            "wave": 2,
+            "name": "FA-B 環境偵測（T4 可與 T3 並行）",
+            "parallel": "T4 可與 T3 並行開始（均依賴 T1，彼此不相依）",
+            "tasks": [
+              {
+                "id": "T4",
+                "name": "實作 Detector（環境偵測 + env var override）",
+                "agent": "frontend-developer",
+                "dependencies": ["T1"],
+                "complexity": "M",
+                "dod": [
+                  "GWX_CREDENTIAL_BACKEND=file 強制回傳 *FileStore",
+                  "GWX_CREDENTIAL_BACKEND=keyring 強制回傳 *KeyringStore",
+                  "keyring probe 失敗且無 DISPLAY → *FileStore",
+                  "SSH_TTY 有值 → *FileStore",
+                  "無效 GWX_CREDENTIAL_BACKEND → log warning + *FileStore",
+                  "go build ./internal/auth/... 通過"
+                ],
+                "parallel": true,
+                "affected_files": ["internal/auth/detector.go"],
+                "tdd_plan": {
+                  "test_file": "internal/auth/detector_test.go",
+                  "test_cases": [
+                    "TestDetector_EnvVarFile",
+                    "TestDetector_EnvVarKeyring",
+                    "TestDetector_EnvVarInvalid",
+                    "TestDetector_SSHSession",
+                    "TestDetector_NoDisplay_NoKeyring",
+                    "TestDetector_KeyringAvailable"
+                  ],
+                  "test_command": "go test ./internal/auth/ -run TestDetector -v"
+                }
+              },
+              {
+                "id": "T5",
+                "name": "重構 Manager 依賴注入 + sync.Once 保護 defaultStore",
+                "agent": "frontend-developer",
+                "dependencies": ["T2", "T3", "T4"],
+                "complexity": "M",
+                "dod": [
+                  "Manager.store 型別為 TokenStore interface",
+                  "NewManager() 保持無參數簽名，回傳 *Manager",
+                  "NewManagerWithStore(store TokenStore) *Manager 存在",
+                  "LoadConfigFromKeyring 仍存在",
+                  "auth.defaultStore 透過 sync.Once 設定",
+                  "TokenSource() 確認走 m.store.LoadCredentials",
+                  "go build ./... 通過",
+                  "go test -race ./internal/auth/... 無 race condition"
+                ],
+                "parallel": false,
+                "affected_files": ["internal/auth/oauth.go"],
+                "tdd_plan": {
+                  "test_file": "internal/auth/oauth_test.go",
+                  "test_cases": [
+                    "TestManager_NewManagerWithStore",
+                    "TestManager_DefaultStore_SyncOnce",
+                    "TestManager_TokenSource_UsesTokenStore"
+                  ],
+                  "test_command": "go test -race ./internal/auth/ -run TestManager -v"
+                }
+              }
+            ]
+          },
+          {
+            "wave": 3,
+            "name": "FA-C Provider 遷移",
+            "parallel": false,
+            "tasks": [
+              {
+                "id": "T6",
+                "name": "遷移 provider.go（委派 defaultStore.SaveProviderToken 等）",
+                "agent": "frontend-developer",
+                "dependencies": ["T5"],
+                "complexity": "S",
+                "dod": [
+                  "provider.go 不再 import zalando/go-keyring",
+                  "4 個函數簽名完全不變",
+                  "HasProviderToken 在 defaultStore == nil 時回傳 false",
+                  "go build ./... 通過"
+                ],
+                "parallel": false,
+                "affected_files": ["internal/auth/provider.go"],
+                "tdd_plan": {
+                  "test_file": "internal/auth/provider_test.go",
+                  "test_cases": [
+                    "TestProvider_SaveLoadProviderToken_FileStore",
+                    "TestProvider_HasProviderToken_NilDefaultStore",
+                    "TestProvider_DeleteProviderToken"
+                  ],
+                  "test_command": "go test ./internal/auth/ -run TestProvider -v"
+                }
+              }
+            ]
+          },
+          {
+            "wave": 4,
+            "name": "測試（T7 完成後 T8）",
+            "parallel": "T7 先執行，T8 依賴 T7",
+            "tasks": [
+              {
+                "id": "T7",
+                "name": "FileStore + Detector 單元測試補全",
+                "agent": "frontend-developer",
+                "dependencies": ["T3", "T4"],
+                "complexity": "M",
+                "dod": [
+                  "filestore_test.go 覆蓋 9 個場景",
+                  "detector_test.go 覆蓋 4 個情境",
+                  "go test ./internal/auth/ -count=1 全部通過",
+                  "測試使用 t.TempDir() 隔離路徑"
+                ],
+                "parallel": false,
+                "affected_files": [
+                  "internal/auth/filestore_test.go",
+                  "internal/auth/detector_test.go"
+                ],
+                "tdd_plan": {
+                  "test_file": "internal/auth/filestore_test.go + internal/auth/detector_test.go",
+                  "test_cases": [
+                    "TestFileStore_SaveLoadToken_Roundtrip",
+                    "TestFileStore_SaveLoadCredentials_Roundtrip",
+                    "TestFileStore_SaveLoadProviderToken_Roundtrip",
+                    "TestFileStore_LockTimeout",
+                    "TestFileStore_CorruptedFile",
+                    "TestFileStore_KeyMismatch",
+                    "TestFileStore_ChmodPermissions",
+                    "TestFileStore_EnsurePermissions_Fix644",
+                    "TestFileStore_AtomicWrite",
+                    "TestDetector_EnvVarFile",
+                    "TestDetector_EnvVarKeyring",
+                    "TestDetector_EnvVarInvalid",
+                    "TestDetector_SSHSession"
+                  ],
+                  "test_command": "go test ./internal/auth/ -v -run 'TestFileStore|TestDetector'"
+                }
+              },
+              {
+                "id": "T8",
+                "name": "整合測試 + oauth_test.go MockInit 修復",
+                "agent": "frontend-developer",
+                "dependencies": ["T5", "T6", "T7"],
+                "complexity": "M",
+                "dod": [
+                  "oauth_test.go 加入 keyring.MockInit()",
+                  "整合測試覆蓋 FileStore + KeyringStore 兩種 backend",
+                  "provider token roundtrip 在 FileStore backend 下通過",
+                  "TokenSource() 確認走 TokenStore",
+                  "go build ./... 通過",
+                  "GWX_CREDENTIAL_BACKEND=file go test -race ./... -count=1 全部通過"
+                ],
+                "parallel": false,
+                "affected_files": ["internal/auth/oauth_test.go"],
+                "tdd_plan": {
+                  "test_file": "internal/auth/oauth_test.go",
+                  "test_cases": [
+                    "TestIntegration_FileStore_Roundtrip",
+                    "TestIntegration_KeyringStore_Roundtrip",
+                    "TestIntegration_ProviderToken_FileStore",
+                    "TestIntegration_TokenSource_UsesTokenStore"
+                  ],
+                  "test_command": "GWX_CREDENTIAL_BACKEND=file go test -race ./... -count=1"
+                }
+              }
+            ]
+          }
+        ],
+        "verification": {
+          "static_analysis": [
+            "go build ./...",
+            "go vet ./...",
+            "CGO_ENABLED=0 go build ./..."
+          ],
+          "unit_tests": [
+            "go test ./internal/auth/ -run TestFileStore -v",
+            "go test ./internal/auth/ -run TestDetector -v",
+            "go test ./internal/auth/ -run TestKeyring -v",
+            "go test ./internal/auth/ -run TestProvider -v",
+            "go test ./internal/auth/ -count=1"
+          ],
+          "integration_tests": [
+            "GWX_CREDENTIAL_BACKEND=file go test -race ./... -count=1"
+          ]
+        },
+        "e2e_test_plan": {
+          "testability_summary": {
+            "auto": 0,
+            "api_only": 13,
+            "hybrid": 0,
+            "manual": 5
+          },
+          "planned_test_files": [
+            "internal/auth/filestore_test.go",
+            "internal/auth/detector_test.go",
+            "internal/auth/oauth_test.go"
+          ],
+          "required_ui_keys": [],
+          "assigned_tasks": {
+            "T7": ["AC-1", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9", "AC-11"],
+            "T8": ["AC-2", "AC-10", "AC-12", "AC-13"]
+          }
+        }
+      }
+    },
+    "s4": { "status": "pending" },
+    "s5": { "status": "pending" },
+    "s6": { "status": "pending" },
+    "s7": { "status": "pending" }
+  }
+}

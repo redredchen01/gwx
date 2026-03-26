@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"sync"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -27,15 +28,39 @@ const (
 
 // Manager handles OAuth2 authentication.
 type Manager struct {
-	store  *KeyringStore
+	store  TokenStore
 	config *oauth2.Config
 }
 
-// NewManager creates an auth manager.
+var (
+	defaultStore     TokenStore
+	defaultStoreOnce sync.Once
+)
+
+func setDefaultStore(store TokenStore) {
+	defaultStoreOnce.Do(func() {
+		defaultStore = store
+	})
+}
+
+func getDefaultStore() TokenStore {
+	return defaultStore
+}
+
+// NewManager creates an auth manager using the auto-detected backend.
 func NewManager() *Manager {
-	return &Manager{
-		store: &KeyringStore{},
-	}
+	store := SelectBackend()
+	m := &Manager{store: store}
+	setDefaultStore(store)
+	return m
+}
+
+// NewManagerWithStore creates an auth manager with an explicit TokenStore.
+// Intended for testing and dependency injection.
+func NewManagerWithStore(store TokenStore) *Manager {
+	m := &Manager{store: store}
+	setDefaultStore(store)
+	return m
 }
 
 // LoadConfigFromFile reads a Google OAuth credentials JSON file
@@ -85,7 +110,9 @@ func (m *Manager) LoadConfigFromJSON(data []byte, scopes []string) error {
 	return nil
 }
 
-// LoadConfigFromKeyring loads previously saved credentials.
+// Deprecated: LoadConfigFromKeyring loads credentials regardless of backend type.
+// The name is preserved for backward compatibility; internally it delegates to
+// m.store.LoadCredentials, which works with any TokenStore implementation.
 func (m *Manager) LoadConfigFromKeyring(scopes []string) error {
 	creds, err := m.store.LoadCredentials("default")
 	if err != nil {
