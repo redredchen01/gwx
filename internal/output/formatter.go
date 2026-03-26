@@ -17,7 +17,7 @@ import (
 type Format int
 
 const (
-	FormatJSON  Format = iota
+	FormatJSON Format = iota
 	FormatPlain
 	FormatTable
 )
@@ -38,7 +38,7 @@ func ParseFormat(s string) Format {
 
 // Response is the unified JSON envelope for all gwx output.
 type Response struct {
-	Status string      `json:"status"`          // "ok" or "error"
+	Status string      `json:"status"` // "ok" or "error"
 	Data   interface{} `json:"data,omitempty"`
 	Error  *ErrorInfo  `json:"error,omitempty"`
 }
@@ -152,8 +152,11 @@ func mapSummary(m map[string]interface{}) string {
 	keys := []string{"subject", "title", "name", "summary", "id", "email", "status"}
 	var parts []string
 	for _, k := range keys {
-		if v, ok := m[k]; ok && v != nil && fmt.Sprintf("%v", v) != "" {
-			parts = append(parts, fmt.Sprintf("%s=%v", k, v))
+		if v, ok := m[k]; ok && v != nil {
+			s := fmt.Sprintf("%v", v)
+			if s != "" {
+				parts = append(parts, k+"="+s)
+			}
 		}
 		if len(parts) >= 3 {
 			break
@@ -253,7 +256,7 @@ func (p *Printer) renderArrayAsTable(arr []interface{}) {
 		if !ok {
 			continue
 		}
-		var row []string
+		var row = make([]string, 0, len(headers))
 		for _, h := range headers {
 			val := ""
 			if v, ok := im[h]; ok && v != nil {

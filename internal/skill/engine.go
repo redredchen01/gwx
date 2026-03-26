@@ -171,6 +171,13 @@ func (e *Engine) runParallelBatch(ctx context.Context, batch []Step, inputs map[
 	// Merge in index order.
 	var allReports []StepReport
 	aborted := false
+
+	// Build lookup map to avoid O(n²) search
+	batchByID := make(map[string]Step, len(batch))
+	for _, s := range batch {
+		batchByID[s.ID] = s
+	}
+
 	for _, pr := range results {
 		allReports = append(allReports, pr.reports...)
 		if pr.aborted {
@@ -179,16 +186,12 @@ func (e *Engine) runParallelBatch(ctx context.Context, batch []Step, inputs map[
 		// Merge results back into the main store from the reports.
 		for _, r := range pr.reports {
 			if r.Success {
-				// Find the step to get the store key.
-				for _, s := range batch {
-					if s.ID == r.ID {
-						key := s.Store
-						if key == "" {
-							key = s.ID
-						}
-						store[key] = r.Output
-						break
+				if s, ok := batchByID[r.ID]; ok {
+					key := s.Store
+					if key == "" {
+						key = s.ID
 					}
+					store[key] = r.Output
 				}
 			}
 		}

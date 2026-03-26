@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/redredchen01/gwx/internal/api"
@@ -22,11 +23,11 @@ type StandupResult struct {
 
 // DigestSection holds email digest results.
 type DigestSection struct {
-	TotalMessages int              `json:"total_messages"`
-	TotalUnread   int              `json:"total_unread"`
+	TotalMessages int               `json:"total_messages"`
+	TotalUnread   int               `json:"total_unread"`
 	Groups        []api.DigestGroup `json:"groups,omitempty"`
-	Summary       string           `json:"summary"`
-	Error         string           `json:"error,omitempty"`
+	Summary       string            `json:"summary"`
+	Error         string            `json:"error,omitempty"`
 }
 
 // CalendarSection holds calendar event results.
@@ -85,13 +86,23 @@ func RunStandup(ctx context.Context, client *api.Client, opts StandupOpts) (*Sta
 			if err != nil {
 				return nil, err
 			}
+			// Parallel fetch tasks from each list
+			results := make([][]api.TaskItem, len(lists))
+			var wg sync.WaitGroup
+			for i, l := range lists {
+				wg.Add(1)
+				go func(idx int, listID string) {
+					defer wg.Done()
+					tasks, err := svc.ListTasks(ctx, listID, false)
+					if err == nil {
+						results[idx] = tasks
+					}
+				}(i, l.ID)
+			}
+			wg.Wait()
 			var allTasks []api.TaskItem
-			for _, l := range lists {
-				tasks, err := svc.ListTasks(ctx, l.ID, false)
-				if err != nil {
-					continue
-				}
-				allTasks = append(allTasks, tasks...)
+			for _, ts := range results {
+				allTasks = append(allTasks, ts...)
 			}
 			return allTasks, nil
 		}},
@@ -199,24 +210,32 @@ func RunStandup(ctx context.Context, client *api.Client, opts StandupOpts) (*Sta
 
 func formatStandupText(r *StandupResult) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# Daily Standup — %s\n\n", r.Date))
+	fmt.Fprintf(&sb, "# Daily Standup — %s\n\n", r.Date)
 
 	if r.GitChanges != nil && len(r.GitChanges.Commits) > 0 {
 		sb.WriteString("## Git Activity\n")
 		for _, c := range r.GitChanges.Commits {
-			sb.WriteString(fmt.Sprintf("- %s\n", c))
+			sb.WriteString("- ")
+			sb.WriteString(c)
+			sb.WriteByte('\n')
 		}
 		sb.WriteString("\n")
 	}
 
 	if r.EmailDigest != nil && r.EmailDigest.Summary != "" {
-		sb.WriteString(fmt.Sprintf("## Email\n%s\n\n", r.EmailDigest.Summary))
+		sb.WriteString("## Email\n")
+		sb.WriteString(r.EmailDigest.Summary)
+		sb.WriteString("\n\n")
 	}
 
 	if r.Calendar != nil && r.Calendar.Count > 0 {
 		sb.WriteString("## Meetings Today\n")
 		for _, e := range r.Calendar.Events {
-			sb.WriteString(fmt.Sprintf("- %s (%s)\n", e.Title, e.Start))
+			sb.WriteString("- ")
+			sb.WriteString(e.Title)
+			sb.WriteString(" (")
+			sb.WriteString(e.Start)
+			sb.WriteString(")\n")
 		}
 		sb.WriteString("\n")
 	}
@@ -224,7 +243,11 @@ func formatStandupText(r *StandupResult) string {
 	if r.Tasks != nil && r.Tasks.Count > 0 {
 		sb.WriteString("## Tasks\n")
 		for _, t := range r.Tasks.Tasks {
-			sb.WriteString(fmt.Sprintf("- [%s] %s\n", t.Status, t.Title))
+			sb.WriteString("- [")
+			sb.WriteString(t.Status)
+			sb.WriteString("] ")
+			sb.WriteString(t.Title)
+			sb.WriteByte('\n')
 		}
 	}
 

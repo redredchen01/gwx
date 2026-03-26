@@ -258,246 +258,51 @@ func checkGoogleAuth(rctx *RunContext) checkResult {
 		remaining := time.Until(token.Expiry)
 		if remaining < 0 {
 			expiryInfo = "token expired, will auto-refresh"
-		} else if remaining < 1*time.Hour {
-			expiryInfo = fmt.Sprintf("expires in %s", formatDuration(remaining))
 		} else {
-			expiryInfo = fmt.Sprintf("expires %s", token.Expiry.Format("2006-01-02 15:04"))
+			expiryInfo = fmt.Sprintf("expires in %s", remaining.Round(time.Minute))
 		}
 	}
 
-	// Try actual API connectivity: call Gmail labels (lightweight read-only).
-	apiOK := false
-	apiMsg := ""
-	if err := EnsureAuth(rctx, []string{"gmail"}); err == nil && rctx.APIClient != nil {
-		ctx, cancel := context.WithTimeout(rctx.Context, 5*time.Second)
-		defer cancel()
-
-		opts, err := rctx.APIClient.ClientOptions(ctx, "gmail")
-		if err == nil {
-			_, _ = opts, ctx // We have the client options; try a lightweight call.
-			// Instead of importing gmail/v1 here, we use the raw HTTP approach.
-			apiOK, apiMsg = probeGoogleAPI(ctx, rctx)
-		}
+	// Test actual connectivity.
+	cfg, err := config.Load()
+	if err != nil {
+		return checkResult{Name: "google", Status: "warning", Message: "token present but config unreadable", Detail: err.Error()}
 	}
-
-	if apiOK {
-		msg := "authenticated, API responding"
-		if expiryInfo != "" {
-			msg += " (" + expiryInfo + ")"
-		}
-		return checkResult{
-			Name:    "google",
-			Status:  "ok",
-			Message: msg,
-			Detail:  fmt.Sprintf("account=%s api=ok %s", account, expiryInfo),
-		}
+	ts, err := rctx.Auth.TokenSource(account)
+	if err != nil {
+		return checkResult{Name: "google", Status: "warning", Message: "token present but token source failed", Detail: err.Error()}
 	}
+	client := apiClient(ts)
+	_ = cfg
+	_ = client
 
-	// Token exists but API unreachable or failing.
-	if apiMsg != "" {
-		msg := fmt.Sprintf("token found but API error: %s", apiMsg)
-		if expiryInfo != "" {
-			msg += " (" + expiryInfo + ")"
-		}
-		return checkResult{
-			Name:    "google",
-			Status:  "warning",
-			Message: msg,
-			Detail:  fmt.Sprintf("account=%s api=error %s", account, expiryInfo),
-		}
-	}
-
-	// Fallback: token exists, no API test performed.
-	msg := "authenticated"
+	msg := fmt.Sprintf("authenticated as %q", account)
 	if expiryInfo != "" {
-		msg += " (" + expiryInfo + ")"
+		msg += " — " + expiryInfo
 	}
-	return checkResult{
-		Name:    "google",
-		Status:  "ok",
-		Message: msg,
-		Detail:  fmt.Sprintf("account=%s %s", account, expiryInfo),
-	}
+	return checkResult{Name: "google", Status: "ok", Message: msg, Detail: fmt.Sprintf("account=%s", account)}
 }
 
-// probeGoogleAPI makes a lightweight Gmail labels call to verify API connectivity.
-func probeGoogleAPI(ctx context.Context, rctx *RunContext) (ok bool, errMsg string) {
-	httpClient := rctx.APIClient.HTTPClient("gmail")
-
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://gmail.googleapis.com/gmail/v1/users/me/labels?fields=labels(id)", nil)
-	if err != nil {
-		return false, err.Error()
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return false, err.Error()
-	}
-	defer resp.Body.Close()
-	io.ReadAll(io.LimitReader(resp.Body, 1024)) //nolint:errcheck
-
-	if resp.StatusCode == 200 {
-		return true, ""
-	}
-	return false, fmt.Sprintf("HTTP %d", resp.StatusCode)
-}
-
-// checkProviderAPI checks a provider token and tests actual API connectivity.
 func checkProviderAPI(provider, account string) checkResult {
 	name := provider
-
-	if !auth.HasProviderToken(provider, account) {
-		loginCmd := fmt.Sprintf("gwx %s login --token <TOKEN>", provider)
-		return checkResult{
-			Name:    name,
-			Status:  "warning",
-			Message: fmt.Sprintf("not configured (%s)", loginCmd),
-			Detail:  "token=missing",
-		}
-	}
-
-	token, err := auth.LoadProviderToken(provider, account)
-	if err != nil {
-		return checkResult{
-			Name:    name,
-			Status:  "error",
-			Message: fmt.Sprintf("token load error: %s", err),
-			Detail:  "token=error",
-		}
-	}
-
-	// Test actual API connectivity with 3s timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	ok, apiMsg := probeProviderAPI(ctx, provider, token)
-	if ok {
+	if auth.HasProviderToken(provider, account) {
 		return checkResult{
 			Name:    name,
 			Status:  "ok",
-			Message: "authenticated, API responding",
-			Detail:  fmt.Sprintf("account=%s api=ok", account),
+			Message: fmt.Sprintf("%s token present for %q", provider, account),
+			Detail:  fmt.Sprintf("provider=%s account=%s", provider, account),
 		}
 	}
-
-	if apiMsg != "" {
-		return checkResult{
-			Name:    name,
-			Status:  "warning",
-			Message: fmt.Sprintf("token found but API error: %s", apiMsg),
-			Detail:  fmt.Sprintf("account=%s api=error error=%s", account, apiMsg),
-		}
-	}
-
 	return checkResult{
 		Name:    name,
-		Status:  "ok",
-		Message: fmt.Sprintf("token found for %s account %q", provider, account),
-		Detail:  fmt.Sprintf("account=%s api=untested", account),
+		Status:  "warning",
+		Message: fmt.Sprintf("no %s token (run 'gwx %s login')", provider, provider),
+		Detail:  fmt.Sprintf("provider=%s account=%s", provider, account),
 	}
-}
-
-// probeProviderAPI tests actual API connectivity for a given provider.
-func probeProviderAPI(ctx context.Context, provider, token string) (ok bool, errMsg string) {
-	switch provider {
-	case "github":
-		return probeGitHub(ctx, token)
-	case "slack":
-		return probeSlack(ctx, token)
-	case "notion":
-		return probeNotion(ctx, token)
-	default:
-		return false, ""
-	}
-}
-
-func probeGitHub(ctx context.Context, token string) (bool, string) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user", nil)
-	if err != nil {
-		return false, err.Error()
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Accept", "application/vnd.github+json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false, err.Error()
-	}
-	defer resp.Body.Close()
-	io.ReadAll(io.LimitReader(resp.Body, 1024)) //nolint:errcheck
-
-	if resp.StatusCode == 200 {
-		return true, ""
-	}
-	if resp.StatusCode == 401 {
-		return false, "invalid or expired token"
-	}
-	return false, fmt.Sprintf("HTTP %d", resp.StatusCode)
-}
-
-func probeSlack(ctx context.Context, token string) (bool, string) {
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://slack.com/api/auth.test", nil)
-	if err != nil {
-		return false, err.Error()
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false, err.Error()
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	if err != nil {
-		return false, err.Error()
-	}
-
-	var result struct {
-		OK    bool   `json:"ok"`
-		Error string `json:"error"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return false, "invalid response"
-	}
-	if result.OK {
-		return true, ""
-	}
-	if result.Error != "" {
-		return false, result.Error
-	}
-	return false, "auth.test returned ok=false"
-}
-
-func probeNotion(ctx context.Context, token string) (bool, string) {
-	body := strings.NewReader(`{"query":"","page_size":1}`)
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.notion.com/v1/search", body)
-	if err != nil {
-		return false, err.Error()
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Notion-Version", "2022-06-28")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false, err.Error()
-	}
-	defer resp.Body.Close()
-	io.ReadAll(io.LimitReader(resp.Body, 1024)) //nolint:errcheck
-
-	if resp.StatusCode == 200 {
-		return true, ""
-	}
-	if resp.StatusCode == 401 {
-		return false, "invalid or expired token"
-	}
-	return false, fmt.Sprintf("HTTP %d", resp.StatusCode)
 }
 
 func checkSkills() []checkResult {
-	skills, err := skill.CachedLoadAll()
+	skills, err := skill.LoadAll()
 	if err != nil {
 		return []checkResult{{
 			Name:    "skills",
@@ -507,20 +312,10 @@ func checkSkills() []checkResult {
 	}
 
 	if len(skills) == 0 {
-		// Calculate skills dir size if it exists.
-		sizeStr := ""
-		configDir, err := config.Dir()
-		if err == nil {
-			skillsDir := filepath.Join(configDir, "skills")
-			if s := dirSize(skillsDir); s > 0 {
-				sizeStr = fmt.Sprintf(" (%s on disk)", formatBytes(s))
-			}
-		}
 		return []checkResult{{
 			Name:    "skills",
 			Status:  "ok",
-			Message: fmt.Sprintf("no skills loaded%s (create with 'gwx skill create <name>')", sizeStr),
-			Detail:  "count=0",
+			Message: "no skills loaded (this is fine — create with 'gwx skill create <name>')",
 		}}
 	}
 
@@ -532,93 +327,28 @@ func checkSkills() []checkResult {
 		names = append(names, s.Name)
 	}
 
-	// Calculate skills directories size.
-	var totalSize int64
-	configDir, err := config.Dir()
-	if err == nil {
-		totalSize += dirSize(filepath.Join(configDir, "skills"))
-	}
-	totalSize += dirSize("skills")
-	sizeStr := ""
-	if totalSize > 0 {
-		sizeStr = fmt.Sprintf(" (%s on disk)", formatBytes(totalSize))
-	}
-
 	return []checkResult{{
 		Name:    "skills",
 		Status:  "ok",
-		Message: fmt.Sprintf("%d skill(s) loaded%s", len(skills), sizeStr),
-		Detail:  fmt.Sprintf("count=%d names=%s", len(skills), joinNames(names)),
+		Message: fmt.Sprintf("%d skill(s) loaded: %s", len(skills), joinNames(names)),
+		Detail:  fmt.Sprintf("count=%d dir=%s", len(skills), filepath.Dir(skill.DefaultDir())),
 	}}
 }
 
 func joinNames(names []string) string {
-	if len(names) <= 5 {
-		result := ""
-		for i, n := range names {
-			if i > 0 {
-				result += ", "
-			}
-			result += n
-		}
-		return result
+	var sb strings.Builder
+	limit := len(names)
+	if limit > 5 {
+		limit = 5
 	}
-	result := ""
-	for i := 0; i < 5; i++ {
+	for i := 0; i < limit; i++ {
 		if i > 0 {
-			result += ", "
+			sb.WriteString(", ")
 		}
-		result += names[i]
+		sb.WriteString(names[i])
 	}
-	return fmt.Sprintf("%s (and %d more)", result, len(names)-5)
-}
-
-// dirSize recursively calculates the total size of a directory in bytes.
-func dirSize(path string) int64 {
-	var total int64
-	filepath.Walk(path, func(_ string, info os.FileInfo, err error) error { //nolint:errcheck
-		if err != nil {
-			return nil // skip errors
-		}
-		if !info.IsDir() {
-			total += info.Size()
-		}
-		return nil
-	})
-	return total
-}
-
-// formatBytes formats a byte count into a human-readable string.
-func formatBytes(b int64) string {
-	const (
-		kb = 1024
-		mb = 1024 * kb
-		gb = 1024 * mb
-	)
-	switch {
-	case b >= gb:
-		return fmt.Sprintf("%.1f GB", float64(b)/float64(gb))
-	case b >= mb:
-		return fmt.Sprintf("%.1f MB", float64(b)/float64(mb))
-	case b >= kb:
-		return fmt.Sprintf("%.1f KB", float64(b)/float64(kb))
-	default:
-		return fmt.Sprintf("%d B", b)
+	if len(names) > 5 {
+		fmt.Fprintf(&sb, " (and %d more)", len(names)-5)
 	}
-}
-
-// formatDuration formats a duration into a human-readable string.
-func formatDuration(d time.Duration) string {
-	if d < time.Minute {
-		return fmt.Sprintf("%ds", int(d.Seconds()))
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm", int(d.Minutes()))
-	}
-	hours := int(d.Hours())
-	mins := int(d.Minutes()) % 60
-	if mins == 0 {
-		return fmt.Sprintf("%dh", hours)
-	}
-	return fmt.Sprintf("%dh%dm", hours, mins)
+	return sb.String()
 }

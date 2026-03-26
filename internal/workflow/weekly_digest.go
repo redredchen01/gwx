@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/redredchen01/gwx/internal/api"
@@ -27,9 +28,9 @@ type EmailStatsSection struct {
 
 // MeetingLoadSection holds weekly meeting statistics.
 type MeetingLoadSection struct {
-	Count int                `json:"count"`
+	Count  int                `json:"count"`
 	Events []api.EventSummary `json:"events,omitempty"`
-	Error string              `json:"error,omitempty"`
+	Error  string             `json:"error,omitempty"`
 }
 
 // TasksDoneSection holds completed tasks.
@@ -77,13 +78,23 @@ func RunWeeklyDigest(ctx context.Context, client *api.Client, opts WeeklyDigestO
 			if err != nil {
 				return nil, err
 			}
+			// Parallel fetch tasks from each list
+			results := make([][]api.TaskItem, len(lists))
+			var wg sync.WaitGroup
+			for i, l := range lists {
+				wg.Add(1)
+				go func(idx int, listID string) {
+					defer wg.Done()
+					tasks, err := svc.ListTasks(ctx, listID, true)
+					if err == nil {
+						results[idx] = tasks
+					}
+				}(i, l.ID)
+			}
+			wg.Wait()
 			var done []api.TaskItem
-			for _, l := range lists {
-				tasks, err := svc.ListTasks(ctx, l.ID, true)
-				if err != nil {
-					continue
-				}
-				for _, t := range tasks {
+			for _, ts := range results {
+				for _, t := range ts {
 					if t.Status == "completed" {
 						done = append(done, t)
 					}
