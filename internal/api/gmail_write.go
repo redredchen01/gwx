@@ -171,18 +171,54 @@ func (gs *GmailService) ArchiveMessages(ctx context.Context, query string, maxMe
 		return 0, fmt.Errorf("list messages for archive: %w", err)
 	}
 
-	archived := 0
+	if len(resp.Messages) == 0 {
+		return 0, nil
+	}
+
+	// Collect message IDs for batch processing
+	var messageIds []string
 	for _, msg := range resp.Messages {
+		messageIds = append(messageIds, msg.Id)
+	}
+
+	// Process in batches of 100 (Gmail API batch limit)
+	const batchSize = 100
+	var archived int
+	for i := 0; i < len(messageIds); i += batchSize {
+		end := i + batchSize
+		if end > len(messageIds) {
+			end = len(messageIds)
+		}
+
+		batch := messageIds[i:end]
+
+		// Create batch modify request
+		batchReq := &gmail.BatchModifyMessagesRequest{
+			Ids:            batch,
+			RemoveLabelIds: []string{"INBOX", "UNREAD"},
+		}
+
 		if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
 			return archived, err
 		}
-		modReq := &gmail.ModifyMessageRequest{
-			RemoveLabelIds: []string{"INBOX", "UNREAD"},
+
+		if err := svc.Users.Messages.BatchModify("me", batchReq).Do(); err != nil {
+			// Fallback to individual processing if batch fails
+			for _, msgId := range batch {
+				if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
+					return archived, err
+				}
+				modReq := &gmail.ModifyMessageRequest{
+					RemoveLabelIds: []string{"INBOX", "UNREAD"},
+				}
+				if _, err := svc.Users.Messages.Modify("me", msgId, modReq).Do(); err == nil {
+					archived++
+				}
+			}
+			continue
 		}
-		if _, err := svc.Users.Messages.Modify("me", msg.Id, modReq).Do(); err != nil {
-			continue // skip individual failures
-		}
-		archived++
+
+		archived += len(batch)
 	}
 
 	return archived, nil
