@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -52,25 +51,24 @@ func (c *DoctorCmd) Run(rctx *RunContext) error {
 		Detail:  osInfo,
 	})
 
-	// 4. Config directory (with disk usage)
+	// 4. Config directory
 	checks = append(checks, checkConfigDir())
 
-	// 5. Google Auth (actual API connectivity + token expiry)
+	// 5. Google Auth
 	checks = append(checks, checkGoogleAuth(rctx))
 
-	// 6. GitHub Auth (actual API connectivity)
+	// 6. GitHub Auth
 	checks = append(checks, checkProviderAPI("github", "default"))
 
-	// 7. Slack Auth (actual API connectivity)
+	// 7. Slack Auth
 	checks = append(checks, checkProviderAPI("slack", "default"))
 
-	// 8. Notion Auth (actual API connectivity)
+	// 8. Notion Auth
 	checks = append(checks, checkProviderAPI("notion", "default"))
 
-	// 9. Skills (with disk usage)
+	// 9. Skills
 	checks = append(checks, checkSkills()...)
 
-	// Summary counts.
 	var okCount, warnCount, errCount int
 	for _, ch := range checks {
 		switch ch.Status {
@@ -206,7 +204,6 @@ func checkConfigDir() checkResult {
 		}
 	}
 
-	// Check writable by attempting to create and remove a temp file.
 	testFile := dir + "/.doctor-write-test"
 	if err := os.WriteFile(testFile, []byte("test"), 0600); err != nil {
 		return checkResult{
@@ -218,21 +215,6 @@ func checkConfigDir() checkResult {
 	}
 	os.Remove(testFile)
 
-	// Calculate disk usage.
-	size := int64(0)
-	filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		info, err := d.Info()
-		if err == nil {
-			size += info.Size()
-		}
-		return nil
-	})
-	sizeStr := fmt.Sprintf("%.1f MB", float64(size)/1024/1024)
-
-	// Shorten dir for display: replace $HOME with ~
 	displayDir := dir
 	if home, err := os.UserHomeDir(); err == nil {
 		displayDir = strings.Replace(dir, home, "~", 1)
@@ -241,8 +223,8 @@ func checkConfigDir() checkResult {
 	return checkResult{
 		Name:    "config",
 		Status:  "ok",
-		Message: fmt.Sprintf("%s (%s)", displayDir, sizeStr),
-		Detail:  fmt.Sprintf("path=%s size=%s", dir, sizeStr),
+		Message: displayDir,
+		Detail:  fmt.Sprintf("path=%s", dir),
 	}
 }
 
@@ -261,7 +243,6 @@ func checkGoogleAuth(rctx *RunContext) checkResult {
 		}
 	}
 
-	// Check token expiry.
 	expiryInfo := ""
 	token, err := rctx.Auth.LoadToken(account)
 	if err == nil && !token.Expiry.IsZero() {
@@ -272,18 +253,6 @@ func checkGoogleAuth(rctx *RunContext) checkResult {
 			expiryInfo = fmt.Sprintf("expires in %s", remaining.Round(time.Minute))
 		}
 	}
-
-	// Test actual connectivity.
-	cfg, err := config.Load()
-	if err != nil {
-		return checkResult{Name: "google", Status: "warning", Message: "token present but config unreadable", Detail: err.Error()}
-	}
-	ts, err := rctx.Auth.TokenSource(rctx.Context, account)
-	if err != nil {
-		return checkResult{Name: "google", Status: "warning", Message: "token present but token source failed", Detail: err.Error()}
-	}
-	_ = cfg
-	_ = ts
 
 	msg := fmt.Sprintf("authenticated as %q", account)
 	if expiryInfo != "" {
@@ -328,7 +297,6 @@ func checkSkills() []checkResult {
 		}}
 	}
 
-	// Sort for deterministic output.
 	sort.Slice(skills, func(i, j int) bool { return skills[i].Name < skills[j].Name })
 
 	names := make([]string, 0, len(skills))
