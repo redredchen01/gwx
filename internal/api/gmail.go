@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/api/gmail/v1"
 )
 
@@ -15,6 +16,7 @@ type GmailService struct {
 	labelMu     sync.Mutex
 	labelCache  map[string]string
 	labelExpiry time.Time
+	labelGroup  singleflight.Group
 }
 
 // NewGmailService creates a Gmail service wrapper.

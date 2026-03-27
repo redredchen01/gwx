@@ -287,8 +287,8 @@ func TestNewBaseTransport_ConfiguresTimeoutsAndPooling(t *testing.T) {
 	if transport.MaxIdleConns != 100 {
 		t.Fatalf("MaxIdleConns = %d, want 100", transport.MaxIdleConns)
 	}
-	if transport.MaxIdleConnsPerHost != 10 {
-		t.Fatalf("MaxIdleConnsPerHost = %d, want 10", transport.MaxIdleConnsPerHost)
+	if transport.MaxIdleConnsPerHost != 20 {
+		t.Fatalf("MaxIdleConnsPerHost = %d, want 20", transport.MaxIdleConnsPerHost)
 	}
 	if transport.DialContext == nil {
 		t.Fatal("expected DialContext to be configured")

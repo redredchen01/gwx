@@ -7,19 +7,27 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"mime/multipart"
 	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/api/gmail/v1"
 )
 
+var bufPool = sync.Pool{New: func() any { return new(bytes.Buffer) }}
+
 // SendMessage sends an email.
 func (gs *GmailService) SendMessage(ctx context.Context, input *SendInput) (*SendResult, error) {
+	if input.Body == "" && input.BodyHTML == "" && len(input.Attachments) == 0 {
+		return nil, fmt.Errorf("message body cannot be empty")
+	}
+
 	if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
 		return nil, err
 	}
@@ -53,6 +61,10 @@ func (gs *GmailService) SendMessage(ctx context.Context, input *SendInput) (*Sen
 
 // CreateDraft creates a draft email.
 func (gs *GmailService) CreateDraft(ctx context.Context, input *SendInput) (*SendResult, error) {
+	if input.Body == "" && input.BodyHTML == "" && len(input.Attachments) == 0 {
+		return nil, fmt.Errorf("message body cannot be empty")
+	}
+
 	if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
 		return nil, err
 	}
@@ -177,7 +189,7 @@ func (gs *GmailService) ArchiveMessages(ctx context.Context, query string, maxMe
 	}
 
 	// Collect message IDs for batch processing
-	var messageIds []string
+	messageIds := make([]string, 0, len(resp.Messages))
 	for _, msg := range resp.Messages {
 		messageIds = append(messageIds, msg.Id)
 	}
@@ -212,7 +224,9 @@ func (gs *GmailService) ArchiveMessages(ctx context.Context, query string, maxMe
 				modReq := &gmail.ModifyMessageRequest{
 					RemoveLabelIds: []string{"INBOX", "UNREAD"},
 				}
-				if _, err := svc.Users.Messages.Modify("me", msgId, modReq).Do(); err == nil {
+				if _, err := svc.Users.Messages.Modify("me", msgId, modReq).Do(); err != nil {
+					slog.Warn("batch fallback failed", "op", "archive", "msgId", msgId, "error", err)
+				} else {
 					archived++
 				}
 			}
@@ -251,7 +265,7 @@ func (gs *GmailService) MarkRead(ctx context.Context, query string, maxMessages 
 	}
 
 	// Collect message IDs for batch processing
-	var messageIds []string
+	messageIds := make([]string, 0, len(resp.Messages))
 	for _, msg := range resp.Messages {
 		messageIds = append(messageIds, msg.Id)
 	}
@@ -286,7 +300,9 @@ func (gs *GmailService) MarkRead(ctx context.Context, query string, maxMessages 
 				modReq := &gmail.ModifyMessageRequest{
 					RemoveLabelIds: []string{"UNREAD"},
 				}
-				if _, err := svc.Users.Messages.Modify("me", msgId, modReq).Do(); err == nil {
+				if _, err := svc.Users.Messages.Modify("me", msgId, modReq).Do(); err != nil {
+					slog.Warn("batch fallback failed", "op", "mark_read", "msgId", msgId, "error", err)
+				} else {
 					marked++
 				}
 			}
@@ -348,7 +364,7 @@ func (gs *GmailService) BatchModifyLabels(ctx context.Context, query string, add
 	}
 
 	// Collect message IDs for batch processing
-	var messageIds []string
+	messageIds := make([]string, 0, len(resp.Messages))
 	for _, msg := range resp.Messages {
 		messageIds = append(messageIds, msg.Id)
 	}
@@ -384,7 +400,9 @@ func (gs *GmailService) BatchModifyLabels(ctx context.Context, query string, add
 					AddLabelIds:    addIDs,
 					RemoveLabelIds: removeIDs,
 				}
-				if _, err := svc.Users.Messages.Modify("me", msgId, modReq).Do(); err == nil {
+				if _, err := svc.Users.Messages.Modify("me", msgId, modReq).Do(); err != nil {
+					slog.Warn("batch fallback failed", "op", "modify_labels", "msgId", msgId, "error", err)
+				} else {
 					modified++
 				}
 			}
@@ -401,27 +419,29 @@ func buildRawMessage(input *SendInput) (string, error) {
 	hasAttachments := len(input.Attachments) > 0
 	hasHTML := input.BodyHTML != ""
 
-	var buf bytes.Buffer
-
 	if hasAttachments {
 		return buildMultipartMessage(input)
 	}
 
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer bufPool.Put(buf)
+
 	// Simple message (no attachments)
-	writeHeader(&buf, "To", strings.Join(input.To, ", "))
+	writeHeader(buf, "To", strings.Join(input.To, ", "))
 	if len(input.CC) > 0 {
-		writeHeader(&buf, "Cc", strings.Join(input.CC, ", "))
+		writeHeader(buf, "Cc", strings.Join(input.CC, ", "))
 	}
 	if len(input.BCC) > 0 {
-		writeHeader(&buf, "Bcc", strings.Join(input.BCC, ", "))
+		writeHeader(buf, "Bcc", strings.Join(input.BCC, ", "))
 	}
-	writeHeader(&buf, "Subject", input.Subject)
+	writeHeader(buf, "Subject", input.Subject)
 
 	if hasHTML {
 		// Multipart alternative for text + HTML
 		boundary := generateBoundary()
-		writeHeader(&buf, "MIME-Version", "1.0")
-		writeHeader(&buf, "Content-Type", fmt.Sprintf("multipart/alternative; boundary=%q", boundary))
+		writeHeader(buf, "MIME-Version", "1.0")
+		writeHeader(buf, "Content-Type", fmt.Sprintf("multipart/alternative; boundary=%q", boundary))
 		buf.WriteString("\r\n")
 
 		buf.WriteString("--" + boundary + "\r\n")
@@ -436,8 +456,8 @@ func buildRawMessage(input *SendInput) (string, error) {
 
 		buf.WriteString("--" + boundary + "--\r\n")
 	} else {
-		writeHeader(&buf, "MIME-Version", "1.0")
-		writeHeader(&buf, "Content-Type", "text/plain; charset=utf-8")
+		writeHeader(buf, "MIME-Version", "1.0")
+		writeHeader(buf, "Content-Type", "text/plain; charset=utf-8")
 		buf.WriteString("\r\n")
 		buf.WriteString(input.Body)
 	}
@@ -447,21 +467,25 @@ func buildRawMessage(input *SendInput) (string, error) {
 
 // buildMultipartMessage builds a MIME multipart message with attachments.
 func buildMultipartMessage(input *SendInput) (string, error) {
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer bufPool.Put(buf)
+	writer := multipart.NewWriter(buf)
 
 	// Write headers into a preamble buffer
-	var preamble bytes.Buffer
-	writeHeader(&preamble, "To", strings.Join(input.To, ", "))
+	preamble := bufPool.Get().(*bytes.Buffer)
+	preamble.Reset()
+	defer bufPool.Put(preamble)
+	writeHeader(preamble, "To", strings.Join(input.To, ", "))
 	if len(input.CC) > 0 {
-		writeHeader(&preamble, "Cc", strings.Join(input.CC, ", "))
+		writeHeader(preamble, "Cc", strings.Join(input.CC, ", "))
 	}
 	if len(input.BCC) > 0 {
-		writeHeader(&preamble, "Bcc", strings.Join(input.BCC, ", "))
+		writeHeader(preamble, "Bcc", strings.Join(input.BCC, ", "))
 	}
-	writeHeader(&preamble, "Subject", input.Subject)
-	writeHeader(&preamble, "MIME-Version", "1.0")
-	writeHeader(&preamble, "Content-Type", fmt.Sprintf("multipart/mixed; boundary=%q", writer.Boundary()))
+	writeHeader(preamble, "Subject", input.Subject)
+	writeHeader(preamble, "MIME-Version", "1.0")
+	writeHeader(preamble, "Content-Type", fmt.Sprintf("multipart/mixed; boundary=%q", writer.Boundary()))
 	preamble.WriteString("\r\n")
 
 	// Body part
@@ -512,9 +536,11 @@ func buildMultipartMessage(input *SendInput) (string, error) {
 	writer.Close() //nolint:errcheck
 
 	// Combine preamble + multipart body
-	var final bytes.Buffer
-	io.Copy(&final, &preamble) //nolint:errcheck
-	io.Copy(&final, &buf)      //nolint:errcheck
+	final := bufPool.Get().(*bytes.Buffer)
+	final.Reset()
+	defer bufPool.Put(final)
+	io.Copy(final, preamble) //nolint:errcheck
+	io.Copy(final, buf)      //nolint:errcheck
 
 	return base64.URLEncoding.EncodeToString(final.Bytes()), nil
 }
@@ -545,6 +571,14 @@ func needsEncoding(s string) bool {
 	return false
 }
 
+// InvalidateLabelCache clears the cached label map, forcing a fresh fetch on next use.
+func (gs *GmailService) InvalidateLabelCache() {
+	gs.labelMu.Lock()
+	gs.labelCache = nil
+	gs.labelExpiry = time.Time{}
+	gs.labelMu.Unlock()
+}
+
 func (gs *GmailService) labelNameToID(ctx context.Context, svc *gmail.Service) (map[string]string, error) {
 	gs.labelMu.Lock()
 	if gs.labelCache != nil && time.Now().Before(gs.labelExpiry) {
@@ -554,20 +588,26 @@ func (gs *GmailService) labelNameToID(ctx context.Context, svc *gmail.Service) (
 	}
 	gs.labelMu.Unlock()
 
-	resp, err := svc.Users.Labels.List("me").Do()
+	result, err, _ := gs.labelGroup.Do("fetch", func() (any, error) {
+		resp, err := svc.Users.Labels.List("me").Do()
+		if err != nil {
+			return nil, fmt.Errorf("list labels: %w", err)
+		}
+		m := make(map[string]string)
+		for _, l := range resp.Labels {
+			m[l.Name] = l.Id
+			m[strings.ToUpper(l.Name)] = l.Id
+		}
+
+		gs.labelMu.Lock()
+		gs.labelCache = m
+		gs.labelExpiry = time.Now().Add(2 * time.Minute)
+		gs.labelMu.Unlock()
+
+		return m, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("list labels: %w", err)
+		return nil, err
 	}
-	m := make(map[string]string)
-	for _, l := range resp.Labels {
-		m[l.Name] = l.Id
-		m[strings.ToUpper(l.Name)] = l.Id // also index uppercase for system labels
-	}
-
-	gs.labelMu.Lock()
-	gs.labelCache = m
-	gs.labelExpiry = time.Now().Add(10 * time.Minute)
-	gs.labelMu.Unlock()
-
-	return m, nil
+	return result.(map[string]string), nil
 }

@@ -62,8 +62,16 @@ func (gs *GmailService) ListMessages(ctx context.Context, query string, labelIDs
 		wg.Add(1)
 		go func(idx int, id string) {
 			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				summaries[idx] = MessageSummary{
+					ID:      id,
+					Snippet: fmt.Sprintf("[error: %v]", ctx.Err()),
+				}
+				return
+			}
 
 			if err := gs.client.WaitRate(ctx, "gmail"); err != nil {
 				summaries[idx] = MessageSummary{
@@ -132,7 +140,7 @@ func (gs *GmailService) ListLabels(ctx context.Context) ([]map[string]string, er
 		return nil, fmt.Errorf("list labels: %w", err)
 	}
 
-	var labels []map[string]string
+	labels := make([]map[string]string, 0, len(resp.Labels))
 	for _, l := range resp.Labels {
 		labels = append(labels, map[string]string{
 			"id":   l.Id,

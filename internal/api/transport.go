@@ -180,7 +180,7 @@ func newOptimizedTransport() *http.Transport {
 	t.ResponseHeaderTimeout = defaultResponseHeader
 	t.ExpectContinueTimeout = defaultExpectContinue
 	t.IdleConnTimeout = defaultIdleConnTTL
-	t.MaxIdleConns = 200
+	t.MaxIdleConns = 100
 	t.MaxIdleConnsPerHost = 20
 	return t
 }

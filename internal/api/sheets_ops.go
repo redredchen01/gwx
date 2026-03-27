@@ -251,13 +251,9 @@ func (ss *SheetsService) CopyTab(ctx context.Context, spreadsheetID, sourceTab, 
 		return fmt.Errorf("source tab is empty")
 	}
 
-	opts, err := ss.client.ClientOptions(ctx, "sheets")
+	svc, err := ss.service(ctx)
 	if err != nil {
 		return err
-	}
-	svc, err := sheets.NewService(ctx, opts...)
-	if err != nil {
-		return fmt.Errorf("create sheets service: %w", err)
 	}
 
 	// Create new sheet tab

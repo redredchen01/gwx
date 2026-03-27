@@ -3,6 +3,7 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -86,9 +87,11 @@ func RunWeeklyDigest(ctx context.Context, client *api.Client, opts WeeklyDigestO
 				go func(idx int, listID string) {
 					defer wg.Done()
 					tasks, err := svc.ListTasks(ctx, listID, true)
-					if err == nil {
-						results[idx] = tasks
+					if err != nil {
+						slog.Warn("list tasks failed", "listID", listID, "error", err)
+						return
 					}
+					results[idx] = tasks
 				}(i, l.ID)
 			}
 			wg.Wait()

@@ -13,9 +13,12 @@ import (
 
 // GWXHandler implements the MCP Handler interface for Google Workspace tools.
 type GWXHandler struct {
-	client   *api.Client
-	registry map[string]ToolHandler // lazy-init tool dispatch map
-	once     sync.Once
+	client       *api.Client
+	registry     map[string]ToolHandler // lazy-init tool dispatch map
+	once         sync.Once
+	notionMu     sync.Mutex
+	notionClient *api.NotionClient
+	notionExpiry time.Time
 }
 
 // NewGWXHandler creates a handler with an authenticated API client.
@@ -449,4 +452,3 @@ func splitArg(args map[string]interface{}, key string) []string {
 	}
 	return parts
 }
-

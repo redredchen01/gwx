@@ -59,7 +59,16 @@ func (ss *SheetsService) BatchAppendValues(
 	for _, e := range entries {
 		entry := e
 		wg.Add(1)
-		sem <- struct{}{}
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			wg.Done()
+			results <- itemResult{failure: &BatchAppendFailure{
+				Range: entry.Range,
+				Error: ctx.Err().Error(),
+			}}
+			continue
+		}
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()

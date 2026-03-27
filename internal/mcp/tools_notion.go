@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/redredchen01/gwx/internal/api"
 	"github.com/redredchen01/gwx/internal/auth"
@@ -88,22 +89,33 @@ func (notionProvider) Handlers(h *GWXHandler) map[string]ToolHandler {
 func init() { RegisterProvider(notionProvider{}) }
 
 // resolveNotionClient loads the Notion token from keyring or environment
-// and returns an authenticated NotionClient.
-func resolveNotionClient() (*api.NotionClient, error) {
+// and returns an authenticated NotionClient. Caches on the handler.
+func (h *GWXHandler) resolveNotionClient() (*api.NotionClient, error) {
+	h.notionMu.Lock()
+	defer h.notionMu.Unlock()
+
+	if h.notionClient != nil && time.Now().Before(h.notionExpiry) {
+		return h.notionClient, nil
+	}
+
 	// Check environment variable first (agent-friendly).
 	if token := os.Getenv("GWX_NOTION_TOKEN"); token != "" {
-		return api.NewNotionClient(token), nil
+		h.notionClient = api.NewNotionClient(token)
+		h.notionExpiry = time.Now().Add(5 * time.Minute)
+		return h.notionClient, nil
 	}
 	// Fall back to keyring.
 	token, err := auth.LoadProviderToken("notion", "default")
 	if err != nil {
 		return nil, fmt.Errorf("notion not authenticated — run 'gwx notion login <token>' or set GWX_NOTION_TOKEN")
 	}
-	return api.NewNotionClient(token), nil
+	h.notionClient = api.NewNotionClient(token)
+	h.notionExpiry = time.Now().Add(5 * time.Minute)
+	return h.notionClient, nil
 }
 
 func (h *GWXHandler) notionSearch(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
-	client, err := resolveNotionClient()
+	client, err := h.resolveNotionClient()
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +131,7 @@ func (h *GWXHandler) notionSearch(ctx context.Context, args map[string]interface
 }
 
 func (h *GWXHandler) notionPage(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
-	client, err := resolveNotionClient()
+	client, err := h.resolveNotionClient()
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +143,7 @@ func (h *GWXHandler) notionPage(ctx context.Context, args map[string]interface{}
 }
 
 func (h *GWXHandler) notionCreatePage(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
-	client, err := resolveNotionClient()
+	client, err := h.resolveNotionClient()
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +163,7 @@ func (h *GWXHandler) notionCreatePage(ctx context.Context, args map[string]inter
 }
 
 func (h *GWXHandler) notionDatabases(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
-	client, err := resolveNotionClient()
+	client, err := h.resolveNotionClient()
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +175,7 @@ func (h *GWXHandler) notionDatabases(ctx context.Context, args map[string]interf
 }
 
 func (h *GWXHandler) notionQuery(ctx context.Context, args map[string]interface{}) (*ToolResult, error) {
-	client, err := resolveNotionClient()
+	client, err := h.resolveNotionClient()
 	if err != nil {
 		return nil, err
 	}

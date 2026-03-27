@@ -150,8 +150,16 @@ func (e *Engine) runParallelBatch(ctx context.Context, batch []Step, inputs map[
 	for idx := range batch {
 		go func(i int) {
 			defer wg.Done()
-			sem <- struct{}{}        // acquire
-			defer func() { <-sem }() // release
+			select {
+			case sem <- struct{}{}: // acquire
+				defer func() { <-sem }() // release
+			case <-ctx.Done():
+				results[i] = parallelResult{
+					reports: []StepReport{{ID: batch[i].ID, Success: false, Error: ctx.Err().Error()}},
+					aborted: true,
+				}
+				return
+			}
 			step := batch[i]
 			// Each parallel step uses the snapshot for reads and writes to a
 			// local store to avoid races.
@@ -305,6 +313,12 @@ func (e *Engine) runEachStep(ctx context.Context, step *Step, inputs map[string]
 
 	var results []interface{}
 	for _, item := range items {
+		if err := ctx.Err(); err != nil {
+			report.Success = false
+			report.Error = err.Error()
+			return []StepReport{report}, true
+		}
+
 		itemMap := toMap(item)
 
 		// Create a step copy without Each to avoid infinite recursion.
