@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/redredchen01/gwx/internal/auth"
 )
 
 const testCredJSON = `{"installed":{"client_id":"test-id","client_secret":"test-secret","project_id":"proj1"}}`
@@ -343,13 +345,6 @@ func TestOnboardCmd_DryRunWithServicesFlag(t *testing.T) {
 }
 
 func TestOnboardCmd_InvalidAuthMethod(t *testing.T) {
-	t.Setenv("GWX_OAUTH_JSON", testCredJSON)
-	rctx, _ := newTestRunContext(t)
-	rctx.Auth = nil // we won't reach login
-
-	// This test needs Auth for LoadConfigFromJSON — use DryRun to skip past login
-	// but we need a non-DryRun path to test auth method validation.
-	// Use resolveAuthMethod directly instead.
 	cmd := &OnboardCmd{AuthMethod: "invalid"}
 	m := cmd.resolveAuthMethod()
 	switch m {
@@ -357,5 +352,108 @@ func TestOnboardCmd_InvalidAuthMethod(t *testing.T) {
 		t.Error("should not be valid")
 	default:
 		// expected: invalid method
+	}
+}
+
+// --- SA-D6-007 (P0): pipe + DryRun Run() integration ---
+
+func TestOnboardCmd_DryRunWithPipe(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	origStdin := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() { os.Stdin = origStdin })
+
+	w.WriteString(testCredJSON)
+	w.Close()
+
+	rctx, buf := newDryRunContext(t)
+	cmd := &OnboardCmd{AuthMethod: "browser"} // explicit auth to avoid pipe+remote conflict
+	if err := cmd.Run(rctx); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, `"dry_run"`) {
+		t.Error("output should contain dry_run")
+	}
+	if !strings.Contains(out, `"pipe"`) {
+		t.Errorf("output should contain source=pipe, got: %s", out)
+	}
+}
+
+// --- SA-D6-008 (P0): pipe + remote conflict ---
+
+func TestOnboardCmd_PipeRemoteConflict(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	origStdin := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() { os.Stdin = origStdin })
+
+	w.WriteString(testCredJSON)
+	w.Close()
+
+	rctx, _ := newTestRunContext(t)
+	rctx.Auth = auth.NewManager()
+	// No AuthMethod → defaults to "remote" for non-interactive → conflict with pipe
+	cmd := &OnboardCmd{}
+	runErr := cmd.Run(rctx)
+	if runErr == nil {
+		t.Fatal("expected error for pipe + remote conflict")
+	}
+	errMsg := runErr.Error()
+	if !strings.Contains(errMsg, "pipe mode conflicts") {
+		t.Errorf("error should mention pipe conflict, got: %s", errMsg)
+	}
+	if !strings.Contains(errMsg, "browser") || !strings.Contains(errMsg, "manual") {
+		t.Errorf("error should suggest alternatives, got: %s", errMsg)
+	}
+}
+
+// --- SA-D6-009 (P1): invalid --auth-method at Run() level ---
+
+func TestOnboardCmd_InvalidAuthMethodRunLevel(t *testing.T) {
+	rctx, _ := newDryRunContext(t)
+	// DryRun stops before auth method check, so use non-DryRun with real auth
+	rctx.DryRun = false
+	rctx.Auth = auth.NewManager()
+
+	cmd := &OnboardCmd{JSON: testCredJSON, AuthMethod: "invalid"}
+	runErr := cmd.Run(rctx)
+	if runErr == nil {
+		t.Fatal("expected error for invalid auth method")
+	}
+	if !strings.Contains(runErr.Error(), "invalid --auth-method") {
+		t.Errorf("error should mention invalid auth method, got: %v", runErr)
+	}
+}
+
+// --- SA-D6-005 (P2): --json flag priority over pipe at Run() level ---
+
+func TestOnboardCmd_JSONFlagPriorityOverPipeRunLevel(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	origStdin := os.Stdin
+	os.Stdin = r
+	t.Cleanup(func() { os.Stdin = origStdin })
+
+	w.WriteString("garbage that would fail json.Valid")
+	w.Close()
+
+	rctx, buf := newDryRunContext(t)
+	// --json flag should win, pipe garbage should be ignored
+	cmd := &OnboardCmd{JSON: testCredJSON}
+	if err := cmd.Run(rctx); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, `"flag"`) {
+		t.Errorf("source should be flag, got: %s", out)
 	}
 }

@@ -104,7 +104,11 @@ func (c *OnboardCmd) resolveCredentials(isPipe bool) ([]byte, string, error) {
 
 	// 3. GWX_OAUTH_JSON environment variable
 	if jsonStr := os.Getenv("GWX_OAUTH_JSON"); jsonStr != "" {
-		return []byte(jsonStr), "env", nil
+		data := []byte(jsonStr)
+		if !json.Valid(data) {
+			return nil, "", fmt.Errorf("GWX_OAUTH_JSON: invalid JSON")
+		}
+		return data, "env", nil
 	}
 
 	// 4. GWX_OAUTH_FILE environment variable
@@ -112,6 +116,9 @@ func (c *OnboardCmd) resolveCredentials(isPipe bool) ([]byte, string, error) {
 		data, err := os.ReadFile(filePath)
 		if err != nil {
 			return nil, "", fmt.Errorf("read GWX_OAUTH_FILE %q: %w", filePath, err)
+		}
+		if !json.Valid(data) {
+			return nil, "", fmt.Errorf("GWX_OAUTH_FILE %q: invalid JSON", filePath)
 		}
 		return data, "env-file", nil
 	}
