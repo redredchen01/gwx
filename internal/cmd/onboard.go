@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -91,15 +92,14 @@ func (c *OnboardCmd) resolveCredentials(isPipe bool) ([]byte, string, error) {
 		if err != nil {
 			return nil, "", fmt.Errorf("read stdin: %w", err)
 		}
-		trimmed := strings.TrimSpace(string(data))
-		if trimmed == "" {
+		data = bytes.TrimSpace(data)
+		if len(data) == 0 {
 			return nil, "", fmt.Errorf("stdin pipe is empty")
 		}
-		b := []byte(trimmed)
-		if !json.Valid(b) {
+		if !json.Valid(data) {
 			return nil, "", fmt.Errorf("stdin: invalid JSON")
 		}
-		return b, "pipe", nil
+		return data, "pipe", nil
 	}
 
 	// 3. GWX_OAUTH_JSON environment variable
@@ -210,8 +210,9 @@ func (c *OnboardCmd) Run(rctx *RunContext) error {
 		return fmt.Errorf("invalid --auth-method %q: must be browser, manual, or remote", method)
 	}
 
-	// Conflict: pipe consumed stdin, but remote auth also needs stdin
-	if isPipe && (method == "remote" || method == "r") {
+	// Conflict: pipe consumed stdin, but remote auth also needs stdin.
+	// Only applies when credentials actually came from pipe (source=="pipe").
+	if source == "pipe" && (method == "remote" || method == "r") {
 		return fmt.Errorf("pipe mode conflicts with remote auth (stdin already consumed). Use --auth-method browser or --auth-method manual")
 	}
 
