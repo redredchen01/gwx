@@ -13,6 +13,8 @@ type AuthCmd struct {
 	Login  AuthLoginCmd  `cmd:"" help:"Sign in to Google account"`
 	Logout AuthLogoutCmd `cmd:"" help:"Remove saved credentials"`
 	Status AuthStatusCmd `cmd:"" help:"Check authentication status"`
+	Export AuthExportCmd `cmd:"" help:"Export token as JSON to stdout"`
+	Import AuthImportCmd `cmd:"" help:"Import token from JSON"`
 }
 
 // AuthLoginCmd performs OAuth2 login.
