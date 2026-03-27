@@ -1,6 +1,6 @@
 package cmd
 
-const version = "0.24.2"
+const version = "0.25.0"
 
 // VersionCmd prints the version.
 type VersionCmd struct{}
