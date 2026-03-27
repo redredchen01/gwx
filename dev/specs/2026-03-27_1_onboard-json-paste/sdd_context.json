@@ -1,0 +1,343 @@
+{
+  "version": "2.2.1",
+  "feature": "onboard-json-paste",
+  "spec_mode": "quick",
+  "work_type": "enhancement",
+  "spec_folder": "dev/specs/2026-03-27_1_onboard-json-paste",
+  "status": "in_progress",
+  "current_stage": "S7",
+  "execution_mode": "autopilot",
+  "started_at": "2026-03-27T12:00:00+08:00",
+  "last_updated": "2026-03-27T15:00:00+08:00",
+  "last_updated_by": "architect",
+  "stages": {
+    "s0": {
+      "status": "completed",
+      "agent": "requirement-analyst",
+      "output": {
+        "brief_spec_path": "dev/specs/2026-03-27_1_onboard-json-paste/s0_brief_spec.md",
+        "work_type": "enhancement",
+        "requirement": "gwx onboard 新增 --json flag 和 stdin pipe 兩種方式，讓 VPS 用戶可以直接用 CLI 參數或 pipe 完成 OAuth credentials 導入",
+        "goal": "VPS 用戶可用一行指令完成 onboard，自動化腳本可用 pipe 或 flag 無互動完成 onboard",
+        "pain_points": [
+          "SSH 傳檔困難：VPS 用戶不熟 scp/sftp",
+          "互動式 stdin 不穩定：tmux/screen/SSH tunnel 斷行截斷",
+          "環境變數太囉嗦：GWX_OAUTH_JSON 設定步驟多",
+          "AI Agent 需要程式化介面：flag-based 非互動"
+        ],
+        "success_criteria": [
+          "gwx onboard --json '{...}' 一行完成 onboard",
+          "cat creds.json | gwx onboard pipe 模式正常",
+          "--services 和 --auth-method flags 可覆蓋預設值",
+          "現有互動模式和環境變數模式不受影響",
+          "gwx onboard --help 列出所有新選項"
+        ],
+        "scope_in": [
+          "OnboardCmd struct 新增 --json、--services、--auth-method flags",
+          "stdin TTY 偵測邏輯",
+          "Run() 方法重構：統一 credential 來源優先序",
+          "help text 和使用範例更新"
+        ],
+        "scope_out": [
+          "不改現有互動模式行為",
+          "不改現有環境變數模式",
+          "不做 token JSON 貼入",
+          "不做 GUI/TUI",
+          "不做 credentials 加密傳輸"
+        ],
+        "constraints": [
+          "shell ARG_MAX 限制 --json flag 長度（~2MB）",
+          "Kong CLI framework struct tag 語法"
+        ],
+        "functional_areas": [
+          {
+            "id": "FA-A",
+            "name": "Onboard Credential Input",
+            "description": "新增 --json flag 和 stdin pipe 作為 credential 來源",
+            "independence": "low"
+          }
+        ],
+        "decomposition_strategy": "single_sop",
+        "child_sops": []
+      }
+    },
+    "s1": {
+      "status": "completed",
+      "agents": ["codebase-explorer", "architect"],
+      "started_at": "2026-03-27T13:00:00+08:00",
+      "completed_at": "2026-03-27T14:30:00+08:00",
+      "output": {
+        "completed_phases": [1, 2],
+        "dev_spec_path": "dev/specs/2026-03-27_1_onboard-json-paste/s1_dev_spec.md",
+        "solution_summary": "修改 onboard.go 單一檔案：OnboardCmd 新增三個 Kong flag fields（--json、--services、--auth-method）；提取 resolveCredentials / resolveServices / resolveAuthMethod 三個 helper 統一優先序邏輯；Run() 整合新邏輯並加入 pipe+remote 衝突偵測（硬報錯）；runNonInteractive 整合後移除",
+        "tasks": [
+          {
+            "id": "T1",
+            "description": "OnboardCmd struct 新增 Kong flags（--json、--services、--auth-method）",
+            "type": "backend-cli",
+            "complexity": "S",
+            "agent": "go-expert",
+            "depends_on": []
+          },
+          {
+            "id": "T2",
+            "description": "resolveCredentials() 實作：五段優先序 + stdin pipe 偵測 + io.ReadAll",
+            "type": "backend-cli",
+            "complexity": "M",
+            "agent": "go-expert",
+            "depends_on": ["T1"]
+          },
+          {
+            "id": "T3",
+            "description": "resolveServices() / resolveAuthMethod() 實作",
+            "type": "backend-cli",
+            "complexity": "S",
+            "agent": "go-expert",
+            "depends_on": ["T1"]
+          },
+          {
+            "id": "T4",
+            "description": "Run() 重構：整合 helpers + DryRun check + pipe+remote 衝突偵測 + 移除 runNonInteractive",
+            "type": "backend-cli",
+            "complexity": "M",
+            "agent": "go-expert",
+            "depends_on": ["T2", "T3"]
+          },
+          {
+            "id": "T5",
+            "description": "回歸測試：現有 env 模式 + TTY 模式驗證",
+            "type": "test",
+            "complexity": "S",
+            "agent": "go-expert",
+            "depends_on": ["T4"]
+          }
+        ],
+        "acceptance_criteria": [
+          "gwx --dry-run onboard --json '{...}' 輸出 {\"dry_run\":true, ...}",
+          "cat creds.json | gwx --dry-run onboard 輸出 {\"dry_run\":true, ...}",
+          "cat creds.json | gwx onboard（無 --auth-method）exit 1 並提示替代方案",
+          "cat creds.json | gwx onboard --auth-method browser 完成 browser login",
+          "GWX_OAUTH_JSON env 模式行為不受影響",
+          "gwx onboard --help 顯示 --json / --services / --auth-method 三個新 flags",
+          "TTY 互動模式完整保留（不被 pipe 誤判）"
+        ],
+        "assumptions": [
+          "Kong CLI framework struct tag 語法與 auth.go 現有模式相同",
+          "LoginRemote 確實使用 os.Stdin（fmt.Fscanln），pipe 模式下會 EOF"
+        ],
+        "tech_debt": [
+          "readPastedJSON() 在 pipe 模式實作後可標記 deprecated（pipe 模式直接用 io.ReadAll 更簡潔）",
+          "stdin TTY 偵測模式與 obsidian.go 相同，可考慮提取為 pkg-level helper 統一命名"
+        ],
+        "regression_risks": [
+          "現有環境變數模式（GWX_OAUTH_JSON / GWX_OAUTH_FILE / GWX_SERVICES / GWX_AUTH_METHOD）必須維持原有行為",
+          "rctx.DryRun 路徑在 LoadConfigFromJSON 之後觸發，語義不變",
+          "互動式三步驟 wizard UI 在 TTY 模式下完整保留"
+        ],
+        "impact_scope": {
+          "direct_files": [
+            {
+              "file": "internal/cmd/onboard.go",
+              "change_type": "modify",
+              "description": "OnboardCmd struct 新增 3 個 Kong flag fields；Run() 重構；新增 resolveCredentials / resolveServices / resolveAuthMethod；runNonInteractive 整合後移除"
+            }
+          ],
+          "new_files": [],
+          "indirect_files": [
+            "internal/cmd/root.go（OnboardCmd 掛載點，確認 Kong CLI struct tag 語法）",
+            "internal/output/formatter.go（IsTTY() 參考，stdin 偵測仍用 os.Stdin.Stat() 模式）"
+          ]
+        }
+      }
+    },
+    "s2": { "status": "skipped", "reason": "Quick spec mode" },
+    "s3": {
+      "status": "completed",
+      "agent": "architect",
+      "completed_at": "2026-03-27T15:00:00+08:00",
+      "output": {
+        "implementation_plan_path": "dev/specs/2026-03-27_1_onboard-json-paste/s3_implementation_plan.md",
+        "waves": [
+          {
+            "wave": 1,
+            "name": "struct 定義",
+            "parallel": false,
+            "tasks": [
+              {
+                "id": "T1",
+                "name": "OnboardCmd struct 新增 Kong flags",
+                "agent": "go-expert",
+                "dependencies": [],
+                "complexity": "S",
+                "dod": [
+                  "OnboardCmd struct 包含 JSON、Services、AuthMethod 三個 field",
+                  "gwx onboard --help 顯示三個新 flags",
+                  "go build ./... 無錯誤"
+                ],
+                "parallel": false,
+                "affected_files": ["internal/cmd/onboard.go", "internal/cmd/onboard_test.go"],
+                "tdd_plan": {
+                  "test_file": "internal/cmd/onboard_test.go",
+                  "test_cases": ["TestOnboardCmd_FlagsExist"],
+                  "test_command": "go test ./internal/cmd/ -run TestOnboard -v"
+                }
+              }
+            ]
+          },
+          {
+            "wave": 2,
+            "name": "helper 實作（可並行）",
+            "parallel": true,
+            "tasks": [
+              {
+                "id": "T2",
+                "name": "resolveCredentials() 實作",
+                "agent": "go-expert",
+                "dependencies": ["T1"],
+                "complexity": "M",
+                "dod": [
+                  "resolveCredentials() 函式存在，簽名符合規格",
+                  "--json flag 優先於 pipe",
+                  "pipe 優先於 env var",
+                  "GWX_OAUTH_FILE 路徑不存在時回傳 error",
+                  "所有來源均無時回傳空字串"
+                ],
+                "parallel": true,
+                "affected_files": ["internal/cmd/onboard.go", "internal/cmd/onboard_test.go"],
+                "tdd_plan": {
+                  "test_file": "internal/cmd/onboard_test.go",
+                  "test_cases": [
+                    "TestResolveCredentials_JSONFlagTakesPriority",
+                    "TestResolveCredentials_PipeReadsStdin",
+                    "TestResolveCredentials_EnvJSONFallback",
+                    "TestResolveCredentials_EnvFileFallback",
+                    "TestResolveCredentials_NoneReturnsEmpty"
+                  ],
+                  "test_command": "go test ./internal/cmd/ -run TestOnboard -v"
+                }
+              },
+              {
+                "id": "T3",
+                "name": "resolveServices() / resolveAuthMethod() 實作",
+                "agent": "go-expert",
+                "dependencies": ["T1"],
+                "complexity": "S",
+                "dod": [
+                  "resolveServices() flag 優先 env，正確 split trim",
+                  "resolveAuthMethod() flag 優先 env",
+                  "兩個 function 均無依賴時回傳正確零值"
+                ],
+                "parallel": true,
+                "affected_files": ["internal/cmd/onboard.go", "internal/cmd/onboard_test.go"],
+                "tdd_plan": {
+                  "test_file": "internal/cmd/onboard_test.go",
+                  "test_cases": [
+                    "TestResolveServices_FlagSplitsAndTrims",
+                    "TestResolveServices_EnvFallback",
+                    "TestResolveServices_NoneReturnsNil",
+                    "TestResolveAuthMethod_FlagPriority",
+                    "TestResolveAuthMethod_EnvFallback"
+                  ],
+                  "test_command": "go test ./internal/cmd/ -run TestOnboard -v"
+                }
+              }
+            ]
+          },
+          {
+            "wave": 3,
+            "name": "Run() 重構",
+            "parallel": false,
+            "tasks": [
+              {
+                "id": "T4",
+                "name": "Run() 重構：整合 helpers + 衝突偵測",
+                "agent": "go-expert",
+                "dependencies": ["T2", "T3"],
+                "complexity": "M",
+                "dod": [
+                  "isPipe && --json 衝突 exit 1",
+                  "pipe 模式無 --auth-method exit 1",
+                  "--auth-method 非法值 exit 1",
+                  "DryRun 在 LoadConfig 後、login 前",
+                  "runNonInteractive 已移除",
+                  "go build ./... 無錯誤"
+                ],
+                "parallel": false,
+                "affected_files": ["internal/cmd/onboard.go", "internal/cmd/onboard_test.go"],
+                "tdd_plan": {
+                  "test_file": "internal/cmd/onboard_test.go",
+                  "test_cases": [
+                    "TestRun_PipeAndJSONFlagConflict",
+                    "TestRun_PipeWithoutAuthMethodErrors",
+                    "TestRun_InvalidAuthMethodErrors",
+                    "TestRun_DryRunAfterLoadConfig"
+                  ],
+                  "test_command": "go test ./internal/cmd/ -run TestOnboard -v"
+                }
+              }
+            ]
+          },
+          {
+            "wave": 4,
+            "name": "回歸驗證",
+            "parallel": false,
+            "tasks": [
+              {
+                "id": "T5",
+                "name": "回歸測試：現有路徑驗證",
+                "agent": "go-expert",
+                "dependencies": ["T4"],
+                "complexity": "S",
+                "dod": [
+                  "TestOnboard_ExistingEnvModeUnchanged 通過",
+                  "TestOnboard_TTYNotMisjudgedAsPipe 通過",
+                  "go test ./internal/cmd/ -run TestOnboard -v 全部 PASS",
+                  "go build ./... 無錯誤"
+                ],
+                "parallel": false,
+                "affected_files": ["internal/cmd/onboard_test.go"],
+                "tdd_plan": {
+                  "test_file": "internal/cmd/onboard_test.go",
+                  "test_cases": [
+                    "TestOnboard_ExistingEnvModeUnchanged",
+                    "TestOnboard_TTYNotMisjudgedAsPipe"
+                  ],
+                  "test_command": "go test ./internal/cmd/ -run TestOnboard -v"
+                }
+              }
+            ]
+          }
+        ],
+        "total_tasks": 5,
+        "estimated_waves": 4,
+        "verification": {
+          "static_analysis": ["go build ./..."],
+          "unit_tests": ["go test ./internal/cmd/ -run TestOnboard -v"]
+        }
+      }
+    },
+    "s4": {
+      "status": "completed",
+      "agent": "orchestrator",
+      "started_at": "2026-03-27T16:00:00+08:00",
+      "completed_at": "2026-03-27T16:30:00+08:00",
+      "output": {
+        "completed_tasks": ["T1", "T2", "T3", "T4", "T5"],
+        "build_status": "pass",
+        "test_status": "23/23 pass",
+        "changes": [
+          "internal/cmd/onboard.go — OnboardCmd struct + 3 flags, resolveCredentials/Services/AuthMethod, Run() refactor, runNonInteractive removed, runInteractive extracted",
+          "internal/cmd/onboard_test.go — 23 tests covering all resolve helpers + DryRun integration"
+        ]
+      }
+    },
+    "s5": {
+      "status": "completed",
+      "conclusion": "pass",
+      "score": 9,
+      "issues": { "p0": 0, "p1_blocking": 0, "p2_recommended": 0 }
+    },
+    "s6": { "status": "completed", "test_result": "23/23 pass", "build_status": "pass" },
+    "s7": { "status": "in_progress" }
+  }
+}
