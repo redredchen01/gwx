@@ -219,8 +219,18 @@ func checkConfigDir() checkResult {
 	os.Remove(testFile)
 
 	// Calculate disk usage.
-	size := dirSize(dir)
-	sizeStr := formatBytes(size)
+	size := int64(0)
+	filepath.WalkDir(dir, func(_ string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err == nil {
+			size += info.Size()
+		}
+		return nil
+	})
+	sizeStr := fmt.Sprintf("%.1f MB", float64(size)/1024/1024)
 
 	// Shorten dir for display: replace $HOME with ~
 	displayDir := dir
@@ -268,13 +278,12 @@ func checkGoogleAuth(rctx *RunContext) checkResult {
 	if err != nil {
 		return checkResult{Name: "google", Status: "warning", Message: "token present but config unreadable", Detail: err.Error()}
 	}
-	ts, err := rctx.Auth.TokenSource(account)
+	ts, err := rctx.Auth.TokenSource(rctx.Context, account)
 	if err != nil {
 		return checkResult{Name: "google", Status: "warning", Message: "token present but token source failed", Detail: err.Error()}
 	}
-	client := apiClient(ts)
 	_ = cfg
-	_ = client
+	_ = ts
 
 	msg := fmt.Sprintf("authenticated as %q", account)
 	if expiryInfo != "" {
@@ -331,7 +340,7 @@ func checkSkills() []checkResult {
 		Name:    "skills",
 		Status:  "ok",
 		Message: fmt.Sprintf("%d skill(s) loaded: %s", len(skills), joinNames(names)),
-		Detail:  fmt.Sprintf("count=%d dir=%s", len(skills), filepath.Dir(skill.DefaultDir())),
+		Detail:  fmt.Sprintf("count=%d", len(skills)),
 	}}
 }
 
