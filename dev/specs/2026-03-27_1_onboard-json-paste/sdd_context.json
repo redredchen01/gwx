@@ -4,8 +4,8 @@
   "spec_mode": "quick",
   "work_type": "enhancement",
   "spec_folder": "dev/specs/2026-03-27_1_onboard-json-paste",
-  "status": "in_progress",
-  "current_stage": "S7",
+  "status": "completed",
+  "current_stage": "done",
   "execution_mode": "autopilot",
   "started_at": "2026-03-27T12:00:00+08:00",
   "last_updated": "2026-03-27T15:00:00+08:00",
@@ -338,6 +338,6 @@
       "issues": { "p0": 0, "p1_blocking": 0, "p2_recommended": 0 }
     },
     "s6": { "status": "completed", "test_result": "23/23 pass", "build_status": "pass" },
-    "s7": { "status": "in_progress" }
+    "s7": { "status": "completed", "commit": "9f2190b" }
   }
 }
