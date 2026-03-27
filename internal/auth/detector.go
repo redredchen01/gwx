@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/zalando/go-keyring"
 )
@@ -19,10 +20,10 @@ func SelectBackend() TokenStore {
 		case "file":
 			return mustFileStore()
 		case "keyring":
-			log.Printf("auth: using keyring backend")
+			backendLogf("auth: using keyring backend")
 			return &KeyringStore{}
 		default:
-			log.Printf("WARN: invalid GWX_CREDENTIAL_BACKEND=%q, using file", val)
+			backendLogf("WARN: invalid GWX_CREDENTIAL_BACKEND=%q, using file", val)
 			return mustFileStore()
 		}
 	}
@@ -32,7 +33,7 @@ func SelectBackend() TokenStore {
 	//    Any other error means keyring is broken / unavailable.
 	_, probeErr := keyring.Get("gwx-probe", "probe")
 	if probeErr == nil || errors.Is(probeErr, keyring.ErrNotFound) {
-		log.Printf("auth: using keyring backend")
+		backendLogf("auth: using keyring backend")
 		return &KeyringStore{}
 	}
 
@@ -48,7 +49,7 @@ func SelectBackend() TokenStore {
 	//    If it still fails, fall through to FileStore.
 	_, probeErr2 := keyring.Get("gwx-probe", "probe")
 	if probeErr2 == nil || errors.Is(probeErr2, keyring.ErrNotFound) {
-		log.Printf("auth: using keyring backend")
+		backendLogf("auth: using keyring backend")
 		return &KeyringStore{}
 	}
 
@@ -65,6 +66,16 @@ func mustFileStore() *FileStore {
 		// Panic is acceptable here — the system is fundamentally broken.
 		log.Panicf("auth: cannot create file store: %v", err)
 	}
-	log.Printf("auth: using file backend (%s)", fs.dir)
+	backendLogf("auth: using file backend (%s)", fs.dir)
 	return fs
+}
+
+func backendLogf(format string, args ...interface{}) {
+	if os.Getenv("GWX_AUTO_JSON") == "1" {
+		return
+	}
+	if strings.EqualFold(os.Getenv("GWX_QUIET_BACKEND_LOGS"), "1") || strings.EqualFold(os.Getenv("GWX_QUIET_BACKEND_LOGS"), "true") {
+		return
+	}
+	log.Printf(format, args...)
 }

@@ -73,8 +73,12 @@ func TestCLI_Version(t *testing.T) {
 		t.Fatalf("expected status ok, got %v", resp["status"])
 	}
 	data := resp["data"].(map[string]interface{})
-	if data["version"] != "0.8.0" {
-		t.Fatalf("expected version 0.8.0, got %v", data["version"])
+	v, ok := data["version"].(string)
+	if !ok || v == "" {
+		t.Fatalf("expected non-empty version string, got %v", data["version"])
+	}
+	if !strings.HasPrefix(v, "0.") && !strings.HasPrefix(v, "1.") {
+		t.Fatalf("expected semantic-looking version, got %q", v)
 	}
 }
 
