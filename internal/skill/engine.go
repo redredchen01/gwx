@@ -10,6 +10,14 @@ import (
 	"sync"
 )
 
+// SkillLoader is a function type that loads skills.
+// Deprecated: SkillLoader will be removed in v2.0.0. Use skill marketplace instead.
+type SkillLoader func() ([]*Skill, error)
+
+// MaxSkillDepth defines the maximum nesting depth for skill dependencies.
+// Deprecated: MaxSkillDepth will be removed in v2.0.0. Use skill marketplace constraints instead.
+const MaxSkillDepth = 5
+
 // ToolCaller abstracts MCP tool invocation so the engine does not depend on the
 // mcp package directly.
 type ToolCaller interface {
@@ -194,6 +202,13 @@ func (e *Engine) runSingleStep(ctx context.Context, step *Step, inputs map[strin
 
 	// Handle transform pseudo-tool.
 	var out interface{}
+	defer func() {
+		if r := recover(); r != nil {
+			report.Success = false
+			report.Error = fmt.Sprintf("tool call panicked: %v", r)
+		}
+	}()
+
 	if step.Tool == "transform" {
 		out, err = executeTransform(args)
 	} else {
@@ -531,4 +546,28 @@ func normaliseOutput(v interface{}) interface{} {
 		}
 		return m
 	}
+}
+
+// WithSkillLoader is a deprecated method that sets a custom skill loader.
+// Deprecated: WithSkillLoader will be removed in v2.0.0. Use skill marketplace instead.
+func (e *Engine) WithSkillLoader(loader SkillLoader) *Engine {
+	// This is a no-op for backward compatibility.
+	// The skill marketplace is the recommended way to load skills.
+	return e
+}
+
+// CachedLoadAll is a deprecated function that loads all skills with caching.
+// Deprecated: CachedLoadAll will be removed in v2.0.0. Use skill marketplace instead.
+func CachedLoadAll(loader SkillLoader) ([]*Skill, error) {
+	if loader == nil {
+		return nil, fmt.Errorf("skill loader is required")
+	}
+	return loader()
+}
+
+// InvalidateSkillCache is a deprecated function that invalidates the skill cache.
+// Deprecated: InvalidateSkillCache will be removed in v2.0.0. Use skill marketplace instead.
+func InvalidateSkillCache() error {
+	// This is a no-op for backward compatibility.
+	return nil
 }

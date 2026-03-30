@@ -148,7 +148,7 @@ func (s *Server) handleRequest(req *Request) {
 			},
 			ServerInfo: ServerInfo{
 				Name:    "gwx",
-				Version: "0.8.0",
+				Version: "1.0.0",
 			},
 		})
 

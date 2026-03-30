@@ -62,8 +62,8 @@ func TestHandleRequest_Initialize(t *testing.T) {
 	if result.ServerInfo.Name != "gwx" {
 		t.Errorf("expected server name gwx, got %s", result.ServerInfo.Name)
 	}
-	if result.ServerInfo.Version != "0.8.0" {
-		t.Errorf("expected version 0.8.0, got %s", result.ServerInfo.Version)
+	if result.ServerInfo.Version != "1.0.0" {
+		t.Errorf("expected version 1.0.0, got %s", result.ServerInfo.Version)
 	}
 }
 

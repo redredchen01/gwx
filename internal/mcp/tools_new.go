@@ -9,7 +9,7 @@ import (
 	"github.com/redredchen01/gwx/internal/api"
 )
 
-// NewTools returns the 18 additional tool definitions for gwx v0.8.0.
+// NewTools returns the 18 additional tool definitions for gwx v1.0.0.
 // Kept for backward-compat with tests.
 func NewTools() []Tool { return newProvider{}.Tools() }
 

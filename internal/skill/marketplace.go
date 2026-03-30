@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/redredchen01/gwx/internal/config"
 )
@@ -19,7 +20,12 @@ var gistPattern = regexp.MustCompile(`^https://gist\.github\.com/([^/]+)/([a-f0-
 func FetchSkill(url string) (*Skill, []byte, error) {
 	raw := resolveRawURL(url)
 
-	resp, err := http.Get(raw) //nolint:gosec
+	// Create HTTP client with 10-second timeout
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Get(raw) //nolint:gosec
 	if err != nil {
 		return nil, nil, fmt.Errorf("fetch skill from %s: %w", raw, err)
 	}
@@ -29,7 +35,8 @@ func FetchSkill(url string) (*Skill, []byte, error) {
 		return nil, nil, fmt.Errorf("fetch skill from %s: HTTP %d", raw, resp.StatusCode)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	// Limit response to 1MB
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
 	if err != nil {
 		return nil, nil, fmt.Errorf("read skill response from %s: %w", raw, err)
 	}
