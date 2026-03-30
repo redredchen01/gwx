@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"google.golang.org/api/chat/v1"
 )
@@ -49,6 +50,13 @@ type ChatMessageResult struct {
 
 // ListSpaces lists Chat spaces the user is a member of.
 func (cs *ChatService) ListSpaces(ctx context.Context, maxResults int) ([]SpaceSummary, error) {
+	if !cs.client.NoCache {
+		key := cacheKey("chat", "ListSpaces", maxResults)
+		if cached, ok := cs.client.cache.Get(key); ok {
+			return cached.([]SpaceSummary), nil
+		}
+	}
+
 	if err := cs.client.WaitRate(ctx, "chat"); err != nil {
 		return nil, err
 	}
@@ -76,6 +84,10 @@ func (cs *ChatService) ListSpaces(ctx context.Context, maxResults int) ([]SpaceS
 			Type:        s.Type,
 			Threaded:    s.Threaded,
 		})
+	}
+	if !cs.client.NoCache {
+		key := cacheKey("chat", "ListSpaces", maxResults)
+		cs.client.cache.Set(key, spaces, 5*time.Minute)
 	}
 	return spaces, nil
 }

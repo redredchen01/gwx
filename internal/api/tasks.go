@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"time"
 
 	tasks "google.golang.org/api/tasks/v1"
 )
@@ -75,6 +76,13 @@ func (ts *TasksService) ListTaskLists(ctx context.Context) ([]TaskListInfo, erro
 
 // ListTasks lists tasks in a task list.
 func (ts *TasksService) ListTasks(ctx context.Context, taskListID string, showCompleted bool) ([]TaskItem, error) {
+	if !ts.client.NoCache {
+		key := cacheKey("tasks", "ListTasks", taskListID, showCompleted)
+		if cached, ok := ts.client.cache.Get(key); ok {
+			return cached.([]TaskItem), nil
+		}
+	}
+
 	if err := ts.client.WaitRate(ctx, "tasks"); err != nil {
 		return nil, err
 	}
@@ -98,6 +106,10 @@ func (ts *TasksService) ListTasks(ctx context.Context, taskListID string, showCo
 	var items []TaskItem
 	for _, t := range resp.Items {
 		items = append(items, taskToItem(t))
+	}
+	if !ts.client.NoCache {
+		key := cacheKey("tasks", "ListTasks", taskListID, showCompleted)
+		ts.client.cache.Set(key, items, 5*time.Minute)
 	}
 	return items, nil
 }

@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -208,9 +208,9 @@ func ensurePermissions(path string) {
 		return
 	}
 	if perm := info.Mode().Perm(); perm != 0600 {
-		log.Printf("warning: %s has insecure permissions %04o, fixing to 0600", path, perm)
+		slog.Warn("insecure permissions, fixing to 0600", "path", path, "permissions", fmt.Sprintf("%04o", perm))
 		if err := os.Chmod(path, 0600); err != nil {
-			log.Printf("warning: failed to chmod %s: %v", path, err)
+			slog.Warn("failed to chmod", "path", path, "err", err)
 		}
 	}
 }
