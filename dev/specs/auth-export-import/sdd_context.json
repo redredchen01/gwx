@@ -1,0 +1,43 @@
+{
+  "version": "3.0.0",
+  "feature": "auth-export-import",
+  "spec_mode": "quick",
+  "work_type": "new_feature",
+  "status": "in_progress",
+  "current_stage": "s1",
+  "stages": {
+    "s0": {
+      "status": "completed",
+      "output": {
+        "work_type": "new_feature",
+        "requirement": "Add gwx auth export and gwx auth import commands for VPS token transfer",
+        "goal": "Allow users to complete OAuth on desktop, export token, and import on VPS without browser",
+        "pain_points": [
+          "VPS users must repeat OAuth browser flow on every new machine",
+          "Remote auth still requires browser access somewhere"
+        ],
+        "success_criteria": [
+          "gwx auth export outputs oauth2.Token as JSON to stdout",
+          "gwx auth import accepts token via --json flag, stdin pipe, or interactive paste",
+          "Imported token works immediately for all gwx commands",
+          "Multi-account support via -a flag"
+        ],
+        "scope_in": [
+          "auth export command (token-only, plaintext JSON)",
+          "auth import command (--json / stdin / interactive)",
+          "Silent overwrite on conflict",
+          "Multi-account via -a flag"
+        ],
+        "scope_out": [
+          "Bundle mode (token + credentials)",
+          "Encryption option",
+          "Service account support"
+        ],
+        "constraints": [
+          "Must align with existing onboard input patterns",
+          "Must work with both KeyringStore and FileStore backends"
+        ]
+      }
+    }
+  }
+}

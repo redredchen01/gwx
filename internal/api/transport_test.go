@@ -284,8 +284,8 @@ func TestNewBaseTransport_ConfiguresTimeoutsAndPooling(t *testing.T) {
 	if transport.ExpectContinueTimeout != defaultExpectContinue {
 		t.Fatalf("ExpectContinueTimeout = %v, want %v", transport.ExpectContinueTimeout, defaultExpectContinue)
 	}
-	if transport.MaxIdleConns != 100 {
-		t.Fatalf("MaxIdleConns = %d, want 100", transport.MaxIdleConns)
+	if transport.MaxIdleConns != 200 {
+		t.Fatalf("MaxIdleConns = %d, want 200", transport.MaxIdleConns)
 	}
 	if transport.MaxIdleConnsPerHost != 20 {
 		t.Fatalf("MaxIdleConnsPerHost = %d, want 20", transport.MaxIdleConnsPerHost)

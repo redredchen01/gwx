@@ -31,7 +31,8 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''✓'''' if d.get\\(''''data'''',{}\\).get\\(''''valid''''\\) else ''''✗''''\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f\"\"{d[''''data''''][''''count'''']} skills loaded\"\"\\)\")",
       "Bash(go test:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Skill(s0-prepare)"
     ],
     "deny": []
   },

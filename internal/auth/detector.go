@@ -2,7 +2,7 @@ package auth
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -64,7 +64,8 @@ func mustFileStore() *FileStore {
 	if err != nil {
 		// This should not happen: os.UserConfigDir() failed on a supported OS.
 		// Panic is acceptable here — the system is fundamentally broken.
-		log.Panicf("auth: cannot create file store: %v", err)
+		slog.Error("auth: cannot create file store", "error", err)
+		panic(err)
 	}
 	backendLogf("auth: using file backend (%s)", fs.dir)
 	return fs
