@@ -78,5 +78,5 @@ func backendLogf(format string, args ...interface{}) {
 	if strings.EqualFold(os.Getenv("GWX_QUIET_BACKEND_LOGS"), "1") || strings.EqualFold(os.Getenv("GWX_QUIET_BACKEND_LOGS"), "true") {
 		return
 	}
-	log.Printf(format, args...)
+	slog.Debug(format, "args", args)
 }
