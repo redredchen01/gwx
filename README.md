@@ -39,6 +39,23 @@ gwx find "topic"               # → unified search (Gmail + Drive)
 gwx context "project"          # → gather context (Gmail + Drive + Calendar)
 ```
 
+## Quick Reference
+
+Top 10 commands to get started:
+
+| Command | Description |
+|---------|-------------|
+| `gwx gmail list` | List recent emails |
+| `gwx gmail search QUERY` | Search messages by query |
+| `gwx calendar agenda` | Show upcoming events |
+| `gwx drive list` | List files in Drive |
+| `gwx sheets read SHEET_ID` | Read spreadsheet data |
+| `gwx docs get DOC_ID` | Get document content |
+| `gwx tasks list` | List tasks |
+| `gwx onboard` | Interactive setup wizard |
+| `gwx find TOPIC` | Unified search (Gmail + Drive + Contacts) |
+| `gwx context TOPIC` | Gather context across services |
+
 ## Commands (101)
 
 | Service | Commands |
