@@ -555,19 +555,3 @@ func (e *Engine) WithSkillLoader(loader SkillLoader) *Engine {
 	// The skill marketplace is the recommended way to load skills.
 	return e
 }
-
-// CachedLoadAll is a deprecated function that loads all skills with caching.
-// Deprecated: CachedLoadAll will be removed in v2.0.0. Use skill marketplace instead.
-func CachedLoadAll(loader SkillLoader) ([]*Skill, error) {
-	if loader == nil {
-		return nil, fmt.Errorf("skill loader is required")
-	}
-	return loader()
-}
-
-// InvalidateSkillCache is a deprecated function that invalidates the skill cache.
-// Deprecated: InvalidateSkillCache will be removed in v2.0.0. Use skill marketplace instead.
-func InvalidateSkillCache() error {
-	// This is a no-op for backward compatibility.
-	return nil
-}
