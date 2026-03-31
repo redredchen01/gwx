@@ -62,11 +62,6 @@ func validate(s *Skill) error {
 			return fmt.Errorf("skill %q step %q: 'each' value must be a template expression (e.g. \"{{.steps.id}}\")", s.Name, s.Steps[i].ID)
 		}
 
-		// Validate: if expression must look like a template.
-		if st.If != "" && !strings.Contains(st.If, "{{") {
-			return fmt.Errorf("skill %q step %q: 'if' value must be a template expression (e.g. \"{{.steps.id.count}}\")", s.Name, s.Steps[i].ID)
-		}
-
 		// Validate: transform tool requires input arg.
 		if st.Tool == "transform" && st.Args["input"] == "" {
 			return fmt.Errorf("skill %q step %q: transform tool requires 'input' in args", s.Name, s.Steps[i].ID)

@@ -1,0 +1,24 @@
+name: task-report
+version: "1.0"
+description: "Productivity report — lists all task lists and their tasks, including completed items."
+
+inputs:
+  - name: show-completed
+    type: bool
+    required: false
+    default: "true"
+    description: "Include completed tasks in the report"
+
+steps:
+  - id: lists
+    tool: tasks_lists
+    args: {}
+    store: lists
+
+  - id: tasks
+    tool: tasks_list
+    args:
+      show_completed: "{{.input.show-completed}}"
+    store: tasks
+
+output: "{{.steps.tasks}}"

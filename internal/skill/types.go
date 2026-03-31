@@ -29,7 +29,6 @@ type Step struct {
 	OnFail   string            `yaml:"on_fail"` // skip, abort (default: abort)
 	Parallel bool              `yaml:"parallel"` // run concurrently with adjacent parallel steps
 	Each     string            `yaml:"each"`     // iterate over list expression, e.g. "{{.steps.contacts}}"
-	If       string            `yaml:"if"`       // conditional: skip step when expression evaluates to falsy
 }
 
 // StepResult holds the output of a single executed step.

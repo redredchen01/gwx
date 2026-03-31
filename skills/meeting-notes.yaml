@@ -1,0 +1,27 @@
+name: meeting-notes
+version: "1.0"
+description: "會議筆記生成 — 查今日會議，為每個會議建立 Google Doc 筆記範本"
+
+inputs:
+  - name: days
+    type: int
+    required: false
+    default: "1"
+    description: "查詢未來幾天的會議"
+
+steps:
+  - id: meetings
+    tool: calendar_agenda
+    args:
+      days: "{{.input.days}}"
+    store: meetings
+
+  - id: create-doc
+    tool: docs_create
+    args:
+      title: "Meeting Notes — {{.input.days}}d lookahead"
+      body: "{{.steps.meetings}}"
+    store: create-doc
+    on_fail: skip
+
+output: "{{.steps.meetings}}"

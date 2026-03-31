@@ -1,48 +1,81 @@
 # gwx Skills
 
-19 curated YAML skills. Each composes 2+ MCP tools into a reusable workflow.
+Skills are YAML pipelines that chain gwx commands into reusable workflows.
 
-**Principle**: Single-tool wrappers belong in CLI, not skills. A skill must combine multiple tools.
+## Structure
 
-## Google Workspace (9)
+```yaml
+name: my-skill
+version: "1.0"
+description: What the skill does
 
-| Skill | Steps | What it does |
-|-------|-------|-------------|
-| `google-morning-brief` | 3 | Unread emails + today's calendar + pending tasks |
-| `google-invoice-log` | 2 | Search Gmail for invoices → append to Sheets |
-| `google-meeting-notes` | 2 | Today's meetings → create Google Doc |
-| `google-doc-from-sheet` | 2 | Read spreadsheet → generate Google Doc |
-| `google-contact-export` | 2 | List contacts → append to Sheets |
-| `google-bq-to-sheet` | 2 | BigQuery SQL → save to Sheets |
-| `google-seo-daily` | 3 | Search Console + GA4 → save to Sheets |
-| `google-task-report` | 2 | List task lists + fetch tasks |
-| `cross-daily-report` | 2 | Chains morning-brief + seo-daily (sub-skill) |
+inputs:
+  - name: query
+    type: string
+    required: true
+    description: Search term
 
-## GitHub Integration (3)
+steps:
+  - id: search
+    tool: gmail.search
+    args:
+      query: "{{.query}}"
+    store: results
 
-| Skill | Steps | What it does |
-|-------|-------|-------------|
-| `github-issue-to-sheet` | 3 | Issues → transform → Google Sheets |
-| `github-pr-to-slack` | 3 | Open PRs → transform → Slack notification |
-| `github-ci-alert` | 3 | CI runs → conditional Slack + Gmail alert |
+  - id: summarize
+    tool: gmail.read
+    args:
+      id: "{{.results.messages.0.id}}"
+    on_fail: skip
 
-## Cross-Provider (7)
+output: "{{.results}}"
 
-| Skill | Steps | What it does |
-|-------|-------|-------------|
-| `cross-client-360` | 3 | Gmail + Drive + Contacts parallel search |
-| `cross-github-standup` | 3 | GitHub PRs + Gmail + Calendar parallel standup |
-| `cross-full-context` | 5 | Gmail + Drive + Slack + Notion + GitHub parallel search |
-| `cross-weekly-sync` | 4 | GA4 + GitHub + Gmail + Calendar weekly digest |
-| `cross-onboard-checklist` | 5 | Drive + Docs + Calendar + Slack + Gmail onboarding |
-| `cross-form-to-slack` | 3 | Forms responses → transform → Slack |
-| `cross-notion-to-sheet` | 2 | Notion DB → Google Sheets sync |
+meta:
+  author: your-name
+  tags: gmail,search
+```
 
-## Quick Start
+## Installing Skills
 
 ```bash
-gwx skill list                         # List all
-gwx skill run google-morning-brief     # Run
-gwx skill test google-morning-brief    # Test with mock data
-gwx skill create my-skill              # Scaffold
+# From a local file
+gwx skill install ./my-skill.yaml
+
+# From a URL
+gwx skill install https://raw.githubusercontent.com/user/repo/main/skills/foo.yaml
+
+# From a GitHub Gist
+gwx skill install https://gist.github.com/user/abc123
 ```
+
+## Managing Skills
+
+```bash
+# List all installed skills
+gwx skill list
+
+# Inspect a skill
+gwx skill inspect my-skill
+
+# Validate before sharing
+gwx skill validate ./my-skill.yaml
+
+# Remove a skill
+gwx skill remove my-skill
+```
+
+## Skill Locations
+
+- **User skills**: `~/.config/gwx/skills/` (installed via `gwx skill install`)
+- **Project skills**: `./skills/` in your project root (committed to git)
+
+Project skills override user skills with the same name.
+
+## Sharing Skills
+
+1. Write a YAML file following the structure above.
+2. Validate it: `gwx skill validate my-skill.yaml`
+3. Share via:
+   - Git repository (link to the raw YAML)
+   - GitHub Gist
+   - Direct file transfer

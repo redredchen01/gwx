@@ -10,8 +10,12 @@ import (
 	"sync"
 )
 
-// MaxSkillDepth is the maximum recursion depth for skill composition (skill
-// steps that invoke other skills via the "skill:<name>" tool syntax).
+// SkillLoader is a function type that loads skills.
+// Deprecated: SkillLoader will be removed in v2.0.0. Use skill marketplace instead.
+type SkillLoader func() ([]*Skill, error)
+
+// MaxSkillDepth defines the maximum nesting depth for skill dependencies.
+// Deprecated: MaxSkillDepth will be removed in v2.0.0. Use skill marketplace constraints instead.
 const MaxSkillDepth = 5
 
 // ToolCaller abstracts MCP tool invocation so the engine does not depend on the
@@ -20,31 +24,14 @@ type ToolCaller interface {
 	CallTool(ctx context.Context, name string, args map[string]interface{}) (interface{}, error)
 }
 
-// SkillLoader is a function that loads all available skills. It is used by the
-// engine to resolve "skill:<name>" references without creating circular imports.
-type SkillLoader func() ([]*Skill, error)
-
 // Engine executes parsed skills against a ToolCaller.
 type Engine struct {
-	caller      ToolCaller
-	depth       int
-	skillLoader SkillLoader
+	caller ToolCaller
 }
-
-// MaxParallelSteps limits concurrent goroutines in a parallel batch to avoid
-// overwhelming API rate limits.
-const MaxParallelSteps = 5
 
 // NewEngine creates an engine that delegates tool calls to caller.
 func NewEngine(caller ToolCaller) *Engine {
-	return &Engine{caller: caller, depth: 0, skillLoader: CachedLoadAll}
-}
-
-// WithSkillLoader returns the engine configured with a custom skill loader.
-// This is mainly useful for testing.
-func (e *Engine) WithSkillLoader(loader SkillLoader) *Engine {
-	e.skillLoader = loader
-	return e
+	return &Engine{caller: caller}
 }
 
 // Run executes a skill with the given input values and returns a structured result.
@@ -144,22 +131,9 @@ func (e *Engine) runParallelBatch(ctx context.Context, batch []Step, inputs map[
 	var wg sync.WaitGroup
 	wg.Add(len(batch))
 
-	// Semaphore limits concurrent goroutines to avoid overwhelming API rate limits.
-	sem := make(chan struct{}, MaxParallelSteps)
-
 	for idx := range batch {
 		go func(i int) {
 			defer wg.Done()
-			select {
-			case sem <- struct{}{}: // acquire
-				defer func() { <-sem }() // release
-			case <-ctx.Done():
-				results[i] = parallelResult{
-					reports: []StepReport{{ID: batch[i].ID, Success: false, Error: ctx.Err().Error()}},
-					aborted: true,
-				}
-				return
-			}
 			step := batch[i]
 			// Each parallel step uses the snapshot for reads and writes to a
 			// local store to avoid races.
@@ -179,13 +153,6 @@ func (e *Engine) runParallelBatch(ctx context.Context, batch []Step, inputs map[
 	// Merge in index order.
 	var allReports []StepReport
 	aborted := false
-
-	// Build lookup map to avoid O(n²) search
-	batchByID := make(map[string]Step, len(batch))
-	for _, s := range batch {
-		batchByID[s.ID] = s
-	}
-
 	for _, pr := range results {
 		allReports = append(allReports, pr.reports...)
 		if pr.aborted {
@@ -194,12 +161,16 @@ func (e *Engine) runParallelBatch(ctx context.Context, batch []Step, inputs map[
 		// Merge results back into the main store from the reports.
 		for _, r := range pr.reports {
 			if r.Success {
-				if s, ok := batchByID[r.ID]; ok {
-					key := s.Store
-					if key == "" {
-						key = s.ID
+				// Find the step to get the store key.
+				for _, s := range batch {
+					if s.ID == r.ID {
+						key := s.Store
+						if key == "" {
+							key = s.ID
+						}
+						store[key] = r.Output
+						break
 					}
-					store[key] = r.Output
 				}
 			}
 		}
@@ -212,28 +183,6 @@ func (e *Engine) runParallelBatch(ctx context.Context, batch []Step, inputs map[
 // provide the .item namespace.
 // Returns (reports, aborted).
 func (e *Engine) runSingleStep(ctx context.Context, step *Step, inputs map[string]string, store map[string]interface{}, itemCtx map[string]interface{}) ([]StepReport, bool) {
-	// Evaluate conditional: if the `if` field is set, render and check truthiness.
-	if step.If != "" {
-		condVal, err := renderValueWithItem(step.If, inputs, store, itemCtx)
-		if err != nil {
-			// Render error → treat as falsy, skip the step.
-			return []StepReport{{
-				ID:      step.ID,
-				Tool:    step.Tool,
-				Success: true,
-				Output:  map[string]interface{}{"skipped": true, "reason": "if condition render error: " + err.Error()},
-			}}, false
-		}
-		if !isTruthy(condVal) {
-			return []StepReport{{
-				ID:      step.ID,
-				Tool:    step.Tool,
-				Success: true,
-				Output:  map[string]interface{}{"skipped": true, "reason": "if condition evaluated to false"},
-			}}, false
-		}
-	}
-
 	// Handle Each loop: resolve the each expression to a list and iterate.
 	if step.Each != "" {
 		return e.runEachStep(ctx, step, inputs, store)
@@ -251,12 +200,17 @@ func (e *Engine) runSingleStep(ctx context.Context, step *Step, inputs map[strin
 		return []StepReport{report}, true
 	}
 
-	// Dispatch: transform pseudo-tool, skill composition, or MCP tool call.
+	// Handle transform pseudo-tool.
 	var out interface{}
+	defer func() {
+		if r := recover(); r != nil {
+			report.Success = false
+			report.Error = fmt.Sprintf("tool call panicked: %v", r)
+		}
+	}()
+
 	if step.Tool == "transform" {
 		out, err = executeTransform(args)
-	} else if strings.HasPrefix(step.Tool, "skill:") {
-		out, err = e.callSubSkill(ctx, step.Tool, args)
 	} else {
 		out, err = e.caller.CallTool(ctx, step.Tool, args)
 	}
@@ -313,12 +267,6 @@ func (e *Engine) runEachStep(ctx context.Context, step *Step, inputs map[string]
 
 	var results []interface{}
 	for _, item := range items {
-		if err := ctx.Err(); err != nil {
-			report.Success = false
-			report.Error = err.Error()
-			return []StepReport{report}, true
-		}
-
 		itemMap := toMap(item)
 
 		// Create a step copy without Each to avoid infinite recursion.
@@ -567,92 +515,6 @@ func toInt(v interface{}) (int, error) {
 	}
 }
 
-// callSubSkill resolves a "skill:<name>" tool reference, loads the target
-// skill, and runs it as a sub-engine with incremented recursion depth.
-func (e *Engine) callSubSkill(ctx context.Context, tool string, args map[string]interface{}) (interface{}, error) {
-	skillName := strings.TrimPrefix(tool, "skill:")
-	if skillName == "" {
-		return nil, fmt.Errorf("skill: empty skill name in tool reference %q", tool)
-	}
-
-	if e.depth+1 > MaxSkillDepth {
-		return nil, fmt.Errorf("skill composition depth limit (%d) exceeded when calling %q — possible infinite recursion", MaxSkillDepth, skillName)
-	}
-
-	loader := e.skillLoader
-	if loader == nil {
-		loader = LoadAll
-	}
-
-	skills, err := loader()
-	if err != nil {
-		return nil, fmt.Errorf("load skills for composition: %w", err)
-	}
-
-	var target *Skill
-	for _, s := range skills {
-		if s.Name == skillName {
-			target = s
-			break
-		}
-	}
-	if target == nil {
-		return nil, fmt.Errorf("skill %q not found (referenced by skill:%s)", skillName, skillName)
-	}
-
-	subEngine := &Engine{
-		caller:      e.caller,
-		depth:       e.depth + 1,
-		skillLoader: e.skillLoader,
-	}
-
-	subInputs := argsToInputs(args)
-	result, err := subEngine.Run(ctx, target, subInputs)
-	if err != nil {
-		return nil, fmt.Errorf("sub-skill %q: %w", skillName, err)
-	}
-	if !result.Success {
-		return nil, fmt.Errorf("sub-skill %q failed: %s", skillName, result.Error)
-	}
-	return result.Output, nil
-}
-
-// argsToInputs converts map[string]interface{} (tool call args) to
-// map[string]string (skill inputs).
-func argsToInputs(args map[string]interface{}) map[string]string {
-	inputs := make(map[string]string, len(args))
-	for k, v := range args {
-		inputs[k] = fmt.Sprintf("%v", v)
-	}
-	return inputs
-}
-
-// isTruthy evaluates whether a value is considered truthy for conditional step
-// execution. Falsy values: nil, empty string, "false", "0", float64(0), bool false,
-// empty slice, empty map. Everything else is truthy.
-func isTruthy(v interface{}) bool {
-	if v == nil {
-		return false
-	}
-	switch val := v.(type) {
-	case bool:
-		return val
-	case string:
-		return val != "" && val != "false" && val != "0"
-	case float64:
-		return val != 0
-	case int:
-		return val != 0
-	case []interface{}:
-		return len(val) > 0
-	case map[string]interface{}:
-		return len(val) > 0
-	default:
-		// For any other type, consider it truthy if non-nil (already checked above).
-		return true
-	}
-}
-
 // normaliseOutput tries to unwrap the output into a map for template drilling.
 // If the output is a JSON string, it is parsed. Otherwise it's left as-is.
 func normaliseOutput(v interface{}) interface{} {
@@ -684,4 +546,28 @@ func normaliseOutput(v interface{}) interface{} {
 		}
 		return m
 	}
+}
+
+// WithSkillLoader is a deprecated method that sets a custom skill loader.
+// Deprecated: WithSkillLoader will be removed in v2.0.0. Use skill marketplace instead.
+func (e *Engine) WithSkillLoader(loader SkillLoader) *Engine {
+	// This is a no-op for backward compatibility.
+	// The skill marketplace is the recommended way to load skills.
+	return e
+}
+
+// CachedLoadAll is a deprecated function that loads all skills with caching.
+// Deprecated: CachedLoadAll will be removed in v2.0.0. Use skill marketplace instead.
+func CachedLoadAll(loader SkillLoader) ([]*Skill, error) {
+	if loader == nil {
+		return nil, fmt.Errorf("skill loader is required")
+	}
+	return loader()
+}
+
+// InvalidateSkillCache is a deprecated function that invalidates the skill cache.
+// Deprecated: InvalidateSkillCache will be removed in v2.0.0. Use skill marketplace instead.
+func InvalidateSkillCache() error {
+	// This is a no-op for backward compatibility.
+	return nil
 }

@@ -409,8 +409,8 @@ func TestMCPProtocol_Initialize(t *testing.T) {
 	if result.ServerInfo.Name != "gwx" {
 		t.Errorf("expected server name gwx, got %s", result.ServerInfo.Name)
 	}
-	if result.ServerInfo.Version != "0.25.0" {
-		t.Errorf("expected version 0.25.0, got %s", result.ServerInfo.Version)
+	if result.ServerInfo.Version != "0.8.0" {
+		t.Errorf("expected version 0.8.0, got %s", result.ServerInfo.Version)
 	}
 	if result.Capabilities.Tools == nil {
 		t.Error("expected tools capability to be present")

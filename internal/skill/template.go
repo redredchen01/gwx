@@ -49,36 +49,33 @@ func renderValueWithItem(tmpl string, inputs map[string]string, store map[string
 		return val, nil
 	}
 
-	// Mixed template: interpolate all {{...}} as strings using a builder
-	// to avoid O(n^2) string concatenation.
-	var b strings.Builder
-	b.Grow(len(tmpl))
-	pos := 0
+	// Mixed template: interpolate all {{...}} as strings.
+	result := tmpl
 	for {
-		start := strings.Index(tmpl[pos:], "{{")
+		start := strings.Index(result, "{{")
 		if start == -1 {
-			b.WriteString(tmpl[pos:])
 			break
 		}
-		start += pos
-		b.WriteString(tmpl[pos:start])
-		end := strings.Index(tmpl[start:], "}}")
+		end := strings.Index(result[start:], "}}")
 		if end == -1 {
 			return nil, fmt.Errorf("unclosed template expression in %q", tmpl)
 		}
 		end += start + 2
-		expr := strings.TrimSpace(tmpl[start+2 : end-2])
+		expr := strings.TrimSpace(result[start+2 : end-2])
 		val, err := resolveExprWithItem(expr, inputs, store, itemCtx)
 		if err != nil {
 			return nil, err
 		}
-		fmt.Fprintf(&b, "%v", val)
-		pos = end
+		result = result[:start] + fmt.Sprintf("%v", val) + result[end:]
 	}
-	return b.String(), nil
+	return result, nil
 }
 
-// resolveExprWithItem resolves a template expression with optional .item namespace.
+func resolveExpr(expr string, inputs map[string]string, store map[string]interface{}) (interface{}, error) {
+	return resolveExprWithItem(expr, inputs, store, nil)
+}
+
+// resolveExprWithItem extends resolveExpr with optional .item namespace.
 func resolveExprWithItem(expr string, inputs map[string]string, store map[string]interface{}, itemCtx map[string]interface{}) (interface{}, error) {
 	// Strip leading dot: ".input.name" → "input.name"
 	expr = strings.TrimPrefix(expr, ".")

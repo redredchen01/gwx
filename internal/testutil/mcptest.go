@@ -78,7 +78,7 @@ func NewMCPClient(handler mcp.Handler) *MCPClient {
 					},
 					ServerInfo: mcp.ServerInfo{
 						Name:    "gwx",
-						Version: "0.25.0",
+						Version: "0.8.0",
 					},
 				}
 

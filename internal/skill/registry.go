@@ -23,10 +23,9 @@ func init() {
 }
 
 // Reload discovers skills from disk and refreshes the provider's skill list.
-// Safe for concurrent use. Uses the skill cache to avoid redundant disk reads.
+// Safe for concurrent use.
 func Reload() error {
-	InvalidateSkillCache()
-	skills, err := CachedLoadAll()
+	skills, err := LoadAll()
 	if err != nil {
 		return err
 	}

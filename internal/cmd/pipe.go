@@ -12,7 +12,7 @@ import (
 
 // PipeCmd chains gwx commands using JSON stdin/stdout piping.
 type PipeCmd struct {
-	Pipeline string `arg:"" help:"Pipeline expression: 'cmd1 | cmd2 | cmd3' (e.g. 'gmail search invoice | sheets append SHEET_ID A:C')"`
+	Pipeline string `arg:"" help:"Chain gwx commands via JSON pipeline"`
 }
 
 func (c *PipeCmd) Run(rctx *RunContext) error {
